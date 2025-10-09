@@ -9,6 +9,8 @@ local init_func_temp = [=[
 	package.path = [[${lua_path}]]
 	package.cpath = [[${lua_cpath}]]
 	_G.print_r = load(embedsource.runtime.print_r(), "@src/lualib/print_r.lua")()
+	local packageloader = load(embedsource.runtime.packageloader(), "@src/lualib/packageloader.lua")
+	packageloader()
 	local function embedloader(name)
 		local ename
 		if name == "soluna" then
@@ -20,8 +22,9 @@ local init_func_temp = [=[
 			local code = embedsource.lib[ename]
 			if code then
 				return function()
-					local f = load(code(), "@src/lualib/"..ename..".lua")
-					return f()
+					local srcname = "src/lualib/"..ename..".lua"
+					local f = load(code(), "@" .. srcname)
+					return f(ename, srcname)
 				end
 			end
 			return "no embed soluna." .. ename
@@ -178,6 +181,8 @@ end
 function api.init(desc)
 	-- todo : settings
 	local embedsource = require "soluna.embedsource"
+	local packageloader = load(embedsource.runtime.packageloader(), "@src/lualib/packageloader.lua")
+	packageloader()
 	local initsetting = load(embedsource.lib.initsetting, "@3rd/ltask/lualib/initsetting.lua")()
 	local settings = initsetting.init(args)
 	local soluna_app = require "soluna.app"

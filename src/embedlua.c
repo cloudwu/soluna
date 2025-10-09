@@ -20,6 +20,7 @@
 #include "text.lua.h"
 #include "util.lua.h"
 #include "coroutine.lua.h"
+#include "packageloader.lua.h"
 
 #include "lua.h"
 #include "lauxlib.h"
@@ -60,6 +61,7 @@ luaopen_embedsource(lua_State *L) {
 			REG_SOURCE(main)
 			REG_SOURCE(print_r)
 			REG_SOURCE(fontmgr)
+			REG_SOURCE(packageloader)
 		lua_setfield(L, -2, "runtime");
 
 		lua_newtable(L);	// runtime
