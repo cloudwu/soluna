@@ -37,28 +37,31 @@ function soluna.set_window_title(text)
 	mqueue.send(app.mqueue(), ltask.pack("set_title", text))
 end
 
+local function recursion_mkdir(root, path)
+	local lfs = require "soluna.lfs"
+	for p in path:gmatch "[^/\\]+" do
+		root = root .. "/" .. p
+		lfs.mkdir(root)
+	end
+	return (root:gsub("[^/\\]$", "%0/"))
+end
+
 function soluna.gamedir(name)
 	if name == nil then
 		settings = settings and soluna.settings()
 		name = settings.project or error "missing project name in settings"
 	end
+	local lfs = require "soluna.lfs"
+	local path
 	if soluna.platform == "windows" then
-		local lfs = require "soluna.lfs"
-		local dir = lfs.personaldir() .. "\\My Games"
-		lfs.mkdir(dir)
-		dir = dir .. "\\" .. name
-		lfs.mkdir(dir)
-		return dir .. "\\"
+		path = "My Games/"
 	elseif soluna.platform == "macos" or soluna.platform == "linux" then
-    local lfs = require "soluna.lfs"
-		local dir = lfs.personaldir() .. "/.local/share"
-		lfs.mkdir(dir)
-		dir = dir .. "/" .. name
-		lfs.mkdir(dir)
-		return dir .. "/"
+		path = ".local/share/"
 	else
 		error "TODO: support none windows"
 	end
+	path = path .. name
+	return recursion_mkdir(lfs.personaldir() , path)
 end
 
 function soluna.load_sprites(filename)
