@@ -6,8 +6,14 @@ global load, require, assert, select, error, tostring, print
 local init_func_temp = [=[
 	local name, service_path = ...
 	local embedsource = require "soluna.embedsource"
+	local file = require "soluna.file"
 	package.path = [[${lua_path}]]
 	package.cpath = [[${lua_cpath}]]
+	local zipfile = [[${zipfile}]]
+	if zipfile ~= "" then
+		local zip = require "soluna.zip"
+		zip.zipfile = zip.open(zipfile, "r")
+	end
 	_G.print_r = load(embedsource.runtime.print_r(), "@src/lualib/print_r.lua")()
 	local packageloader = load(embedsource.runtime.packageloader(), "@src/lualib/packageloader.lua")
 	packageloader()
@@ -35,11 +41,11 @@ local init_func_temp = [=[
 	if embedcode then
 		return load(embedcode(),"=("..name..")")
 	end
-	local filename, err = package.searchpath(name, service_path or "${service_path}")
+	local filename, err = file.searchpath(name, service_path or "${service_path}")
 	if not filename then
 		return nil, err
 	end
-	return loadfile(filename)
+	return load(file.load(filename), "@"..filename)
 ]=]
 
 local function start(config)
@@ -57,6 +63,7 @@ local function start(config)
 			lua_path = package.path,
 			lua_cpath = package.cpath,
 			service_path = config.service_path or "",
+			zipfile = config.args.zipfile or "",
 		}),
 	}
 	
@@ -180,6 +187,15 @@ end
 
 function api.init(desc)
 	-- todo : settings
+	local zipfile = args[1] or args.zipfile or "main.zip"
+	local zip = require "soluna.zip"
+	local f = zip.open(zipfile, "r")
+	if f then
+		zip.zipfile = f
+		args.zipfile = zipfile
+	else
+		args.zipfile = nil
+	end
 	local embedsource = require "soluna.embedsource"
 	local packageloader = load(embedsource.runtime.packageloader(), "@src/lualib/packageloader.lua")
 	packageloader()

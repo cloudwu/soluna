@@ -42,8 +42,6 @@ lcompress(lua_State *L) {
 	// 2...n : (1<<n)x size
 	buf[0] = idx;
 	lua_pushexternalstring(L, buf, len+1, external_free, NULL);
-//	lua_pushlstring(L, buf, len + 1);
-//	free(buf);
 	return 1;
 }
 
@@ -59,8 +57,6 @@ luncompress(lua_State *L) {
 	int r = uncompress(buf, &dsz, (void *)(src + 1), sz - 1);
 	if (r == Z_OK) {
 		lua_pushexternalstring(L, buf, dsz, external_free, NULL);
-//		lua_pushlstring(L, buf, dsz);
-//		free(buf);
 		return 1;
 	}
 	free(buf);
@@ -444,8 +440,6 @@ zipread_readfile(lua_State *L) {
 	}
 	
 	lua_pushexternalstring(L, buf, bytes, external_free, NULL);
-//	lua_pushlstring(L, buf, bytes);
-//	free(buf);
 	close_file(L, zf);
 	return 1;
 }
@@ -525,8 +519,6 @@ zipread_read(lua_State *L) {
 		luaL_error(L, "Error: read file");
 	}
 	lua_pushexternalstring(L, buf, bytes, external_free, NULL);
-//	lua_pushlstring(L, (const char *)buf, bytes);
-//	free(buf);
 	return 1;
 }
 

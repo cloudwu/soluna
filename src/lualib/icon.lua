@@ -3,7 +3,7 @@ local datalist = require "soluna.datalist"
 local file = require "soluna.file"
 local mattext = require "soluna.material.text"
 
-global error, tostring
+global error, tostring, print
 
 local icon = {}
 
@@ -16,7 +16,7 @@ function icon.bundle(filename)
 	for i = 1, n do
 		local icon = b[i]
 		names[icon.name] = i - 1
-		local src = file.load(path .. "/" .. icon.image) or error "Open icon fail : " .. tostring(icon.name)
+		local src = file.load(path .. icon.image) or error ("Open icon fail : " .. tostring(icon.name))
 		local img = sdf.load(src)
 		icons[i] = img
 	end
