@@ -128,7 +128,7 @@ do
 	function layout.load(filename_or_list, scripts)
 		local list
 		if type(filename_or_list) == "string" then
-			list = datalist.parse_list(file.loader(filename_or_list))
+			list = datalist.parse_list(file.load(filename_or_list))
 		else
 			list = filename_or_list
 		end

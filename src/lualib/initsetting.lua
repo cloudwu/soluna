@@ -59,8 +59,7 @@ function S.init(args)
 	local default_settings = datalist.parse(source.data.settingdefault)
 	local realname = settings_filename(args[1])
 	if realname then
-		local loader = file.loader(realname)
-		local game_settings = datalist.parse(loader)
+		local game_settings = datalist.parse(file.load(realname))
 		for k,v in pairs(game_settings) do
 			patch(default_settings, k,v)
 		end

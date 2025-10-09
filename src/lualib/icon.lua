@@ -9,7 +9,7 @@ local icon = {}
 
 function icon.bundle(filename)
 	local path = filename:match "(.*[/\\])[^/\\]+$"
-	local b = datalist.parse(file.loader(filename))
+	local b = datalist.parse(file.load(filename))
 	local names = {}
 	local icons = {}
 	local n = #b

@@ -7,7 +7,7 @@ global type, tonumber, error, assert, ipairs, print
 local M = {}
 
 local function load_bundle(filename)
-	local b = datalist.parse(file.loader(filename))
+	local b = datalist.parse(file.load(filename))
 	return b
 end
 
