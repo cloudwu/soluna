@@ -80,6 +80,7 @@ else
 	file.attributes = lfs.attributes
 	file.local_load = file.load
 	file.local_exist = file.exist
+	file.searchpath = package.searchpath
 end
 
 local function fileload(name, fullname)

@@ -193,6 +193,9 @@ function api.init(desc)
 	if f then
 		zip.zipfile = f
 		args.zipfile = zipfile
+		if zipfile == args[1] then
+			table.remove(args[1])
+		end
 	else
 		args.zipfile = nil
 	end
