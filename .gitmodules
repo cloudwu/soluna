@@ -16,3 +16,6 @@
 [submodule "3rd/yoga"]
 	path = 3rd/yoga
 	url = https://github.com/facebook/yoga.git
+[submodule "3rd/zlib"]
+	path = 3rd/zlib
+	url = https://github.com/madler/zlib.git
