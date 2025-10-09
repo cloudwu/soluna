@@ -33,6 +33,7 @@ lm:source_set "soluna_src" {
     "3rd/lua",
     "3rd",
     "3rd/yoga",
+    "3rd/zlib",
   },
   macos = {
     frameworks = {
@@ -48,6 +49,11 @@ lm:source_set "soluna_src" {
     flags = {
       "-x objective-c",
     },
+  },
+  windows = {
+    includes = {
+      "3rd/zlib/contrib/minizip",
+    }
   },
   linux = {
     links = {
