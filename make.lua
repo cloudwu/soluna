@@ -72,7 +72,15 @@ lm:import "clibs/yoga/make.lua"
 lm:import "clibs/datalist/make.lua"
 lm:import "clibs/sokol/make.lua"
 lm:import "clibs/ltask/make.lua"
+lm:import "clibs/zlib/make.lua"
 lm:import "clibs/soluna/make.lua"
+
+lm:phony "precompile" {
+  deps = {
+    "compile_shaders",
+    "compile_lua_code",
+  },
+}
 
 lm:exe "soluna" {
   deps = {
@@ -80,15 +88,9 @@ lm:exe "soluna" {
     "soluna_src",
     "ltask_src",
     "yoga_src",
-    "compile_lua_code",
-    "compile_shaders",
+    "precompile",
     "datalist_src",
-  },
-}
-
-lm:phony "precompile" {
-  deps = {
-    "compile_shaders",
-    "compile_lua_code",
+    "zlib",
+    "minizip",
   },
 }
