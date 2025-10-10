@@ -83,7 +83,7 @@ DATALIST_SRC=$(wildcard src/data/*.dl)
 
 DATALIST_CODE=$(patsubst %.dl, $(BUILD)/%.dl.h, $(notdir $(DATALIST_SRC)))
 
-ZLIB_INC=-I3rd/zlib
+ZLIBINC=-I3rd/zlib
 ZLIB_FULL=$(wildcard 3rd/zlib/*.c)
 ZLIB_C = $(notdir $(ZLIB_FULL))
 ZLIB_O = $(patsubst %.c,$(BUILD)/zlib_%.o,$(ZLIB_C))
@@ -119,7 +119,7 @@ $(BUILD)/soluna_entry.o : src/entry.c src/version.h
 	$(COMPILE_C) $(LUAINC) $(3RDINC) -DSOLUNA_HASH_VERSION=\"$(VERSION)\"
 
 $(BUILD)/soluna_%.o : src/%.c
-	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC)
+	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC)
 	
 $(BUILD)/ltask_%.o : 3rd/ltask/src/%.c
 	$(COMPILE_C) $(LUAINC) -D_WIN32_WINNT=0x0601 -DLTASK_EXTERNAL_OPENLIBS=soluna_openlibs
@@ -135,10 +135,10 @@ $(BUILD)/yoga.o : src/yogaone.cpp $(YOGASRC)
 	$(CCPP) $(STDCPP) $(OUTPUT_O) $@ $< $(YOGAINC) $(CFLAGS)
 	
 $(BUILD)/zlib_%.o : 3rd/zlib/%.c
-	$(COMPILE_C) $(ZLIB_INC)
+	$(COMPILE_C) $(ZLIBINC)
 
 $(BUILD)/minizip_%.o : 3rd/zlib/contrib/minizip/%.c
-	$(COMPILE_C) $(ZLIB_INC)
+	$(COMPILE_C) $(ZLIBINC)
 
 $(BIN)/$(APPNAME): $(MAIN_O) $(LTASK_O) $(LUA_O) $(DATALIST_O) $(BUILD)/yoga.o $(ZLIB_O) $(MINIZIP_O)
 	$(LD) $(OUTPUT_EXE) $@ $^ $(LDFLAGS)
