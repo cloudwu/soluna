@@ -107,6 +107,10 @@ local function start(config)
 	function appmsg.set_title(text)
 		soluna_app.set_window_title(text)
 	end
+
+	function appmsg.set_icon(data)
+		soluna_app.set_icon(data)
+	end
 	
 	local function do_appmsg(what, ...)
 		local f = appmsg[what] or error ("Unknown app message " .. tostring(what))
