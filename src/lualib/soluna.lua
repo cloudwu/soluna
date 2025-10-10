@@ -37,6 +37,10 @@ function soluna.set_window_title(text)
 	mqueue.send(app.mqueue(), ltask.pack("set_title", text))
 end
 
+function soluna.set_icon(data)
+	mqueue.send(app.mqueue(), ltask.pack("set_icon", data))
+end
+
 local function recursion_mkdir(root, path)
 	local lfs = require "soluna.lfs"
 	for p in path:gmatch "[^/\\]+" do

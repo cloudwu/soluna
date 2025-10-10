@@ -23,6 +23,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 #if defined(__linux__)
 #include <locale.h>
 #include <X11/Xlib.h>
@@ -31,10 +33,8 @@
 #include <wchar.h>
 #include <uchar.h>
 #include <dlfcn.h>
-#include <stdbool.h>
 #endif
 #if defined(__APPLE__)
-#include <stdbool.h>
 #endif
 #include "version.h"
 
@@ -1188,6 +1188,163 @@ lset_window_title(lua_State *L) {
 	return 0;
 }
 
+struct icon_pixels {
+	uint8_t *ptr;
+};
+
+static void
+icon_free_pixels(struct icon_pixels *payloads, int count) {
+	for (int i = 0; i < count; ++i) {
+		free(payloads[i].ptr);
+	}
+}
+
+static int
+icon_get_int(lua_State *L, int index, const char *field, const char *fallback) {
+	int abs_index = lua_absindex(L, index);
+	int value = 0;
+	int type = lua_getfield(L, abs_index, field);
+	if (type == LUA_TNUMBER) {
+		value = (int)lua_tointeger(L, -1);
+		lua_pop(L, 1);
+		return value;
+	}
+	lua_pop(L, 1);
+	if (fallback) {
+		type = lua_getfield(L, abs_index, fallback);
+		if (type == LUA_TNUMBER) {
+			value = (int)lua_tointeger(L, -1);
+			lua_pop(L, 1);
+			return value;
+		}
+		lua_pop(L, 1);
+	}
+	luaL_error(L, "icon missing %s", field);
+	return 0;
+}
+
+static void
+icon_copy_image(lua_State *L, int index, sapp_image_desc *dst, struct icon_pixels *payload) {
+	int abs_index = lua_absindex(L, index);
+	int width = icon_get_int(L, abs_index, "w", "width");
+	int height = icon_get_int(L, abs_index, "h", "height");
+	if (width <= 0 || height <= 0) {
+		luaL_error(L, "icon size must be positive");
+	}
+
+	size_t stride = 0;
+	if (lua_getfield(L, abs_index, "stride") == LUA_TNUMBER) {
+		stride = (size_t)lua_tointeger(L, -1);
+	}
+	lua_pop(L, 1);
+
+	size_t explicit_size = 0;
+	if (lua_getfield(L, abs_index, "size") == LUA_TNUMBER) {
+		explicit_size = (size_t)lua_tointeger(L, -1);
+	}
+	lua_pop(L, 1);
+
+	int type = lua_getfield(L, abs_index, "data");
+	const uint8_t *src = NULL;
+	size_t src_size = 0;
+	if (type == LUA_TSTRING) {
+		src = (const uint8_t *)lua_tolstring(L, -1, &src_size);
+	} else if (type == LUA_TUSERDATA) {
+		src = (const uint8_t *)lua_touserdata(L, -1);
+		src_size = lua_rawlen(L, -1);
+	} else if (type == LUA_TLIGHTUSERDATA) {
+		src = (const uint8_t *)lua_touserdata(L, -1);
+		src_size = explicit_size;
+	} else {
+		lua_pop(L, 1);
+		luaL_error(L, "icon.data must be buffer");
+	}
+	lua_pop(L, 1);
+	if (src == NULL) {
+		luaL_error(L, "icon data missing");
+	}
+
+	size_t row_bytes = (size_t)width * 4;
+	if (stride == 0) {
+		stride = row_bytes;
+	}
+	if (stride < row_bytes) {
+		luaL_error(L, "icon stride < width");
+	}
+	if (!(type == LUA_TLIGHTUSERDATA && explicit_size == 0)) {
+		size_t required = stride * (size_t)height;
+		if (src_size < required) {
+			luaL_error(L, "icon buffer too small");
+		}
+	}
+
+	size_t copy_size = row_bytes * (size_t)height;
+	uint8_t *copy = (uint8_t *)malloc(copy_size);
+	if (copy == NULL) {
+		luaL_error(L, "icon alloc fail");
+	}
+
+	if (stride == row_bytes) {
+		memcpy(copy, src, copy_size);
+	} else {
+		const uint8_t *s = src;
+		uint8_t *d = copy;
+		for (int y = 0; y < height; ++y) {
+			memcpy(d, s, row_bytes);
+			s += stride;
+			d += row_bytes;
+		}
+	}
+
+	dst->width = width;
+	dst->height = height;
+	dst->pixels.ptr = copy;
+	dst->pixels.size = copy_size;
+	payload->ptr = copy;
+}
+
+static int
+lset_icon(lua_State *L) {
+	if (lua_isnoneornil(L, 1))
+		return 0;
+
+	luaL_checktype(L, 1, LUA_TTABLE);
+
+	sapp_icon_desc desc;
+	memset(&desc, 0, sizeof(desc));
+	struct icon_pixels payloads[SAPP_MAX_ICONIMAGES];
+	memset(payloads, 0, sizeof(payloads));
+	int count = 0;
+	int abs_index = lua_absindex(L, 1);
+
+	if (lua_getfield(L, abs_index, "data") != LUA_TNIL) {
+		lua_pop(L, 1);
+		icon_copy_image(L, abs_index, &desc.images[count], &payloads[count]);
+		++count;
+	} else {
+		lua_pop(L, 1);
+		int len = (int)lua_rawlen(L, abs_index);
+		for (int i = 1; i <= len; ++i) {
+			if (count >= SAPP_MAX_ICONIMAGES) {
+				icon_free_pixels(payloads, count);
+				luaL_error(L, "too many icon images");
+			}
+			lua_rawgeti(L, abs_index, i);
+			luaL_checktype(L, -1, LUA_TTABLE);
+			icon_copy_image(L, -1, &desc.images[count], &payloads[count]);
+			++count;
+			lua_pop(L, 1);
+		}
+	}
+
+	if (count > 0) {
+		sapp_set_icon(&desc);
+	}
+
+	icon_free_pixels(payloads, count);
+	return 0;
+}
+
 static int
 lset_ime_rect(lua_State *L) {
 #if defined(__APPLE__) || defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__linux__)
@@ -1357,6 +1514,7 @@ luaopen_soluna_app(lua_State *L) {
 		{ "sendmessage", lmessage_send },
 		{ "unpackevent", levent_unpack },
 		{ "set_window_title", lset_window_title },
+		{ "set_icon", lset_icon },
 		{ "set_ime_rect", lset_ime_rect },
 		{ "set_ime_font", lset_ime_font },
 		{ "quit", lquit_signal },
