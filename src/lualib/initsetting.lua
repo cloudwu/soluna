@@ -3,7 +3,7 @@ local source = require "soluna.embedsource"
 local lfs = require "soluna.lfs"
 local file = require "soluna.file"
 
-global type, error, pairs, assert, tonumber
+global type, error, pairs, assert, tonumber, print
 
 local S = {}
 
@@ -44,11 +44,11 @@ end
 local function settings_filename(filename)
 	if filename then
 		local realname = lfs.realpath(filename)
-		local curpath = realname:match "(.*)[/\\][^/\\]+$"
-		if curpath then
+		local curpath, name = realname:match "(.*)[/\\]([^/\\]+)$"
+		if curpath and name then
 			lfs.chdir(curpath)
 		end
-		return realname
+		return name
 	end
 	if file.exist "main.game" then
 		return "main.game"
