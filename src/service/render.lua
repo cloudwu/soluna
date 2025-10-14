@@ -275,7 +275,7 @@ function S.init(arg)
 
 	STATE = {
 		pass = render.pass {
-			color0 = 0x4080c0,
+			color0 = setting.background,
 		},
 		default_sampler = render.sampler { label = "texquad-sampler" },
 		textures = { img } ,

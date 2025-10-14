@@ -10,4 +10,5 @@ width : 1024
 height : 768
 high_dpi : false
 window_title : soluna
+background : 0x4080c0
 
