@@ -78,6 +78,7 @@ end
 
 local function version()
 	local api, hash = app.version()
+	soluna.version_api = api
 	return string.format("%03x", api) .. hash:sub(1, 7)
 end
 

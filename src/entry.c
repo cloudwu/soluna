@@ -1804,10 +1804,6 @@ app_event(const sapp_event* ev) {
 
 static int
 init_settings(lua_State *L, sapp_desc *desc) {
-	if (L == NULL) {
-		fprintf(stderr, "Can't open lua state\n");
-		return 1;
-	}
 	if (lua_gettop(L) != 2) {
 		fprintf(stderr, "Invalid lua stack (top = %d)\n", lua_gettop(L));
 		return 1;
@@ -1834,22 +1830,7 @@ sokol_main(int argc, char* argv[]) {
 	arg_desc.argv = argv;
 	sargs_setup(&arg_desc);
 	
-	// init L
-	static struct app_context app;
-	lua_State *L = luaL_newstate();
-
-	lua_settop(L, 0);
-	lua_pushcfunction(L, msghandler);
-	lua_pushcfunction(L, pmain);
-	
-	if (lua_pcall(L, 0, 1, 1) != LUA_OK) {
-		fprintf(stderr, "Init fatal : %s\n", lua_tostring(L, -1));
-		lua_close(L);
-		L = NULL;
-	}
-	
 	// default sapp_desc
-	
 	sapp_desc d;
 	memset(&d, 0, sizeof(d));
 
@@ -1862,10 +1843,26 @@ sokol_main(int argc, char* argv[]) {
 	d.win32_console_attach = 1;
 	d.alpha = 0;
 	
-	if (init_settings(L, &d)) {
-		fprintf(stderr, "Init setting fatal : %s\n", lua_tostring(L, -1));
-		lua_close(L);
-		L = NULL;
+	// init L
+	static struct app_context app;
+	lua_State *L = luaL_newstate();
+
+	if (L) {
+		lua_settop(L, 0);
+		lua_pushcfunction(L, msghandler);
+		lua_pushcfunction(L, pmain);
+		
+		if (lua_pcall(L, 0, 1, 1) != LUA_OK) {
+			fprintf(stderr, "Init fatal : %s\n", lua_tostring(L, -1));
+			lua_close(L);
+			L = NULL;
+		}
+		
+		if (init_settings(L, &d)) {
+			fprintf(stderr, "Init setting fatal : %s\n", lua_tostring(L, -1));
+			lua_close(L);
+			L = NULL;
+		}
 	}
 
 	app.L = L;
