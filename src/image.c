@@ -41,11 +41,19 @@ realloc_luastring(void *ptr, size_t sz) {
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 
+#include "stb/stb_image_resize2.h"
+
 #include "luabuffer.h"
 
 static void *
 free_image(void *ud, void *ptr, size_t osize, size_t nsize) {
 	stbi_image_free(ptr);
+	return NULL;
+}
+
+static void *
+free_buffer(void *ud, void *ptr, size_t osize, size_t nsize) {
+	free(ptr);
 	return NULL;
 }
 
@@ -75,7 +83,7 @@ image_load(lua_State *L) {
 	lua_pushinteger(L, x);
 	lua_pushinteger(L, y);
 	return 3;
-};
+}
 
 static int
 image_load_alpha(lua_State *L) {
@@ -528,12 +536,51 @@ image_makeindex(lua_State *L) {
 	return 1;
 }
 
+static int
+image_resize(lua_State *L) {
+	size_t sz;
+	const char *buffer = luaL_checklstring(L, 1, &sz);
+	int x = luaL_checkinteger(L, 2);
+	int y = luaL_checkinteger(L, 3);
+	float scale_x = luaL_checknumber(L, 4);
+	float scale_y = luaL_optnumber(L, 5, scale_x);
+	int channel;
+	size_t output_sz;
+	int tx = (int)(x * scale_x + 0.5);
+	int ty = (int)(y * scale_y + 0.5);
+	int stride_p;
+	if (x * y * 4 == sz) {
+		channel = STBIR_4CHANNEL;
+		output_sz =  tx * ty * 4;
+		stride_p = 4;
+	} else {
+		if (x * y != sz) {
+			return luaL_error(L, "Invalid size (%d) != %d * %d", (int)sz, x, y);
+		}
+		channel = STBIR_1CHANNEL;
+		output_sz = tx * ty;
+		stride_p = 1;
+	}
+	unsigned char *output = (unsigned char *)malloc(output_sz +1);
+	if (output == NULL)
+		return luaL_error(L, "Out of memory");
+	output[output_sz] = 0;
+	memcpy(output, buffer, output_sz);
+
+	stbir_resize_uint8_linear((const unsigned char *)buffer , x , y, stride_p * x, output, tx, ty, stride_p * tx, channel);
+	lua_pushexternalstring(L, (const char *)output, output_sz, free_buffer, NULL);
+	lua_pushinteger(L, tx);
+	lua_pushinteger(L, ty);
+	return 3;
+}
+
 int
 luaopen_image(lua_State *L) {
 	luaL_checkversion(L);
 	luaL_Reg l[] = {
 		{ "load", image_load },
 		{ "load_alpha", image_load_alpha },
+		{ "resize", image_resize },
 		{ "info", image_info },
 		{ "crop", image_crop },
 		{ "canvas", image_canvas },

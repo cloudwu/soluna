@@ -1229,7 +1229,7 @@ icon_copy_image(lua_State *L, int index, sapp_image_desc *dst, struct icon_pixel
 	int width = icon_get_int(L, abs_index, "w", "width");
 	int height = icon_get_int(L, abs_index, "h", "height");
 	if (width <= 0 || height <= 0) {
-		luaL_error(L, "icon size must be positive");
+		luaL_error(L, "icon size (%d * %d) must be positive", width, height);
 	}
 
 	size_t stride = 0;
@@ -1289,7 +1289,8 @@ icon_copy_image(lua_State *L, int index, sapp_image_desc *dst, struct icon_pixel
 	} else {
 		const uint8_t *s = src;
 		uint8_t *d = copy;
-		for (int y = 0; y < height; ++y) {
+		int y;
+		for (y = 0; y < height; ++y) {
 			memcpy(d, s, row_bytes);
 			s += stride;
 			d += row_bytes;
