@@ -1574,7 +1574,7 @@ pmain(lua_State *L) {
 		const char *k = sargs_key_at(i);
 		const char *v = sargs_value_at(i);
 		if (v[0] == 0) {
-			lua_pushstring(L, sargs_key_at(i));
+			lua_pushstring(L, k);
 		} else {
 			lua_pushstring(L, v);
 			lua_setfield(L, arg_table, k);
@@ -1655,6 +1655,11 @@ static int
 start_app(lua_State *L) {
 	if (L == NULL) {
 		fprintf(stderr, "Can't open lua state\n");
+		return 1;
+	}
+
+	if (lua_isstring(L, 1)) {
+		fprintf(stderr, "Init fatal : %s\n", lua_tostring(L, 1));
 		return 1;
 	}
 
@@ -1853,15 +1858,13 @@ sokol_main(int argc, char* argv[]) {
 		lua_pushcfunction(L, pmain);
 		
 		if (lua_pcall(L, 0, 1, 1) != LUA_OK) {
-			fprintf(stderr, "Init fatal : %s\n", lua_tostring(L, -1));
-			lua_close(L);
-			L = NULL;
+			lua_replace(L, 1);
+			lua_settop(L, 1);
 		}
 		
 		if (init_settings(L, &d)) {
-			fprintf(stderr, "Init setting fatal : %s\n", lua_tostring(L, -1));
-			lua_close(L);
-			L = NULL;
+			lua_replace(L, 1);
+			lua_settop(L, 1);
 		}
 	}
 

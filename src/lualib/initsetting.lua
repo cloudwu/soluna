@@ -59,7 +59,8 @@ function S.init(args)
 	local default_settings = datalist.parse(source.data.settingdefault)
 	local realname = settings_filename(args[1])
 	if realname then
-		local game_settings = datalist.parse(file.load(realname))
+		local data = file.load(realname) or error ("Can't open " .. realname)
+		local game_settings = datalist.parse(data)
 		for k,v in pairs(game_settings) do
 			patch(default_settings, k,v)
 		end
