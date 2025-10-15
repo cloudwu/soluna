@@ -56,18 +56,20 @@ lm:source_set "soluna_src" {
     }
   },
   linux = {
-    links = {
-      "pthread",
-      "dl",
-      "GL",
-      "X11",
-      "Xrandr",
-      "Xi",
-      "Xxf86vm",
-      "Xcursor",
-      "GLU",
-      "asound",
-    },
+    gcc = {
+      links = {
+        "pthread",
+        "dl",
+        "GL",
+        "X11",
+        "Xrandr",
+        "Xi",
+        "Xxf86vm",
+        "Xcursor",
+        "GLU",
+        "asound",
+      },
+    }
   },
   msvc = {
     ldflags = {

@@ -246,6 +246,15 @@ gamepad_getstate(int index, struct gamepad_state *state) {
     return 0;
 }
 
+#elif defined(__EMSCRIPTEN__)
+
+static int
+gamepad_getstate(int index, struct gamepad_state *state) {
+	(void)index;
+	(void)state;
+	return 1;
+}
+
 #else
 
 // todo : linux and mac support

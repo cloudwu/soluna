@@ -269,7 +269,7 @@ lttfdata(lua_State *L) {
 #else
 
 static int
-lttfdata(lua_State *) {
+lttfdata(lua_State *L) {
 	return luaL_error(L, "Unsupport system font");
 }
 

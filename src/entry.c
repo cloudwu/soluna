@@ -8,6 +8,10 @@
 
 #define SOKOL_METAL
 
+#elif defined(__EMSCRIPTEN__)
+
+#define SOKOL_GLES3
+
 #elif defined(__linux__)
 
 #define SOKOL_GLCORE
@@ -72,6 +76,10 @@
 #elif defined(__APPLE__)
 
 #define PLATFORM "macos"
+
+#elif defined(__EMSCRIPTEN__)
+
+#define PLATFORM "emscripten"
 
 #elif defined(__linux__)
 
