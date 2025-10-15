@@ -55,21 +55,19 @@ lm:source_set "soluna_src" {
       "3rd/zlib/contrib/minizip",
     }
   },
-  linux = {
-    gcc = {
-      links = {
-        "pthread",
-        "dl",
-        "GL",
-        "X11",
-        "Xrandr",
-        "Xi",
-        "Xxf86vm",
-        "Xcursor",
-        "GLU",
-        "asound",
-      },
-    }
+  gcc = {
+    links = lm.os == "linux" and {
+      "pthread",
+      "dl",
+      "GL",
+      "X11",
+      "Xrandr",
+      "Xi",
+      "Xxf86vm",
+      "Xcursor",
+      "GLU",
+      "asound",
+    },
   },
   msvc = {
     ldflags = {

@@ -42,7 +42,7 @@ lm:conf({
     c = "c11",
   },
   flags = {
-    "-O2",
+    lm.mode ~= "debug" and "-O2",
   },
   msvc = {
     c = "c11",
@@ -84,11 +84,20 @@ lm:conf({
     c = "c11",
     flags = {
       "-Wall",
+      "-pthread"
     },
     ldflags = {
       "-s MIN_WEBGL_VERSION=2",
       "-s MAX_WEBGL_VERSION=2",
       "-s FULL_ES3=1",
+      "-s FORCE_FILESYSTEM=1",
+      '-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile"]\'',
+      "-s USE_PTHREADS=1",
+      "-s PTHREAD_POOL_SIZE=10",
+      lm.mode == "debug" and "-s ASSERTIONS=2",
+      lm.mode == "debug" and "-s SAFE_HEAP=1",
+      lm.mode == "debug" and "-s STACK_OVERFLOW_CHECK=1",
+      lm.mode == "debug" and "-s PTHREADS_DEBUG=1",
     },
     defines = {
       "_POSIX_C_SOURCE=200809L",
