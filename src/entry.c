@@ -1126,7 +1126,7 @@ static int
 lmessage_send(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TLIGHTUSERDATA);
 	luaL_checktype(L, 2, LUA_TLIGHTUSERDATA);
-	void (*send_message)(void *ud, void *p) = lua_touserdata(L, 1);
+	int (*send_message)(void *ud, void *p) = lua_touserdata(L, 1);
 	void *send_message_ud = lua_touserdata(L, 2);
 	const char * what = NULL;
 	if (lua_type(L, 3) == LUA_TSTRING) {
