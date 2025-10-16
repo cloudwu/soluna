@@ -1564,6 +1564,7 @@ static const char *code = "local embed = require 'soluna.embedsource' ; local f 
 
 static int
 pmain(lua_State *L) {
+	char** argv = (char **)lua_touserdata(L, 1);
 	soluna_openlibs(L);
 	int n = sargs_num_args();
 	luaL_checkstack(L, n+1, NULL);
@@ -1574,7 +1575,7 @@ pmain(lua_State *L) {
 		const char *k = sargs_key_at(i);
 		const char *v = sargs_value_at(i);
 		if (v[0] == 0) {
-			lua_pushstring(L, k);
+			lua_pushstring(L, argv[i+1]);
 		} else {
 			lua_pushstring(L, v);
 			lua_setfield(L, arg_table, k);
@@ -1857,8 +1858,9 @@ sokol_main(int argc, char* argv[]) {
 		lua_settop(L, 0);
 		lua_pushcfunction(L, msghandler);
 		lua_pushcfunction(L, pmain);
+		lua_pushlightuserdata(L, (void *)argv);
 		
-		if (lua_pcall(L, 0, 1, 1) != LUA_OK) {
+		if (lua_pcall(L, 1, 1, 1) != LUA_OK) {
 			const char * err = lua_tostring(L, -1);
 			lua_pushlightuserdata(L, (void *)err);
 			lua_replace(L, 1);

@@ -10,13 +10,12 @@ local init_func_temp = [=[
 	package.path = [[${lua_path}]]
 	package.cpath = [[${lua_cpath}]]
 	local zipfile = [[${zipfile}]]
-	if zipfile ~= "" then
-		local zip = require "soluna.zip"
-		zip.zipfile = zip.open(zipfile, "r")
+	if zipfile == "" then
+		zipfile = nil
 	end
 	_G.print_r = load(embedsource.runtime.print_r(), "@src/lualib/print_r.lua")()
 	local packageloader = load(embedsource.runtime.packageloader(), "@src/lualib/packageloader.lua")
-	packageloader()
+	packageloader(zipfile)
 	local function embedloader(name)
 		local ename
 		if name == "soluna" then
@@ -190,20 +189,14 @@ end
 function api.init(desc)
 	-- todo : settings
 	local zipfile = args[1] or args.zipfile or "main.zip"
-	local zip = require "soluna.zip"
-	local f = zip.open(zipfile, "r")
-	if f then
-		zip.zipfile = f
-		args.zipfile = zipfile
-		if zipfile == args[1] then
-			table.remove(args, 1)
-		end
-	else
-		args.zipfile = nil
+	if zipfile == args[1] then
+		table.remove(args, 1)
 	end
 	local embedsource = require "soluna.embedsource"
 	local packageloader = load(embedsource.runtime.packageloader(), "@src/lualib/packageloader.lua")
-	packageloader()
+	if packageloader(zipfile) then
+		args.zipfile = zipfile
+	end
 	local initsetting = load(embedsource.lib.initsetting, "@3rd/ltask/lualib/initsetting.lua")()
 	local settings = initsetting.init(args)
 	local soluna_app = require "soluna.app"
