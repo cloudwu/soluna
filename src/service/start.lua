@@ -23,10 +23,13 @@ function app.cleanup()
 	ltask.send(1, "quit_ltask")
 end
 
--- dummy frame
-function app.frame(count)
-	event.trigger(ev.frame)
+local function skip_frame()
+	function app.frame()
+		ltask.mainthread_run(function() end)
+	end
 end
+
+skip_frame()
 
 local render_service
 local pre_size
@@ -136,18 +139,17 @@ local function init(arg)
 		
 		function app.frame(count)
 			local ok, err = xpcall(frame, traceback, count)
-			event.trigger(ev.frame)
 			if not ok then
-				frame = function() end
+				skip_frame()
 				error(err)
 			end
 		end
 	end
 	
 	function app.frame(count)
+		skip_frame()
 		-- init render in the first frame, because render init would call some gfx api
 		local ok, err = xpcall(init_render, debug.traceback)
-		event.trigger(ev.frame)
 		if not ok then
 			print(err)
 			soluna_app.close_window()

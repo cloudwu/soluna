@@ -154,8 +154,7 @@ local function frame(count)
 
 	-- todo: do not wait all batch commits
 	local batch_n = #batch
-	batch.wait()
-	soluna_app.context_acquire()
+--	soluna_app.context_acquire()
 	if update_image then update_image() end
 	STATE.drawmgr:reset()
 	STATE.bindings:base(0)
@@ -182,11 +181,12 @@ local function frame(count)
 			obj.draw(ptr, n, tex)
 		end
 	STATE.pass:finish()
-	soluna_app.context_release()
+--	soluna_app.context_release()
 end
 
 function S.frame(count)
-	local ok , err = pcall(frame, count)
+	batch.wait()
+	local ok , err = pcall(ltask.mainthread_run, frame, count)
 	if not ok then
 		print("RENDER ERR", err)
 	end
@@ -236,8 +236,8 @@ function S.load_sprites(name)
 	delay_update_image(imgmem)
 end
 
-function S.init(arg)
-	soluna_app.context_acquire()
+local function render_init(arg)
+--	soluna_app.context_acquire()
 	font.init()
 
 	local texture_size = setting.texture_size
@@ -374,7 +374,11 @@ function S.init(arg)
 		uniform = STATE.uniform,
 		sr_buffer = STATE.srbuffer_mem,
 	}
-	soluna_app.context_release()
+--	soluna_app.context_release()
+end
+
+function S.init(arg)
+	ltask.mainthread_run(render_init, arg)
 end
 
 function S.resize(w, h)
