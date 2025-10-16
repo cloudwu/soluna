@@ -1807,19 +1807,20 @@ app_event(const sapp_event* ev) {
 	}
 }
 
+#define EXTSTR(s) ""s, sizeof(s)
+
 static int
 init_settings(lua_State *L, sapp_desc *desc) {
 	if (lua_gettop(L) != 2) {
-		fprintf(stderr, "Invalid lua stack (top = %d)\n", lua_gettop(L));
+		lua_pushexternalstring(L, EXTSTR("Invalid lua stack"), NULL, NULL);
 		return 1;
 	}
 	if (lua_getfield(L, -1, "init") != LUA_TFUNCTION) {
-		fprintf(stderr, "No start function\n");
+		lua_pushexternalstring(L, EXTSTR( "No start function"), NULL, NULL);
 		return 1;
 	}
 	lua_pushlightuserdata(L, (void *)desc);
 	if (lua_pcall(L, 1, 0, 1) != LUA_OK) {
-		fprintf(stderr, "Start fatal : %s\n", lua_tostring(L, -1));
 		return 1;
 	} else {
 		return 0;
