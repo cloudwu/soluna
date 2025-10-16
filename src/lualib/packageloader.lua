@@ -23,9 +23,9 @@ local function load_zips(zipnames)
 			print("Can't open patch", name)
 		else
 			print("Load patch", name)
+			n = n + 1
+			r[n] = zf
 		end
-		n = n + 1
-		r[n] = zf
 	end
 	r.n = n
 	if n > 0 then
