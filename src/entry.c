@@ -1658,8 +1658,8 @@ start_app(lua_State *L) {
 		return 1;
 	}
 
-	if (lua_isstring(L, 1)) {
-		fprintf(stderr, "Init fatal : %s\n", lua_tostring(L, 1));
+	if (lua_islightuserdata(L, 1)) {
+		fprintf(stderr, "Init fatal : %s\n", (const char *)lua_touserdata(L, 1));
 		return 1;
 	}
 
@@ -1807,20 +1807,20 @@ app_event(const sapp_event* ev) {
 	}
 }
 
-#define EXTSTR(s) ""s, sizeof(s)
-
 static int
 init_settings(lua_State *L, sapp_desc *desc) {
 	if (lua_gettop(L) != 2) {
-		lua_pushexternalstring(L, EXTSTR("Invalid lua stack"), NULL, NULL);
+		lua_pushlightuserdata(L, (void *)"Invalid lua stack");
 		return 1;
 	}
 	if (lua_getfield(L, -1, "init") != LUA_TFUNCTION) {
-		lua_pushexternalstring(L, EXTSTR( "No start function"), NULL, NULL);
+		lua_pushlightuserdata(L, (void *)"No start function");
 		return 1;
 	}
 	lua_pushlightuserdata(L, (void *)desc);
 	if (lua_pcall(L, 1, 0, 1) != LUA_OK) {
+		const char * err = lua_tostring(L, -1);
+		lua_pushlightuserdata(L, (void *)err);
 		return 1;
 	} else {
 		return 0;
@@ -1859,13 +1859,13 @@ sokol_main(int argc, char* argv[]) {
 		lua_pushcfunction(L, pmain);
 		
 		if (lua_pcall(L, 0, 1, 1) != LUA_OK) {
+			const char * err = lua_tostring(L, -1);
+			lua_pushlightuserdata(L, (void *)err);
 			lua_replace(L, 1);
-			lua_settop(L, 1);
 		}
 		
 		if (init_settings(L, &d)) {
 			lua_replace(L, 1);
-			lua_settop(L, 1);
 		}
 	}
 
