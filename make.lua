@@ -84,11 +84,11 @@ lm:conf({
     c = "c11",
     flags = {
       "-Wall",
-      "-pthread"
+      "-pthread",
+      "--use-port=emdawnwebgpu",
     },
     ldflags = {
-      "-s MIN_WEBGL_VERSION=1",
-      "-s MAX_WEBGL_VERSION=2",
+      "--use-port=emdawnwebgpu",
       "-s FULL_ES3=1",
       "-s FORCE_FILESYSTEM=1",
       '-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile"]\'',
@@ -97,7 +97,6 @@ lm:conf({
       "-s PTHREAD_POOL_SIZE_STRICT=2",
       "-s OFFSCREENCANVAS_SUPPORT=1",
       "-s OFFSCREEN_FRAMEBUFFER=1",
-      "-s USE_WEBGL2=1",
       lm.mode == "debug" and "-s ASSERTIONS=2",
       lm.mode == "debug" and "-s SAFE_HEAP=1",
       lm.mode == "debug" and "-s STACK_OVERFLOW_CHECK=1",
@@ -109,7 +108,7 @@ lm:conf({
     },
   },
   defines = {
-    lm.mode == "debug" and "DEBUGLOG",
+    -- lm.mode == "debug" and "DEBUGLOG",
     lm.mode == "debug" and "SOKOL_DEBUG",
   }
 })

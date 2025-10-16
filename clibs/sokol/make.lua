@@ -28,7 +28,7 @@ local function shader_lang()
     return "metal_macos"
   end
   if plat == "emcc" then
-    return "glsl300es"
+    return "wgsl"
   end
   if plat == "linux" then
     return "glsl430"

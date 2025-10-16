@@ -10,7 +10,7 @@
 
 #elif defined(__EMSCRIPTEN__)
 
-#define SOKOL_GLES3
+#define SOKOL_WGPU
 
 #elif defined(__linux__)
 
