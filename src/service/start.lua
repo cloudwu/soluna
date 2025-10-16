@@ -23,13 +23,26 @@ function app.cleanup()
 	ltask.send(1, "quit_ltask")
 end
 
-local function skip_frame()
-	function app.frame()
-		ltask.mainthread_run(function() end)
+local init_token
+function app.frame(count)
+	local f
+	if init_token == nil then
+		init_token = {}
+		f = ltask.wait(init_token)
+	else
+		f = init_token
 	end
+	init_token = nil
+	f(count)
 end
 
-skip_frame()
+local function frame_callback(f)
+	if init_token then
+		ltask.wakeup(init_token, f)
+	else
+		init_token = f
+	end
+end
 
 local render_service
 local pre_size
@@ -137,25 +150,31 @@ local function init(arg)
 		
 		local traceback = debug.traceback
 		
-		function app.frame(count)
+		local function render_frame(count)
 			local ok, err = xpcall(frame, traceback, count)
 			if not ok then
-				skip_frame()
+				function app.frame()
+					ltask.mainthread_run(function() end)
+				end
 				error(err)
 			end
 		end
+		
+		frame_callback(function()
+			-- replace app.frame
+			app.frame = render_frame
+			render_frame()
+		end)
 	end
 	
-	function app.frame(count)
-		skip_frame()
+	frame_callback(function ()
 		-- init render in the first frame, because render init would call some gfx api
 		local ok, err = xpcall(init_render, debug.traceback)
 		if not ok then
 			print(err)
 			soluna_app.close_window()
 		end
---		assert(ok, err)
-	end
+	end)
 end
 
 function S.quit()
