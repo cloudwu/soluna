@@ -7,8 +7,6 @@
 #define UNIFORM_TYPE_FLOAT 1
 #define UNIFORM_TYPE_INT 2
 
-#define MAX_ARRAY_SIZE 0x4fff
-
 static void
 set_uniform_float(lua_State *L, int index, uint8_t *buffer, int offset, int n) {
 	if (n <= 1) {
@@ -16,19 +14,20 @@ set_uniform_float(lua_State *L, int index, uint8_t *buffer, int offset, int n) {
 		memcpy(buffer + offset, &v, sizeof(float));
 	} else {
 		luaL_checktype(L, index, LUA_TTABLE);
-		if (lua_rawlen(L, index) != n || n >= MAX_ARRAY_SIZE) {
+		if (lua_rawlen(L, index) != n) {
 			luaL_error(L, "Need table size %d", n);
 		}
-		float v[MAX_ARRAY_SIZE];
 		int i;
+		float * v = (float *)(buffer + offset);
 		for (i=0;i<n;i++) {
 			if (lua_rawgeti(L, index, i+1) != LUA_TNUMBER) {
 				luaL_error(L, "Invalid value in table[%d]", i+1);
 			}
-			v[i] = lua_tonumber(L, -1);
+			float tmp = lua_tonumber(L, -1);
+			memcpy(v, &tmp, sizeof(float));
+			v++;
 			lua_pop(L, 1);
 		}
-		memcpy(buffer + offset, &v, sizeof(float) * n);
 	}
 }
 
@@ -39,19 +38,20 @@ set_uniform_int(lua_State *L, int index, uint8_t *buffer, int offset, int n) {
 		memcpy(buffer + offset, &v, sizeof(int));
 	} else {
 		luaL_checktype(L, index, LUA_TTABLE);
-		if (lua_rawlen(L, index) != n || n >= MAX_ARRAY_SIZE) {
+		if (lua_rawlen(L, index) != n) {
 			luaL_error(L, "Need table size %d", n);
 		}
-		int v[MAX_ARRAY_SIZE];
 		int i;
+		int *v = (int *)(buffer + offset);
 		for (i=0;i<n;i++) {
 			if (lua_rawgeti(L, index, i+1) != LUA_TNUMBER) {
 				luaL_error(L, "Invalid value in table[%d]", i+1);
 			}
-			v[i] = lua_tointeger(L, -1);
+			int tmp = lua_tointeger(L, -1);
+			memcpy(v, &tmp, sizeof(int));
+			++v;
 			lua_pop(L, 1);
 		}
-		memcpy(buffer + offset, &v, sizeof(int) * n);
 	}
 }
 
