@@ -154,7 +154,6 @@ local function frame(count)
 
 	-- todo: do not wait all batch commits
 	local batch_n = #batch
---	soluna_app.context_acquire()
 	if update_image then update_image() end
 	STATE.drawmgr:reset()
 	STATE.bindings:base(0)
@@ -181,7 +180,6 @@ local function frame(count)
 			obj.draw(ptr, n, tex)
 		end
 	STATE.pass:finish()
---	soluna_app.context_release()
 end
 
 function S.frame(count)
