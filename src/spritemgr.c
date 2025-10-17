@@ -103,6 +103,23 @@ pack_sprite(struct sprite_bank *b, stbrp_context *ctx, stbrp_node *tmp, stbrp_re
 	return i;
 }
 
+struct tmp_context {
+	stbrp_context ctx;
+	stbrp_node tmp[MAX_NODE];
+	stbrp_rect rect[1];// = malloc(sizeof(*rect) * b->n);
+};
+
+static inline struct tmp_context *
+alloc_context(int n) {
+	struct tmp_context * r = (struct tmp_context *)malloc(sizeof(*r) + (n - 1) * sizeof(r->rect));
+	return r;
+}
+
+static inline void
+free_context(struct tmp_context *p) {
+	free(p);
+}
+
 static int
 lbank_pack(lua_State *L) {
 	struct sprite_bank *b = (struct sprite_bank *)luaL_checkudata(L, 1, "SOLUNA_SPRITEBANK");
@@ -110,24 +127,22 @@ lbank_pack(lua_State *L) {
 		++b->current_frame;
 		return 0;
 	}
-
-	stbrp_context ctx;
-	stbrp_node tmp[MAX_NODE];
-	stbrp_rect * rect = malloc(sizeof(*rect) * b->n);
+	
+	struct tmp_context *ctx = alloc_context(b->n);
 
 	int texture = b->texture_n;
 	int from = 0;
 	int reserved = 0;
 	for (;;) {
-		from = pack_sprite(b, &ctx, tmp, rect, from, reserved, &reserved);
+		from = pack_sprite(b, &ctx->ctx, ctx->tmp, ctx->rect, from, reserved, &reserved);
 		if (reserved == 0 && from >= b->n) {
 			break;
 		}
 		++b->texture_n;
 	}
-	free(rect);
+	free_context(ctx);
 	b->texture_ready = 1;
-	
+
 	lua_pushinteger(L, texture);
 	lua_pushinteger(L, b->texture_n - texture + 1);
 
