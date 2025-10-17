@@ -90,6 +90,7 @@ lm:conf({
     ldflags = {
       "--use-port=emdawnwebgpu",
       "-s FULL_ES3=1",
+      "-s ALLOW_MEMORY_GROWTH",
       "-s FORCE_FILESYSTEM=1",
       '-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile"]\'',
       "-s USE_PTHREADS=1",
