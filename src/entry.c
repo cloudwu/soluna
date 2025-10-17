@@ -79,7 +79,7 @@
 
 #elif defined(__EMSCRIPTEN__)
 
-#define PLATFORM "emscripten"
+#define PLATFORM "wasm"
 
 #elif defined(__linux__)
 
