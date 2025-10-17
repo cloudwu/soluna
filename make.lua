@@ -99,7 +99,7 @@ lm:conf({
       "-s OFFSCREENCANVAS_SUPPORT=1",
       "-s OFFSCREEN_FRAMEBUFFER=1",
       lm.mode == "debug" and "-s ASSERTIONS=2",
-      lm.mode == "debug" and "-s SAFE_HEAP=1",
+      -- lm.mode == "debug" and "-s SAFE_HEAP=1",
       lm.mode == "debug" and "-s STACK_OVERFLOW_CHECK=1",
       lm.mode == "debug" and "-s PTHREADS_DEBUG=1",
     },
