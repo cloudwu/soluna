@@ -20,9 +20,9 @@ local function load_zips(zipnames)
 	for name in zipnames:gmatch "[^:;]+" do
 		local zf = zip.open(name, "r")
 		if not zf then
-			print("Can't open patch", name)
+--			print("Can't open patch", name)
 		else
-			print("Load patch", name)
+--			print("Load patch", name)
 			n = n + 1
 			r[n] = zf
 		end
@@ -31,7 +31,7 @@ local function load_zips(zipnames)
 	if n > 0 then
 		return r
 	else
-		print("No zip, use local files")
+--		print("No zip, use local files")
 	end
 end
 

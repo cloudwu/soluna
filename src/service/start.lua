@@ -3,7 +3,6 @@ local file = require "soluna.file"
 local spritemgr = require "soluna.spritemgr"
 local soluna = require "soluna"
 local soluna_app = require "soluna.app"
-local event = require "soluna.event"
 local util = require "soluna.util"
 local table = table
 local debug = debug
@@ -12,7 +11,7 @@ global error, tostring, assert, load, type, ipairs, pairs, xpcall, print, pcall
 
 local message_unpack = soluna_app.unpackmessage
 
-local args, ev = ...
+local args = ...
 
 local S = {}
 
@@ -183,7 +182,9 @@ end
 
 ltask.fork(function()
 	ltask.call(1, "external_forward", ltask.self(), "external")
-	event.trigger(ev.init)
+
+	-- trigger INIT_EVENT, see main.lua
+	ltask.mainthread_run(function() end)
 	
 	local ok , err = pcall(init, args)
 	if not ok then

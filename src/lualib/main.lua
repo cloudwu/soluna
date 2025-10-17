@@ -51,7 +51,6 @@ local function start(config)
 	local boot = require "ltask.bootstrap"
 	local mqueue = require "ltask.mqueue"
 	local embedsource = require "soluna.embedsource"
-	local event = require "soluna.event"
 	local soluna_app = require "soluna.app"
 	-- set callback message handler
 	local root_config = {
@@ -65,16 +64,11 @@ local function start(config)
 			zipfile = config.args.zipfile or "",
 		}),
 	}
-	
-	local ev = event.create()
-	
+
 	table.insert(root_config.bootstrap, {
 		name = "start",
 		args = {
 			config.args,
-			{
-				init = ev:ptr(),
-			}
 		},
 	})
 
@@ -88,7 +82,8 @@ local function start(config)
 		root_initfunc = root_config.initfunc,
 		mainthread = config.mainthread,
 	}
-	ev:wait()
+	-- wait for INIT_EVENT, see start.lua
+	boot.mainthread_wait()
 	local sender, sender_ud = bootstrap.external_sender(ctx)
 	local c_sendmessage = require "soluna.app".sendmessage
 	local function send_message(...)

@@ -26,7 +26,6 @@ int luaopen_font_system(lua_State *L);
 int luaopen_gamepad_device(lua_State *L);
 int luaopen_gamepad(lua_State *L);
 int luaopen_localfs(lua_State *L);
-int luaopen_soluna_event(lua_State *L);
 int luaopen_image_sdf(lua_State *L);
 int luaopen_layout_yoga(lua_State *L);
 int luaopen_url(lua_State *L);
@@ -59,7 +58,6 @@ void soluna_embed(lua_State* L) {
 		{ "soluna.gamepad", luaopen_gamepad },
 		{ "soluna.gamepad.device", luaopen_gamepad_device },
 		{ "soluna.lfs", luaopen_localfs },
-		{ "soluna.event", luaopen_soluna_event },
 		{ "soluna.image.sdf", luaopen_image_sdf },
 		{ "soluna.layout.yoga", luaopen_layout_yoga },
 		{ "soluna.url", luaopen_url },
