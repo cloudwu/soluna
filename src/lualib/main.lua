@@ -67,7 +67,6 @@ local function start(config)
 	}
 	
 	local ev = event.create()
-	local frame_barrier = event.create()
 	
 	table.insert(root_config.bootstrap, {
 		name = "start",
@@ -75,7 +74,6 @@ local function start(config)
 			config.args,
 			{
 				init = ev:ptr(),
-				frame = frame_barrier:ptr()
 			}
 		},
 	})
@@ -137,10 +135,8 @@ local function start(config)
 			if v then
 				dispatch_appmsg(v)
 			end
-			soluna_app.context_release()
 			send_message("frame", count)
-			frame_barrier:wait()
-			soluna_app.context_acquire()
+			boot.mainthread_wait()
 		end,
 		event = function(ev)
 			send_message(unpackevent(ev))

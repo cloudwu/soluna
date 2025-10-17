@@ -23,9 +23,25 @@ function app.cleanup()
 	ltask.send(1, "quit_ltask")
 end
 
--- dummy frame
+local init_token
 function app.frame(count)
-	event.trigger(ev.frame)
+	local f
+	if init_token == nil then
+		init_token = {}
+		f = ltask.wait(init_token)
+	else
+		f = init_token
+	end
+	init_token = nil
+	f(count)
+end
+
+local function frame_callback(f)
+	if init_token then
+		ltask.wakeup(init_token, f)
+	else
+		init_token = f
+	end
 end
 
 local render_service
@@ -134,26 +150,31 @@ local function init(arg)
 		
 		local traceback = debug.traceback
 		
-		function app.frame(count)
+		local function render_frame(count)
 			local ok, err = xpcall(frame, traceback, count)
-			event.trigger(ev.frame)
 			if not ok then
-				frame = function() end
+				function app.frame()
+					ltask.mainthread_run(function() end)
+				end
 				error(err)
 			end
 		end
+		
+		frame_callback(function()
+			-- replace app.frame
+			app.frame = render_frame
+			render_frame()
+		end)
 	end
 	
-	function app.frame(count)
+	frame_callback(function ()
 		-- init render in the first frame, because render init would call some gfx api
 		local ok, err = xpcall(init_render, debug.traceback)
-		event.trigger(ev.frame)
 		if not ok then
 			print(err)
 			soluna_app.close_window()
 		end
---		assert(ok, err)
-	end
+	end)
 end
 
 function S.quit()
