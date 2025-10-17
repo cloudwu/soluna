@@ -87,12 +87,15 @@ lm:conf({
       "-pthread",
       "--use-port=emdawnwebgpu",
     },
+    links = {
+      "idbfs.js",
+    },
     ldflags = {
       "--use-port=emdawnwebgpu",
       "-s FULL_ES3=1",
       "-s ALLOW_MEMORY_GROWTH",
       "-s FORCE_FILESYSTEM=1",
-      '-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile"]\'',
+      '-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile","IDBFS"]\'',
       "-s USE_PTHREADS=1",
       "-s PTHREAD_POOL_SIZE=30",
       "-s PTHREAD_POOL_SIZE_STRICT=2",
