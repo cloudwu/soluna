@@ -178,6 +178,65 @@ lttfdata(lua_State *L) {
 	return 1;
 }
 
+#elif defined(__EMSCRIPTEN__)
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+
+static void *
+free_data(void *ud, void *ptr, size_t osize, size_t nsize) {
+  free(ptr);
+  return NULL;
+}
+
+static int
+lttfdata(lua_State *L) {
+  // todo: use soluna.file api to read file
+  const char *path = luaL_checkstring(L, 1);
+
+  FILE *file = fopen(path, "rb");
+  if (!file) {
+    return luaL_error(L, "Failed to open font file '%s': %s", path, strerror(errno));
+  }
+
+  if (fseek(file, 0, SEEK_END) != 0) {
+    fclose(file);
+    return luaL_error(L, "Failed to seek font file '%s'", path);
+  }
+
+  long fileSize = ftell(file);
+  if (fileSize < 0) {
+    fclose(file);
+    return luaL_error(L, "Failed to get font file size '%s'", path);
+  }
+
+  if (fseek(file, 0, SEEK_SET) != 0) {
+    fclose(file);
+    return luaL_error(L, "Failed to rewind font file '%s'", path);
+  }
+
+  char *buf = malloc(fileSize + 1);
+  if (!buf) {
+    fclose(file);
+    return luaL_error(L, "Out of memory : sysfont");
+  }
+
+  size_t bytesRead = fread(buf, 1, fileSize, file);
+  fclose(file);
+
+  if (bytesRead != (size_t)fileSize) {
+    free(buf);
+    return luaL_error(L, "Failed to read font file '%s'", path);
+  }
+
+  buf[fileSize] = 0;
+
+  lua_pushexternalstring(L, buf, fileSize, free_data, NULL);
+  return 1;
+}
+
 #elif defined(__linux__)
 
 #include <fontconfig/fontconfig.h>
