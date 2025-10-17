@@ -294,4 +294,17 @@ end
 
 setmetatable(ttf.idtable, { __index = fetch_id })
 
+local function enum_name(_, idx)
+	local i = idx // 2
+	local what = (idx % 2 == 1) and "family" or "name"
+	local n = namelist[i+1]
+	if not n then
+		return
+	else
+		return n[what]
+	end
+end
+
+setmetatable(ttf.enum, { __index = enum_name })
+
 debug.getregistry().TRUETYPE_IMPORT = import

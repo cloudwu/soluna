@@ -150,5 +150,10 @@ luaopen_font_truetype(lua_State *L) {
 	lua_setfield(L, LUA_REGISTRYINDEX, TRUETYPE_ID);
 	lua_setfield(L, -2, "idtable");
 
+	lua_newtable(L);
+	lua_pushvalue(L, -1);
+	lua_setfield(L, LUA_REGISTRYINDEX, TRUETYPE_ENUM);
+	lua_setfield(L, -2, "enum");
+
 	return 1;
 }

@@ -553,6 +553,14 @@ font_manager_addfont_with_family(struct font_manager *F, const char* family) {
 	return r;
 }
 
+int
+font_manager_enum_fontname(struct font_manager *F, int idx, char buffer[], int buf_sz) {
+	lock(F);
+	int r = truetype_enum(F->L, idx, buffer, buf_sz);
+	unlock(F);
+	return r;
+}
+
 float
 font_manager_sdf_mask(struct font_manager *F){
 	return (ONEDGE_VALUE) / 255.f;

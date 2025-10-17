@@ -130,6 +130,32 @@ lsize(lua_State *L) {
 	return 1;
 }
 
+#define MAX_FONTNAME 256
+
+static int
+llist(lua_State *L) {
+	struct font_manager *F = getF(L);
+	int i = 1;
+	lua_newtable(L);
+	char buf[MAX_FONTNAME];
+	for (;;) {
+		int r = font_manager_enum_fontname(F, i, buf, MAX_FONTNAME);
+		if (r <= 0)
+			break;
+		if (r >= MAX_FONTNAME) {
+			char *tmp = (char *)malloc(r + 1);
+			font_manager_enum_fontname(F, i, tmp, r+1);
+			lua_pushlstring(L, tmp, r);
+			free(tmp);
+		} else {
+			lua_pushlstring(L, buf, r);
+		}
+		lua_seti(L, -2, i);
+		++i;
+	}
+	return 1;
+}
+
 int
 luaopen_font(lua_State *L) {
 	luaL_checkversion(L);
@@ -145,6 +171,7 @@ luaopen_font(lua_State *L) {
 		{ "cobj",				lcobj },
 		{ "texture_size",		NULL },
 		{ "import_icon",		limport_icon },
+		{ "list",				llist },
 		{ NULL, 				NULL },
 	};
 	

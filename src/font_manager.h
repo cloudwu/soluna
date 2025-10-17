@@ -25,6 +25,7 @@ int font_manager_underline(struct font_manager *F, int fontid, int size, float *
 float font_manager_sdf_mask(struct font_manager *F);
 float font_manager_sdf_distance(struct font_manager *F, uint8_t numpixel);
 void font_manager_icon_init(struct font_manager *F, int n, void *data);
+int font_manager_enum_fontname(struct font_manager *F, int idx, char buffer[], int buf_sz);
 
 // for debug
 const void * font_manager_texture(struct font_manager *F, int *sz);

@@ -4,11 +4,13 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <stb/stb_truetype.h>
 
 #define TRUETYPE_ID "TRUETYPE_ID"
 #define TRUETYPE_NAME "TRUETYPE_NAME"
+#define TRUETYPE_ENUM "TRUETYPE_ENUM"
 #define TRUETYPE_CSTRUCT "TRUETYPE_CSTRUCT"
 #define TRUETYPE_IMPORT "TRUETYPE_IMPORT"
 
@@ -104,6 +106,42 @@ truetype_name(lua_State *L, const char *name) {
 	}
 	lua_pop(L, 1);
 	return fontid;
+}
+
+static inline int
+lenum_fontname(lua_State *L) {
+	int idx = lua_tointeger(L, 1);
+	if (lua_getfield(L, LUA_REGISTRYINDEX, TRUETYPE_ENUM) != LUA_TTABLE) {
+		return 0;
+	}
+	if (lua_geti(L, -1, idx) != LUA_TSTRING) {
+		return 0;
+	}
+	return 1;
+}
+
+static inline int
+truetype_enum(lua_State *L, int idx, char buffer[], int buffer_sz) {
+	lua_pushcfunction(L, lenum_fontname);
+	lua_pushinteger(L, idx);
+	if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
+		printf("TRUETYPE_ENUM err: %s\n", lua_tostring(L, -1));
+		lua_pop(L, 1);
+		return -1;
+	}
+	if (lua_isstring(L, -1)) {
+		size_t sz = 0;
+		const char *name = lua_tolstring(L, -1, &sz);
+		if (sz >= buffer_sz) {
+			return (int)sz;
+		}
+		memcpy(buffer, name, sz+1);
+		lua_pop(L, 1);
+		return (int)sz;
+	} else {
+		lua_pop(L, 1);
+		return 0;
+	}
 }
 
 static inline int
