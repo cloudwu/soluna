@@ -15,8 +15,7 @@
 #include "sprite_submit.h"
 #include "material_util.h"
 #include "render_bindings.h"
-
-#define BATCHN 4096
+#include "tmpbuffer.h"
 
 struct text {
 	struct draw_primitive_external header;
@@ -34,10 +33,6 @@ struct inst_object {
     uint32_t v;
 };
 
-struct buffer_data {
-	struct inst_object inst[BATCHN];
-};
-
 struct material_text {
 	sg_pipeline pip;
 	sg_buffer inst;
@@ -46,11 +41,13 @@ struct material_text {
 	struct sr_buffer *srbuffer;
 	struct font_manager *font;
 	fs_params_t fs_uniform;
+	struct tmp_buffer tmp;
 };
 
 static void
-submit(lua_State *L, struct material_text *m, struct draw_primitive *prim, int n) {
-	struct buffer_data tmp;
+submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
+	struct material_text *m = (struct material_text *)m_;
+	struct inst_object *tmp = TMPBUFFER_PTR(struct inst_object, &m->tmp);
 	int i;
 	int count = 0;
 	for (i=0;i<n;i++) {
@@ -61,9 +58,9 @@ submit(lua_State *L, struct material_text *m, struct draw_primitive *prim, int n
 		struct font_glyph g, og;
 		const char* err = font_manager_glyph(m->font, t->font, t->codepoint, t->size, &g, &og);
 		if (err == NULL) {
-			tmp.inst[count].offset = (-og.offset_x + 0x8000) << 16 | (-og.offset_y + 0x8000);
-			tmp.inst[count].u = og.u << 16 | FONT_MANAGER_GLYPHSIZE;
-			tmp.inst[count].v = og.v << 16 | FONT_MANAGER_GLYPHSIZE;
+			tmp[count].offset = (-og.offset_x + 0x8000) << 16 | (-og.offset_y + 0x8000);
+			tmp[count].u = og.u << 16 | FONT_MANAGER_GLYPHSIZE;
+			tmp[count].v = og.v << 16 | FONT_MANAGER_GLYPHSIZE;
 			
 			uint32_t scale_fix = og.w == 0 ? 0 : (g.w << 12) / og.w;
 			sprite_apply_scale(p, scale_fix);
@@ -73,28 +70,22 @@ submit(lua_State *L, struct material_text *m, struct draw_primitive *prim, int n
 				// todo: support multiply srbuffer
 				luaL_error(L, "sr buffer is full");
 			}
-			tmp.inst[count].x = (float)p->x / 256.0f;
-			tmp.inst[count].y = (float)p->y / 256.0f;
-			tmp.inst[count].sr_index = (float)sr_index;
+			tmp[count].x = (float)p->x / 256.0f;
+			tmp[count].y = (float)p->y / 256.0f;
+			tmp[count].sr_index = (float)sr_index;
 			++count;
 		} else {
 			t->codepoint = -1;
 		}
 	}
-	sg_append_buffer(m->inst, &(sg_range) { tmp.inst , count * sizeof(tmp.inst[0]) });
+	sg_append_buffer(m->inst, &(sg_range) { tmp , count * sizeof(tmp[0]) });
 }
 
 static int
 lmateraial_text_submit(lua_State *L) {
 	struct material_text *m = (struct material_text *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_TEXT");
-	struct draw_primitive *prim = lua_touserdata(L, 2);
-	int prim_n = luaL_checkinteger(L, 3);
-	int i;
-	for (i=0;i<prim_n;i+=BATCHN) {
-		int n = (prim_n - i) % BATCHN;
-		submit(L, m, prim, n);
-		prim += BATCHN;
-	}
+	int batch_n = TMPBUFFER_SIZE(struct inst_object, &m->tmp);
+	submit_material(L, batch_n, m, submit);
 	return 0;
 }
 
@@ -200,11 +191,12 @@ init_pipeline(struct material_text *m) {
 static int
 lnew_material_text_normal(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
-	struct material_text *m = (struct material_text *)lua_newuserdatauv(L, sizeof(*m), 4);
+	struct material_text *m = (struct material_text *)lua_newuserdatauv(L, sizeof(*m), 5);
 	ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
 	ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
 	ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
+	tmp_buffer_init(L, &m->tmp, 5, "tmp_buffer");
 	init_pipeline(m);
 
 	if (lua_getfield(L, 1, "font_manager") != LUA_TLIGHTUSERDATA) {

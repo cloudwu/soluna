@@ -524,6 +524,13 @@ lbuffer_size(lua_State *L) {
 	return 1;
 }
 
+static int
+ltmp_buffer(lua_State *L) {
+	size_t sz = luaL_optinteger(L, 1, 128 * 1024);
+	lua_newuserdatauv(L, sz, 0);
+	return 1;
+}
+
 int lbindings_new(lua_State *L);
 int lview_new(lua_State *L);
 int luniform_new(lua_State *L);
@@ -543,6 +550,7 @@ luaopen_render(lua_State *L) {
 		{ "bindings", lbindings_new },
 		{ "view", lview_new },
 		{ "uniform", luniform_new },
+		{ "tmp_buffer", ltmp_buffer },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);

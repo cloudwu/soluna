@@ -10,8 +10,7 @@
 #include "spritemgr.h"
 #include "material_util.h"
 #include "render_bindings.h"
-
-#define BATCHN 4096
+#include "tmpbuffer.h"
 
 struct color {
 	unsigned char channel[4];
@@ -31,10 +30,6 @@ struct mask {
 	struct color c;
 };
 
-struct buffer_data {
-	struct inst_object inst[BATCHN];
-};
-
 struct material_mask {
 	sg_pipeline pip;
 	sg_buffer inst;
@@ -42,12 +37,14 @@ struct material_mask {
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct sprite_bank *bank;
+	struct tmp_buffer tmp;
 };
 
 static void
-submit(lua_State *L, struct material_mask *m, struct draw_primitive *prim, int n) {
+submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
+	struct material_mask *m =(struct material_mask *)m_;
 	struct sprite_rect *rect = m->bank->rect;
-	struct buffer_data tmp;
+	struct inst_object *tmp = TMPBUFFER_PTR(struct inst_object, &m->tmp);
 	int i;
 	for (i=0;i<n;i++) {
 		struct draw_primitive *p = &prim[i*2];
@@ -61,32 +58,26 @@ submit(lua_State *L, struct material_mask *m, struct draw_primitive *prim, int n
 			// todo: support multiply srbuffer
 			luaL_error(L, "sr buffer is full");
 		}
-		tmp.inst[i].x = (float)p->x / 256.0f;
-		tmp.inst[i].y = (float)p->y / 256.0f;
-		tmp.inst[i].sr_index = (float)sr_index;
-		tmp.inst[i].maskcolor = mask->c;
+		tmp[i].x = (float)p->x / 256.0f;
+		tmp[i].y = (float)p->y / 256.0f;
+		tmp[i].sr_index = (float)sr_index;
+		tmp[i].maskcolor = mask->c;
 		
 		int index = mask->header.sprite;
 		assert(index >= 0);
 		struct sprite_rect *r = &rect[index];
-		tmp.inst[i].offset = r->off;
-		tmp.inst[i].u = r->u;
-		tmp.inst[i].v = r->v;
+		tmp[i].offset = r->off;
+		tmp[i].u = r->u;
+		tmp[i].v = r->v;
 	}
-	sg_append_buffer(m->inst, &(sg_range) { tmp.inst , n * sizeof(tmp.inst[0]) });
+	sg_append_buffer(m->inst, &(sg_range) { tmp , n * sizeof(tmp[0]) });
 }
 
 static int
 lmaterial_mask_submit(lua_State *L) {
 	struct material_mask *m = (struct material_mask *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_MASK");
-	struct draw_primitive *prim = lua_touserdata(L, 2);
-	int prim_n = luaL_checkinteger(L, 3);
-	int i;
-	for (i=0;i<prim_n;i+=BATCHN) {
-		int n = (prim_n - i) % BATCHN;
-		submit(L, m, prim, n);
-		prim += BATCHN;
-	}
+	int batch_n = TMPBUFFER_SIZE(struct inst_object, &m->tmp);
+	submit_material(L, batch_n, m, submit);
 	return 0;
 }
 
@@ -163,12 +154,13 @@ init_pipeline(struct material_mask *p) {
 static int
 lnew_material_mask(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
-	struct material_mask *m = (struct material_mask *)lua_newuserdatauv(L, sizeof(*m), 4);
+	struct material_mask *m = (struct material_mask *)lua_newuserdatauv(L, sizeof(*m), 5);
 	init_pipeline(m);
 	ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
 	ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
 	ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
+	tmp_buffer_init(L, &m->tmp, 5, "tmp_buffer");
 	if (lua_getfield(L, 1, "sprite_bank") != LUA_TLIGHTUSERDATA) {
 		return luaL_error(L, "Missing .sprite_bank");
 	}

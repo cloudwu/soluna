@@ -235,7 +235,6 @@ function S.load_sprites(name)
 end
 
 local function render_init(arg)
---	soluna_app.context_acquire()
 	font.init()
 
 	local texture_size = setting.texture_size
@@ -341,6 +340,8 @@ local function render_init(arg)
 	}
 	STATE.uniform.framesize = { 2/arg.width, -2/arg.height }
 	STATE.uniform.tex_size = 1/texture_size
+	
+	local tmp_buffer = render.tmp_buffer(setting.tmpbuffer_size)
 
 	STATE.material = defmat.new {
 		inst_buffer = STATE.inst,
@@ -348,6 +349,7 @@ local function render_init(arg)
 		uniform = STATE.uniform,
 		sr_buffer = STATE.srbuffer_mem,
 		sprite_bank = arg.bank_ptr,
+		tmp_buffer = tmp_buffer,
 	}
 
 	STATE.material_mask = maskmat.new {
@@ -356,6 +358,7 @@ local function render_init(arg)
 		uniform = STATE.uniform,
 		sr_buffer = STATE.srbuffer_mem,
 		sprite_bank = arg.bank_ptr,
+		tmp_buffer = tmp_buffer,
 	}
 	
 	STATE.material_text = textmat.normal {
@@ -364,6 +367,7 @@ local function render_init(arg)
 		uniform = STATE.uniform,
 		sr_buffer = STATE.srbuffer_mem,
 		font_manager = font.cobj,
+		tmp_buffer = tmp_buffer,
 	}
 
 	STATE.material_quad = quadmat.new {
@@ -371,8 +375,8 @@ local function render_init(arg)
 		bindings = STATE.quad_bindings,
 		uniform = STATE.uniform,
 		sr_buffer = STATE.srbuffer_mem,
+		tmp_buffer = tmp_buffer,
 	}
---	soluna_app.context_release()
 end
 
 function S.init(arg)

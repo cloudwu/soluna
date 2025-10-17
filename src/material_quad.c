@@ -10,8 +10,7 @@
 #include "spritemgr.h"
 #include "material_util.h"
 #include "render_bindings.h"
-
-#define BATCHN 4096
+#include "tmpbuffer.h"
 
 struct color {
 	unsigned char channel[4];
@@ -31,21 +30,19 @@ struct inst_object {
 	struct color c;
 };
 
-struct buffer_data {
-	struct inst_object inst[BATCHN];
-};
-
 struct material_quad {
 	sg_pipeline pip;
 	sg_buffer inst;
 	struct soluna_render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
+	struct tmp_buffer tmp;
 };
 
 static void
-submit(lua_State *L, struct material_quad *m, struct draw_primitive *prim, int n) {
-	struct buffer_data tmp;
+submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
+	struct material_quad *m = (struct material_quad *)m_;
+	struct inst_object *tmp = TMPBUFFER_PTR(struct inst_object, &m->tmp);
 	int i;
 	for (i=0;i<n;i++) {
 		struct draw_primitive *p = &prim[i*2];
@@ -59,7 +56,7 @@ submit(lua_State *L, struct material_quad *m, struct draw_primitive *prim, int n
 			// todo: support multiply srbuffer
 			luaL_error(L, "sr buffer is full");
 		}
-		struct inst_object *inst = &tmp.inst[i];
+		struct inst_object *inst = &tmp[i];
 		inst->x = (float)p->x / 256.0f;
 		inst->y = (float)p->y / 256.0f;
 		inst->w = q->w;
@@ -67,20 +64,14 @@ submit(lua_State *L, struct material_quad *m, struct draw_primitive *prim, int n
 		inst->sr_index = sr_index;
 		inst->c = q->c;
 	}
-	sg_append_buffer(m->inst, &(sg_range) { tmp.inst , n * sizeof(tmp.inst[0]) });
+	sg_append_buffer(m->inst, &(sg_range) { tmp , n * sizeof(tmp[0]) });
 }
 
 static int
 lmateraial_quad_submit(lua_State *L) {
 	struct material_quad *m = (struct material_quad *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_QUAD");
-	struct draw_primitive *prim = lua_touserdata(L, 2);
-	int prim_n = luaL_checkinteger(L, 3);
-	int i;
-	for (i=0;i<prim_n;i+=BATCHN) {
-		int n = (prim_n - i) % BATCHN;
-		submit(L, m, prim, n);
-		prim += BATCHN;
-	}
+	int batch_n = TMPBUFFER_SIZE(struct inst_object, &m->tmp);
+	submit_material(L, batch_n, m, submit);
 	return 0;
 }
 
@@ -155,11 +146,12 @@ init_pipeline(struct material_quad *m) {
 static int
 lnew_material_quad(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
-	struct material_quad *m = (struct material_quad *)lua_newuserdatauv(L, sizeof(*m), 4);
+	struct material_quad *m = (struct material_quad *)lua_newuserdatauv(L, sizeof(*m), 5);
 	ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
 	ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
 	ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
+	tmp_buffer_init(L, &m->tmp, 5, "tmp_buffer");
 	init_pipeline(m);
 
 	if (luaL_newmetatable(L, "SOLUNA_MATERIAL_QUAD")) {

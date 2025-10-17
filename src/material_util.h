@@ -26,4 +26,23 @@ ref_object(lua_State *L, void *ptr, int uv_index, const char *key, const char *l
 	}
 }
 
+static inline void
+submit_material(lua_State *L, int batch_n, void *mat, void (*submit)(lua_State *, void *, struct draw_primitive *, int)) {
+	struct draw_primitive *prim = lua_touserdata(L, 2);
+	int prim_n = luaL_checkinteger(L, 3);
+	int i = 0;
+	for (;;) {
+		int n = prim_n - i;
+		if (n > batch_n) {
+			submit(L, mat, prim, batch_n);
+			i += batch_n;
+			prim += batch_n;
+		} else {
+			submit(L, mat, prim, n);
+			i += batch_n;
+			break;
+		}
+	}
+}
+
 #endif
