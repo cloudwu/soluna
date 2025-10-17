@@ -17,9 +17,13 @@ local deps = {}
 
 local function compile_lua_code(script, src, name)
   local dep = name .. "_lua_code"
-  deps[#deps+1] = dep
+  deps[#deps + 1] = dep
   local target = lm.builddir .. "/" .. name
-  lm:runlua (dep) {
+  local bindir = lm.bindir
+  if lm.platform == "emcc" then
+    bindir = lm.osbindir
+  end
+  lm:runlua(dep) {
     script = lm.basedir .. "/clibs/yoga/runlua.lua",
     deps = {
       "yoga_src",
@@ -28,7 +32,7 @@ local function compile_lua_code(script, src, name)
     inputs = lm.basedir .. "/" .. src,
     outputs = lm.basedir .. "/" .. target,
     args = {
-      lm.bindir,
+      bindir,
       lm.basedir .. "/" .. script,
       "$in",
       "$out",

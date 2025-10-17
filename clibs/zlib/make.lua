@@ -5,8 +5,8 @@ lm.rootdir = lm.basedir .. "/3rd/zlib"
 lm:source_set "minizip" {
   sources = {
     "contrib/minizip/ioapi.c",
-		"contrib/minizip/unzip.c",
-		"contrib/minizip/zip.c",
+    "contrib/minizip/unzip.c",
+    "contrib/minizip/zip.c",
   },
   windows = {
     sources = {

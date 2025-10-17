@@ -585,6 +585,10 @@ ldir(lua_State *L) {
 
 static int
 lpersonaldir(lua_State *L) {
+#if defined(__EMSCRIPTEN__)
+  lua_pushstring(L, "/");
+  return 1;
+#else
 	struct passwd *pw = getpwuid(getuid());
 	if (pw && pw->pw_dir) {
 		lua_pushstring(L, pw->pw_dir);
@@ -592,6 +596,7 @@ lpersonaldir(lua_State *L) {
 	} else {
 		return error_return(L);
 	}
+#endif
 }
 
 static int

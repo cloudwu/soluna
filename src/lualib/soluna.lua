@@ -61,6 +61,8 @@ function soluna.gamedir(name)
 		path = "My Games/"
 	elseif soluna.platform == "macos" or soluna.platform == "linux" then
 		path = ".local/share/"
+  elseif soluna.platform == "wasm" then
+    path = "persistent/games/"
 	else
 		error "TODO: support none windows"
 	end

@@ -152,6 +152,31 @@ jobs:
           if-no-files-found: "error"
           path: "${{ runner.os == 'Windows' && steps.build-windows.outputs.SOLUNA_PATH || steps.build-unix.outputs.SOLUNA_PATH }}"
           overwrite: "true"
+      - uses: mymindstorm/setup-emsdk@v14
+        if: runner.os == 'Linux'
+      - name: Build Emscripten
+        if: runner.os == 'Linux'
+        shell: bash
+        id: build-emscripten
+        run: |
+          luamake -compiler emcc precompile
+          luamake -compiler emcc
+          SOLUNA_BINARY="soluna.wasm"
+          SOLUNA_PATH=$(find bin -name $SOLUNA_BINARY | head -n 1)
+          SOLUNA_JS="soluna.js"
+          SOLUNA_JS_PATH=$(find bin -name $SOLUNA_JS | head -n 1)
+          echo "SOLUNA_BINARY=$SOLUNA_PATH" >> $GITHUB_OUTPUT
+          echo "SOLUNA_JS=$SOLUNA_JS_PATH" >> $GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        name: Upload Emscripten
+        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && runner.os == 'Linux'
+        with:
+          name: "soluna-emscripten"
+          if-no-files-found: "error"
+          overwrite: "true"
+          path: |
+            ${{ steps.build-emscripten.outputs.SOLUNA_BINARY }}
+            ${{ steps.build-emscripten.outputs.SOLUNA_JS }}
   release:
     name: Create Nightly Release
     needs: [check, build]

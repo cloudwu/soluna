@@ -55,8 +55,8 @@ lm:source_set "soluna_src" {
       "3rd/zlib/contrib/minizip",
     }
   },
-  linux = {
-    links = {
+  gcc = {
+    links = lm.os == "linux" and {
       "pthread",
       "dl",
       "GL",

@@ -10,8 +10,10 @@ build/linux
 build/macos
 build/mingw
 build/msvc
+build/emcc
 build/env.lua
 bin/linux
 bin/macos
 bin/mingw
 bin/msvc
+bin/emcc
