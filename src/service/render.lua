@@ -180,6 +180,7 @@ local function frame(count)
 			obj.draw(ptr, n, tex)
 		end
 	STATE.pass:finish()
+	render.submit()
 end
 
 function S.frame(count)
@@ -188,7 +189,6 @@ function S.frame(count)
 	if not ok then
 		print("RENDER ERR", err)
 	end
-	render.submit()
 	for i = 1, #batch do
 		local ptr, size, token = batch.consume(i)
 		ltask.wakeup(token)
