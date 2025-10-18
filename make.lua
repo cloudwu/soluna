@@ -81,18 +81,22 @@ lm:conf({
     },
   },
   emcc = {
-    c = "c11",
+    c = "gnu11",
     flags = {
       "-Wall",
       "-pthread",
       "--use-port=emdawnwebgpu",
     },
+    links = {
+      "idbfs.js",
+    },
     ldflags = {
+      '--js-library=src/wasm/soluna_ime.js',
       "--use-port=emdawnwebgpu",
       "-s FULL_ES3=1",
       "-s ALLOW_MEMORY_GROWTH",
       "-s FORCE_FILESYSTEM=1",
-      '-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile"]\'',
+      '-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile","IDBFS"]\'',
       "-s USE_PTHREADS=1",
       "-s PTHREAD_POOL_SIZE=30",
       "-s PTHREAD_POOL_SIZE_STRICT=2",
