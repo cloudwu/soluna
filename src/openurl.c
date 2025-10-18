@@ -15,6 +15,14 @@ open_url(lua_State *L, const char *url) {
 	ShellExecuteW(NULL, L"open", (WCHAR *)buf, NULL, NULL, SW_SHOWNORMAL);
 }
 
+#elif defined(__EMSCRIPTEN__)
+#include <emscripten/emscripten.h>
+
+static void
+open_url(lua_State *L, const char *url) {
+  MAIN_THREAD_ASYNC_EM_ASM(window.open(UTF8ToString($0), '_blank'), url);
+}
+
 #elif defined(__APPLE__) || defined(__linux__)
 
 #include <unistd.h>

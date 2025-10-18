@@ -81,7 +81,7 @@ lm:conf({
     },
   },
   emcc = {
-    c = "c11",
+    c = "gnu11",
     flags = {
       "-Wall",
       "-pthread",
