@@ -30,12 +30,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <locale.h>
-#include <wchar.h>
-#include <uchar.h>
 #if defined(__linux__)
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include <wchar.h>
+#include <uchar.h>
 #include <dlfcn.h>
 #endif
 #if defined(__EMSCRIPTEN__)
@@ -44,6 +44,8 @@
 #if defined(__EMSCRIPTEN_PTHREADS__)
 #include <emscripten/threading.h>
 #endif
+#include <wchar.h>
+#include <uchar.h>
 #endif
 #if defined(__APPLE__)
 #endif
