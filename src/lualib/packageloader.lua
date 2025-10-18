@@ -73,8 +73,8 @@ if zipfile then
 	local names_cache = setmetatable({}, { __index = find_file})
 
 	function file_load(name)
-		local loader = names_cache[name] or error ("Can't load ".. name)
-		return loader()
+		local loader = names_cache[name]
+		return loader and loader()
 	end
 	function file_exist(name)
 		return names_cache[name] ~= nil
