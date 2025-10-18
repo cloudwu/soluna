@@ -136,6 +136,7 @@ luaopen_font_truetype(lua_State *L) {
 		{ "testinfo", ltestinfo },	// test C api : truetype_font
 		{ "nametable", NULL },
 		{ "idtable", NULL },
+		{ "enum", NULL },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);

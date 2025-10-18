@@ -180,19 +180,10 @@ lttfdata(lua_State *L) {
 
 #elif defined(__EMSCRIPTEN__)
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
-static void *
-free_data(void *ud, void *ptr, size_t osize, size_t nsize) {
-  return NULL;
-}
-
 static int
 lttfdata(lua_State *L) {
-  return 0;
+	// todo :
+	return 0;
 }
 
 #elif defined(__linux__)
@@ -287,7 +278,8 @@ lttfdata(lua_State *L) {
 
 static int
 lttfdata(lua_State *L) {
-	return luaL_error(L, "Unsupport system font");
+	// always failed
+	return 0;
 }
 
 #endif
