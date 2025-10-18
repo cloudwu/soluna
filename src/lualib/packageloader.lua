@@ -6,7 +6,7 @@ local package = package
 local string = string
 local io = io
 
-global load, print, setmetatable, table, type, tostring, ipairs, require, error
+global load, print, setmetatable, table, type, tostring, ipairs, require, error, assert
 
 local dir_sep, temp_sep, temp_marker = package.config:match "(.)\n(.)\n(.)"
 local temp_pat = "[^"..temp_sep.."]+"
@@ -162,7 +162,7 @@ end
 
 local function fileload(name, fullname)
 	local s, err = file_load(fullname)
-	local f = load(s, "@"..fullname)
+	local f = assert(load(s, "@"..fullname))
 	return f(name, fullname)
 end
 
