@@ -6,7 +6,7 @@ local package = package
 local string = string
 local io = io
 
-global load, print, setmetatable, table, type, tostring, ipairs, require
+global load, print, setmetatable, table, type, tostring, ipairs, require, error
 
 local dir_sep, temp_sep, temp_marker = package.config:match "(.)\n(.)\n(.)"
 local temp_pat = "[^"..temp_sep.."]+"
@@ -17,14 +17,20 @@ local function load_zips(zipnames)
 	end
 	local n = 0
 	local r = {}
-	for name in zipnames:gmatch "[^:;]+" do
+	for fullname in zipnames:gmatch "[^:;]+" do
+		local name, root = fullname:match "(.-)@(.*)"
+		if name then
+			root = root .. "/"
+		else
+			name = fullname
+		end
 		local zf = zip.open(name, "r")
 		if not zf then
 --			print("Can't open patch", name)
 		else
 --			print("Load patch", name)
 			n = n + 1
-			r[n] = zf
+			r[n] = { zip = zf, root = root }
 		end
 	end
 	r.n = n
@@ -40,10 +46,24 @@ local file_load = file.load
 local file_exist = file.exist
 
 if zipfile then
-	local function find_file(cache, name)
+	local function find_file(cache, fullname)
+		local name = fullname:match "%./(.*)" or fullname
 		for i = zipfile.n, 1, -1 do
-			if zipfile[i]:exist(name) then
-				cache[name] = zipfile[i]
+			local root = zipfile[i].root
+			local name_in_zip
+			if root then
+				local n = #root
+				if name:sub(1, n) == root then
+					name_in_zip = name:sub(n+1)
+				end
+			else
+				name_in_zip = name
+			end
+			local zf = zipfile[i].zip
+			if name_in_zip and zf:exist(name_in_zip) then
+				cache[name] = function()
+					return zf:readfile(name_in_zip)
+				end
 --				print(name, "in zipfile", i)
 				return cache[name]
 			end
@@ -52,12 +72,11 @@ if zipfile then
 	local list
 	local names_cache = setmetatable({}, { __index = find_file})
 
-	function file_load(fullname)
-		local name = fullname:match "%./(.*)" or fullname
-		return names_cache[name]:readfile(name)
+	function file_load(name)
+		local loader = names_cache[name] or error ("Can't load ".. name)
+		return loader()
 	end
-	function file_exist(fullname)
-		local name = fullname:match "%./(.*)" or fullname
+	function file_exist(name)
 		return names_cache[name] ~= nil
 	end
 	file.local_load = file.load
@@ -69,9 +88,13 @@ if zipfile then
 		local r = {}
 		local n = 1
 		for i = zipfile.n, 1, -1 do
-			local flist = zipfile[i]:list()
+			local flist = zipfile[i].zip:list()
+			local root = zipfile[i].root
 			for j = 1, #flist do
 				local name = flist[j]
+				if root then
+					name = root and root .. name
+				end
 				if tmp[name] == nil then
 					tmp[name] = true
 					-- todo : add path of name

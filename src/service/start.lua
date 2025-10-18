@@ -70,6 +70,12 @@ end
 
 local cleanup = util.func_chain()
 
+local function skip_frame()
+	function app.frame()
+		ltask.mainthread_run(function() end)
+	end
+end
+
 local function init(arg)
 	if arg == nil then
 		error "No command line args"
@@ -121,12 +127,13 @@ local function init(arg)
 		}
 		
 		if type(callback) ~= "table" then
+			skip_frame()
 			soluna_app.close_window()
 			return
 		end
 		
 		local frame_cb = callback.frame
-		
+	
 		local messages = { "mouse_move", "mouse_button", "mouse_scroll", "mouse", "window_resize", "char", "key" }
 		local avail = {}
 		for _, v in ipairs(messages) do
@@ -152,9 +159,7 @@ local function init(arg)
 		local function render_frame(count)
 			local ok, err = xpcall(frame, traceback, count)
 			if not ok then
-				function app.frame()
-					ltask.mainthread_run(function() end)
-				end
+				skip_frame()
 				error(err)
 			end
 		end
@@ -188,6 +193,7 @@ ltask.fork(function()
 	
 	local ok , err = pcall(init, args)
 	if not ok then
+		ltask.mainthread_run(function() end)
 		ltask.log.error(err)
 		soluna_app.quit()
 	end
