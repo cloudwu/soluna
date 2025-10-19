@@ -74,24 +74,28 @@ edt(double *data, int width, int height, double *f, double *d, int *v, double *z
 	}
 }
 
+struct sdf_context {
+	double f[MAX_SIZE];
+	double d[MAX_SIZE];
+	double z[MAX_SIZE+1];
+	int v[MAX_SIZE];
+};
+
 static void
 sdf_convert(unsigned char *bytes, int x, int y, double radius, double cutoff) {
 	int i;
 	int size = (x > y) ? x : y;
 	assert(size <= MAX_SIZE);
 	int length = x * y;
-	double *data = (double *)malloc(length * sizeof(double) * 3);
+	double *data = (double *)malloc(length * sizeof(double) * 3 + sizeof(struct sdf_context));
 	for (i = 0; i < length; i++) {
 		// For white background, negative image
 		data[i] = (255 - bytes[i]) / 255.0;
 	}
 	double *gridOuter = data + length;
 	double *gridInner = gridOuter + length;
-	double f[MAX_SIZE];
-	double d[MAX_SIZE];
-	double z[MAX_SIZE+1];
-	int v[MAX_SIZE];
-	
+	struct sdf_context * ctx = (struct sdf_context *)(gridInner + length);
+
 	for (i = 0; i < length; i++) {
 		double a = data[i];
 		if (a >= 0.5) {
@@ -113,8 +117,8 @@ sdf_convert(unsigned char *bytes, int x, int y, double radius, double cutoff) {
 		}
 	}
 
-    edt(gridOuter, x, y, f, d, v, z);
-    edt(gridInner, x, y, f, d, v, z);
+    edt(gridOuter, x, y, ctx->f, ctx->d, ctx->v, ctx->z);
+    edt(gridInner, x, y, ctx->f, ctx->d, ctx->v, ctx->z);
 
 	for (i = 0; i < length; i++) {
 		double v = (gridOuter[i] - gridInner[i]) / radius + cutoff;
