@@ -167,6 +167,7 @@ jobs:
           SOLUNA_JS_PATH=$(find bin -name $SOLUNA_JS | head -n 1)
           echo "SOLUNA_BINARY=$SOLUNA_PATH" >> $GITHUB_OUTPUT
           echo "SOLUNA_JS=$SOLUNA_JS_PATH" >> $GITHUB_OUTPUT
+          sed -i 's/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32),dynamicOffsetsPtr>>2,dynamicOffsetCount)/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32).subarray(dynamicOffsetsPtr>>2,(dynamicOffsetsPtr>>2)+dynamicOffsetCount))/g' "$SOLUNA_JS_PATH"
       - uses: actions/upload-artifact@v4
         name: Upload Emscripten
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && runner.os == 'Linux'
