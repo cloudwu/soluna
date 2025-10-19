@@ -5,32 +5,37 @@ struct event_message {
 	const char *typestr;
 	int p1;
 	int p2;
+	int p3;
 };
 
 static inline void
+get_xy(struct event_message *em, float x, float y) {
+	float dpi_scale = sapp_dpi_scale();
+	float inv;
+	if (dpi_scale <= 0.0f) {
+		dpi_scale = 1.0f;
+		inv = 1.0f;
+	} else {
+		inv = 1.0f / dpi_scale;
+	}
+	float logical_x = x * inv;
+	float logical_y = y * inv;
+	if (logical_x >= 0.0f)
+		em->p1 = (int)(logical_x + 0.5f);
+	else
+		em->p1 = (int)(logical_x - 0.5f);
+	if (logical_y >= 0.0f)
+		em->p2 = (int)(logical_y + 0.5f);
+	else
+		em->p2 = (int)(logical_y - 0.5f);
+}
+
+static inline void
 mouse_message(struct event_message *em, const sapp_event* ev) {
-	em->typestr = NULL;
-	em->p1 = 0;
-	em->p2 = 0;
 	switch (ev->type) {
 	case SAPP_EVENTTYPE_MOUSE_MOVE:
 		em->typestr = "mouse_move";
-	{
-		float dpi_scale = sapp_dpi_scale();
-		if (dpi_scale <= 0.0f) {
-			dpi_scale = 1.0f;
-		}
-		float logical_x = ev->mouse_x / dpi_scale;
-		float logical_y = ev->mouse_y / dpi_scale;
-		if (logical_x >= 0.0f)
-			em->p1 = (int)(logical_x + 0.5f);
-		else
-			em->p1 = (int)(logical_x - 0.5f);
-		if (logical_y >= 0.0f)
-			em->p2 = (int)(logical_y + 0.5f);
-		else
-			em->p2 = (int)(logical_y - 0.5f);
-	}
+		get_xy(em, ev->mouse_x, ev->mouse_y);
 		break;
 	case SAPP_EVENTTYPE_MOUSE_DOWN:
 	case SAPP_EVENTTYPE_MOUSE_UP:
@@ -51,10 +56,33 @@ mouse_message(struct event_message *em, const sapp_event* ev) {
 }
 
 static inline void
+touch_message(struct event_message *em, const sapp_event* ev) {
+	// todo : support multi touch points
+	// get 1st touch point now
+    const sapp_touchpoint *t = &ev->touches[0];
+	get_xy(em, t->pos_x, t->pos_y);
+	em->p3 = t->changed;
+	switch (ev->type) {
+	case SAPP_EVENTTYPE_TOUCHES_BEGAN:
+		em->typestr = "touch_begin";
+		break;
+	case SAPP_EVENTTYPE_TOUCHES_MOVED:
+		em->typestr = "touch_moved";
+		break;
+	case SAPP_EVENTTYPE_TOUCHES_ENDED:
+		em->typestr = "touch_end";
+		break;
+	case SAPP_EVENTTYPE_TOUCHES_CANCELLED:
+		em->typestr = "touch_cancelled";
+		break;
+	default:
+		em->typestr = "touch";
+		break;
+	}
+}
+
+static inline void
 window_message(struct event_message *em, const sapp_event *ev) {
-	em->typestr = NULL;
-	em->p1 = 0;
-	em->p2 = 0;	
 	switch (ev->type) {
 	case SAPP_EVENTTYPE_RESIZED:
 		em->typestr = "window_resize";
@@ -70,9 +98,6 @@ window_message(struct event_message *em, const sapp_event *ev) {
 
 static inline void
 key_message(struct event_message *em, const sapp_event *ev) {
-	em->typestr = NULL;
-	em->p1 = 0;
-	em->p2 = 0;
 	switch (ev->type) {
 	case SAPP_EVENTTYPE_CHAR:
 		em->typestr = "char";
@@ -89,6 +114,10 @@ key_message(struct event_message *em, const sapp_event *ev) {
 
 static inline void
 app_event_unpack(struct event_message *em, const sapp_event* ev) {
+	em->typestr = NULL;
+	em->p1 = 0;
+	em->p2 = 0;
+	em->p3 = 0;
 	switch (ev->type) {
 	case SAPP_EVENTTYPE_MOUSE_MOVE:
 	case SAPP_EVENTTYPE_MOUSE_DOWN:
@@ -97,6 +126,12 @@ app_event_unpack(struct event_message *em, const sapp_event* ev) {
 	case SAPP_EVENTTYPE_MOUSE_ENTER:
 	case SAPP_EVENTTYPE_MOUSE_LEAVE:
 		mouse_message(em, ev);
+		break;
+	case SAPP_EVENTTYPE_TOUCHES_BEGAN:
+	case SAPP_EVENTTYPE_TOUCHES_MOVED:
+	case SAPP_EVENTTYPE_TOUCHES_ENDED:
+	case SAPP_EVENTTYPE_TOUCHES_CANCELLED:
+		touch_message(em, ev);
 		break;
 	case SAPP_EVENTTYPE_RESIZED:
 		window_message(em, ev);
@@ -109,7 +144,6 @@ app_event_unpack(struct event_message *em, const sapp_event* ev) {
 	default:
 		em->typestr = "message";
 		em->p1 = ev->type;
-		em->p2 = 0;
 		break;
 	}
 }

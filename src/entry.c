@@ -1337,7 +1337,8 @@ levent_unpack(lua_State *L) {
 	lua_pushlightuserdata(L, (void *)em.typestr);
 	lua_pushinteger(L, em.p1);
 	lua_pushinteger(L, em.p2);
-	return 3;
+	lua_pushinteger(L, em.p3);
+	return 4;
 }
 
 static int

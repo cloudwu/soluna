@@ -134,7 +134,11 @@ local function init(arg)
 		
 		local frame_cb = callback.frame
 	
-		local messages = { "mouse_move", "mouse_button", "mouse_scroll", "mouse", "window_resize", "char", "key" }
+		local messages = { 
+			"mouse_move", "mouse_button", "mouse_scroll", "mouse", 
+			"touch_begin", "touch_end", "touch_moved", "touch_cancelled",
+			"window_resize", "char", "key",
+		}
 		local avail = {}
 		for _, v in ipairs(messages) do
 			avail[v] = true
