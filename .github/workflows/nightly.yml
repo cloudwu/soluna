@@ -154,6 +154,9 @@ jobs:
           overwrite: "true"
       - uses: mymindstorm/setup-emsdk@v14
         if: runner.os == 'Linux'
+        with:
+          version: 4.0.17
+          actions-cache-folder: 'emsdk-cache'
       - name: Build Emscripten
         if: runner.os == 'Linux'
         shell: bash
