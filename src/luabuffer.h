@@ -21,10 +21,11 @@ luaL_getbuffer(lua_State *L, size_t *sz) {
 		lua_pop(L, 3);
 		break;
 	}
-	default:
 	case LUA_TSTRING:
 		ret = (uint8_t const *)luaL_checklstring(L, 1, sz);
 		break;
+	default:
+		luaL_error(L, "Invalid buffer type %s", lua_typename(L, lua_type(L, 1)));
 	}
 	return ret;
 }
