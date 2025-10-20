@@ -1,0 +1,154 @@
+name: Build Soluna
+description: Build Soluna for different operating systems
+
+inputs:
+  soluna_path:
+    description: 'The path to the Soluna repository. Defaults to .'
+    required: false
+    default: '.'
+
+outputs:
+  SOLUNA_BINARY:
+    description: 'The name of the built Soluna binary.'
+    value: ${{ steps.set-output.outputs.SOLUNA_BINARY }}
+  SOLUNA_PATH:
+    description: 'The path to the built Soluna binary.'
+    value: ${{ steps.set-output.outputs.SOLUNA_PATH }}
+  SOLUNA_WASM_PATH:
+    description: 'The path to the built Soluna WebAssembly binary.'
+    value: ${{ steps.set-output.outputs.SOLUNA_WASM_PATH }}
+  SOLUNA_JS_PATH:
+    description: 'The path to the Soluna JavaScript glue code for WebAssembly.'
+    value: ${{ steps.set-output.outputs.SOLUNA_JS_PATH }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get the soluna commit
+      id: refs
+      working-directory: ${{ inputs.soluna_path }}
+      run: |
+        echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      shell: bash
+    - name: Cache soluna build
+      uses: actions/cache@v4
+      id: cache
+      with:
+        path: ${{ inputs.soluna_path }}/bin
+        key: ${{ runner.os }}-soluna-build-${{ steps.refs.outputs.commit }}
+    - name: Checkout all submodules
+      if: steps.cache.outputs.cache-hit != 'true'
+      working-directory: ${{ inputs.soluna_path }}
+      run: |
+        git submodule update --init --recursive
+      shell: bash
+    - uses: actions/checkout@v5
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: floooh/sokol-tools-bin
+        ref: "a06f19929ff8f9824ec6dd87c21329b1f205809e"
+        path: sokol-tools-bin
+        fetch-depth: 1
+    - name: Setup sokol-shdc
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          TARGET_DIR="C:/Windows/System32"
+          SHDC_BINARY="sokol-shdc.exe"
+          FIND_PATH="bin/win32"
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          TARGET_DIR="/usr/local/bin"
+          SHDC_BINARY="sokol-shdc"
+          FIND_PATH="bin/osx_arm64"
+        else  # Linux
+          TARGET_DIR="/usr/local/bin"
+          SHDC_BINARY="sokol-shdc"
+          FIND_PATH="bin/linux"
+        fi
+        echo "Setting up sokol-tools from sokol-tools-bin/$FIND_PATH"
+        find sokol-tools-bin/$FIND_PATH -name $SHDC_BINARY -exec cp {} $TARGET_DIR \;
+        $SHDC_BINARY -h
+    - uses: yuchanns/actions-luamake@v1
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        luamake-version: "5bedfce66f075a9f68b1475747738b81b3b41c25"
+    - name: Install Dependencies (Linux)
+      shell: bash
+      if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential \
+          libgl1-mesa-dev libglu1-mesa-dev libx11-dev \
+          libxrandr-dev libxi-dev libxxf86vm-dev libxcursor-dev \
+          libasound2-dev libfontconfig1-dev
+    - name: Build (Windows)
+      if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
+      shell: powershell
+      id: build-windows
+      working-directory: ${{ inputs.soluna_path }}
+      run: |
+        luamake clean
+        luamake precompile
+        luamake soluna
+        $SOLUNA_BINARY = "soluna.exe"
+        $RENAME_BINARY = "soluna-windows-amd64.exe"
+        $SOLUNA_PATH = (Get-ChildItem -Path "bin" -Name $SOLUNA_BINARY -Recurse | Select-Object -First 1)
+        Copy-Item "bin\$SOLUNA_PATH" "bin\$RENAME_BINARY"
+        echo "SOLUNA_PATH=bin/$RENAME_BINARY" >> $GITHUB_OUTPUT
+        echo "SOLUNA_BINARY=$RENAME_BINARY" >> $GITHUB_OUTPUT
+    - name: Build (Unix)
+      if: runner.os != 'Windows' && steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ inputs.soluna_path }}
+      run: |
+        luamake precompile
+        luamake soluna
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          RENAME_BINARY="soluna-linux-amd64"
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          RENAME_BINARY="soluna-macos-arm64"
+        else
+          echo "Unsupported OS: $RUNNER_OS"
+          exit 1
+        fi
+    - uses: mymindstorm/setup-emsdk@v14
+      if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+      with:
+        version: 4.0.17
+        actions-cache-folder: 'emsdk-cache'
+    - name: Build Emscripten
+      if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+      working-directory: ${{ inputs.soluna_path }}
+      shell: bash
+      run: |
+        luamake -compiler emcc precompile
+        luamake -compiler emcc
+        SOLUNA_JS="soluna.js"
+        SOLUNA_JS_PATH=$(find bin -name $SOLUNA_JS | head -n 1)
+        sed -i 's/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32),dynamicOffsetsPtr>>2,dynamicOffsetCount)/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32).subarray(dynamicOffsetsPtr>>2,(dynamicOffsetsPtr>>2)+dynamicOffsetCount))/g' "$SOLUNA_JS_PATH"
+    - name: Set Output Build Path
+      id: set-output
+      run: |
+        bin_dir=${{inputs.soluna_path}}/bin
+        if [ "${{ runner.os }}" == "Windows" ]; then
+          SOLUNA_BINARY="soluna.exe"
+          RENAME_BINARY="soluna-windows-amd64.exe"
+        elif [ "${{ runner.os }}" == "macOS" ]; then
+          SOLUNA_BINARY="soluna"
+          RENAME_BINARY="soluna-macos-arm64"
+        else
+          SOLUNA_BINARY="soluna"
+          RENAME_BINARY="soluna-linux-amd64"
+        fi
+        SOLUNA_PATH=$(find $bin_dir -name "$SOLUNA_BINARY" | head -n 1)
+        cp "$SOLUNA_PATH" "$bin_dir/$RENAME_BINARY"
+        echo "SOLUNA_PATH=$bin_dir/$RENAME_BINARY" >> $GITHUB_OUTPUT
+        echo "SOLUNA_BINARY=$RENAME_BINARY" >> $GITHUB_OUTPUT
+        if [ "${{ runner.os }}" == "Linux" ]; then
+          SOLUNA_WASM_PATH=$(find $bin_dir -name "soluna.wasm" | head -n 1)
+          SOLUNA_JS_PATH=$(find $bin_dir -name "soluna.js" | head -n 1)
+        fi
+        echo "SOLUNA_WASM_PATH=$SOLUNA_WASM_PATH" >> $GITHUB_OUTPUT
+        echo "SOLUNA_JS_PATH=$SOLUNA_JS_PATH" >> $GITHUB_OUTPUT
+      shell: bash
