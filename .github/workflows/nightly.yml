@@ -74,103 +74,19 @@ jobs:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
-      - uses: actions/checkout@v5
+      - uses: ./.github/actions/soluna
+        name: Build
+        id: build
         with:
-          repository: floooh/sokol-tools-bin
-          ref: "a06f19929ff8f9824ec6dd87c21329b1f205809e"
-          path: sokol-tools-bin
-          fetch-depth: 1
-      - name: Setup sokol-shdc
-        shell: bash
-        run: |
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            TARGET_DIR="C:/Windows/System32"
-            SHDC_BINARY="sokol-shdc.exe"
-            FIND_PATH="bin/win32"
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            TARGET_DIR="/usr/local/bin"
-            SHDC_BINARY="sokol-shdc"
-            FIND_PATH="bin/osx_arm64"
-          else  # Linux
-            TARGET_DIR="/usr/local/bin"
-            SHDC_BINARY="sokol-shdc"
-            FIND_PATH="bin/linux"
-          fi
-          echo "Setting up sokol-tools from sokol-tools-bin/$FIND_PATH"
-          find sokol-tools-bin/$FIND_PATH -name $SHDC_BINARY -exec cp {} $TARGET_DIR \;
-          $SHDC_BINARY -h
-      - uses: yuchanns/actions-luamake@v1
-        with:
-          luamake-version: "5bedfce66f075a9f68b1475747738b81b3b41c25"
-      - name: Install Dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential \
-            libgl1-mesa-dev libglu1-mesa-dev libx11-dev \
-            libxrandr-dev libxi-dev libxxf86vm-dev libxcursor-dev \
-            libasound2-dev libfontconfig1-dev
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
-        id: build-windows
-        run: |
-          luamake clean
-          luamake precompile
-          luamake soluna
-          $SOLUNA_BINARY = "soluna.exe"
-          $RENAME_BINARY = "soluna-windows-amd64.exe"
-          $SOLUNA_PATH = (Get-ChildItem -Path "bin" -Name $SOLUNA_BINARY -Recurse | Select-Object -First 1)
-          Copy-Item "bin\$SOLUNA_PATH" "bin\$RENAME_BINARY"
-          echo "SOLUNA_PATH=bin/$RENAME_BINARY" >> $env:GITHUB_OUTPUT
-          echo "SOLUNA_BINARY=$RENAME_BINARY" >> $env:GITHUB_OUTPUT
-      - name: Build (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        id: build-unix
-        run: |
-          luamake precompile
-          luamake soluna
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            RENAME_BINARY="soluna-linux-amd64"
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            RENAME_BINARY="soluna-macos-arm64"
-          else
-            echo "Unsupported OS: $RUNNER_OS"
-            exit 1
-          fi
-          SOLUNA_BINARY="soluna"
-          SOLUNA_PATH=$(find bin -name $SOLUNA_BINARY | head -n 1)
-          cp "$SOLUNA_PATH" "bin/$RENAME_BINARY"
-          echo "SOLUNA_PATH=bin/$RENAME_BINARY" >> $GITHUB_OUTPUT
-          echo "SOLUNA_BINARY=$RENAME_BINARY" >> $GITHUB_OUTPUT
+          soluna_path: "."
       - uses: actions/upload-artifact@v4
         name: Upload
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
         with:
-          name: "soluna-${{ runner.os }}-${{ runner.os == 'Windows' && steps.build-windows.outputs.SOLUNA_BINARY || steps.build-unix.outputs.SOLUNA_BINARY }}"
+          name: "soluna-${{ runner.os }}-${{ steps.build.outputs.SOLUNA_BINARY }}"
           if-no-files-found: "error"
-          path: "${{ runner.os == 'Windows' && steps.build-windows.outputs.SOLUNA_PATH || steps.build-unix.outputs.SOLUNA_PATH }}"
+          path: "${{ steps.build.outputs.SOLUNA_PATH }}"
           overwrite: "true"
-      - uses: mymindstorm/setup-emsdk@v14
-        if: runner.os == 'Linux'
-        with:
-          version: 4.0.17
-          actions-cache-folder: 'emsdk-cache'
-      - name: Build Emscripten
-        if: runner.os == 'Linux'
-        shell: bash
-        id: build-emscripten
-        run: |
-          luamake -compiler emcc precompile
-          luamake -compiler emcc
-          SOLUNA_BINARY="soluna.wasm"
-          SOLUNA_PATH=$(find bin -name $SOLUNA_BINARY | head -n 1)
-          SOLUNA_JS="soluna.js"
-          SOLUNA_JS_PATH=$(find bin -name $SOLUNA_JS | head -n 1)
-          echo "SOLUNA_BINARY=$SOLUNA_PATH" >> $GITHUB_OUTPUT
-          echo "SOLUNA_JS=$SOLUNA_JS_PATH" >> $GITHUB_OUTPUT
-          sed -i 's/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32),dynamicOffsetsPtr>>2,dynamicOffsetCount)/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32).subarray(dynamicOffsetsPtr>>2,(dynamicOffsetsPtr>>2)+dynamicOffsetCount))/g' "$SOLUNA_JS_PATH"
       - uses: actions/upload-artifact@v4
         name: Upload Emscripten
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && runner.os == 'Linux'
@@ -179,8 +95,8 @@ jobs:
           if-no-files-found: "error"
           overwrite: "true"
           path: |
-            ${{ steps.build-emscripten.outputs.SOLUNA_BINARY }}
-            ${{ steps.build-emscripten.outputs.SOLUNA_JS }}
+            ${{ steps.build.outputs.SOLUNA_WASM_PATH }}
+            ${{ steps.build.outputs.SOLUNA_JS_PATH }}
   release:
     name: Create Nightly Release
     needs: [check, build]
