@@ -85,18 +85,10 @@ runs:
     - name: Build (Windows)
       if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
       shell: powershell
-      id: build-windows
       working-directory: ${{ inputs.soluna_path }}
       run: |
-        luamake clean
         luamake precompile
         luamake soluna
-        $SOLUNA_BINARY = "soluna.exe"
-        $RENAME_BINARY = "soluna-windows-amd64.exe"
-        $SOLUNA_PATH = (Get-ChildItem -Path "bin" -Name $SOLUNA_BINARY -Recurse | Select-Object -First 1)
-        Copy-Item "bin\$SOLUNA_PATH" "bin\$RENAME_BINARY"
-        echo "SOLUNA_PATH=bin/$RENAME_BINARY" >> $GITHUB_OUTPUT
-        echo "SOLUNA_BINARY=$RENAME_BINARY" >> $GITHUB_OUTPUT
     - name: Build (Unix)
       if: runner.os != 'Windows' && steps.cache.outputs.cache-hit != 'true'
       shell: bash
@@ -104,14 +96,6 @@ runs:
       run: |
         luamake precompile
         luamake soluna
-        if [[ "$RUNNER_OS" == "Linux" ]]; then
-          RENAME_BINARY="soluna-linux-amd64"
-        elif [[ "$RUNNER_OS" == "macOS" ]]; then
-          RENAME_BINARY="soluna-macos-arm64"
-        else
-          echo "Unsupported OS: $RUNNER_OS"
-          exit 1
-        fi
     - uses: mymindstorm/setup-emsdk@v14
       if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
       with:
@@ -148,7 +132,7 @@ runs:
         if [ "${{ runner.os }}" == "Linux" ]; then
           SOLUNA_WASM_PATH=$(find $bin_dir -name "soluna.wasm" | head -n 1)
           SOLUNA_JS_PATH=$(find $bin_dir -name "soluna.js" | head -n 1)
+          echo "SOLUNA_WASM_PATH=$SOLUNA_WASM_PATH" >> $GITHUB_OUTPUT
+          echo "SOLUNA_JS_PATH=$SOLUNA_JS_PATH" >> $GITHUB_OUTPUT
         fi
-        echo "SOLUNA_WASM_PATH=$SOLUNA_WASM_PATH" >> $GITHUB_OUTPUT
-        echo "SOLUNA_JS_PATH=$SOLUNA_JS_PATH" >> $GITHUB_OUTPUT
       shell: bash

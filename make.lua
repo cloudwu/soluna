@@ -91,7 +91,7 @@ lm:conf({
       "idbfs.js",
     },
     ldflags = {
-      '--js-library=src/wasm/soluna_ime.js',
+      '--js-library=src/platform/wasm/soluna_ime.js',
       "--use-port=emdawnwebgpu",
       "-s ALLOW_MEMORY_GROWTH",
       "-s FORCE_FILESYSTEM=1",
