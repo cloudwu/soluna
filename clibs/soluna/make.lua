@@ -38,8 +38,14 @@ lm:source_set "soluna_src" {
     "3rd/yoga",
     "3rd/zlib",
   },
-  macos = {
-    frameworks = {
+  clang = {
+    sources = lm.os == "macos" and {
+      "src/platform/macos/*.m",
+    },
+    flags = lm.os == "macos" and {
+      "-x objective-c",
+    },
+    frameworks = lm.os == "macos" and {
       "IOKit",
       "CoreText",
       "CoreFoundation",
@@ -49,16 +55,19 @@ lm:source_set "soluna_src" {
       "MetalKit",
       "QuartzCore",
     },
-    flags = {
-      "-x objective-c",
-    },
   },
   windows = {
+    sources = {
+      "src/platform/windows/*.c",
+    },
     includes = {
       "3rd/zlib/contrib/minizip",
     }
   },
   gcc = {
+    sources = lm.os == "linux" and {
+      "src/platform/linux/*.c",
+    } or nil,
     links = lm.os == "linux" and {
       "pthread",
       "dl",

@@ -63,8 +63,11 @@ $(BUILD)/%.glsl.h : src/%.glsl
 shader : $(SHADER_O)
 
 MAIN_FULL=$(wildcard src/*.c)
+PLATFORM_FULL=$(wildcard src/platform/windows/*.c)
 MAIN_C=$(notdir $(MAIN_FULL))
 MAIN_O=$(patsubst %.c,$(BUILD)/soluna_%.o,$(MAIN_C))
+PLATFORM_C=$(notdir $(PLATFORM_FULL))
+PLATFORM_O=$(patsubst %.c,$(BUILD)/platform_%.o,$(PLATFORM_C))
 
 $(MAIN_O) : $(SHADER_O)
 
@@ -120,7 +123,14 @@ $(BUILD)/soluna_entry.o : src/entry.c src/version.h
 
 $(BUILD)/soluna_%.o : src/%.c
 	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC)
-	
+
+
+$(BUILD)/platform_%.o : src/platform/windows/%.c
+	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC)
+
+$(BUILD)/platform_%.o : src/platform/windows/%.c
+	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC)
+
 $(BUILD)/ltask_%.o : 3rd/ltask/src/%.c
 	$(COMPILE_C) $(LUAINC) -D_WIN32_WINNT=0x0601 -DLTASK_EXTERNAL_OPENLIBS=soluna_openlibs
 	
@@ -140,7 +150,7 @@ $(BUILD)/zlib_%.o : 3rd/zlib/%.c
 $(BUILD)/minizip_%.o : 3rd/zlib/contrib/minizip/%.c
 	$(COMPILE_C) $(ZLIBINC)
 
-$(BIN)/$(APPNAME): $(MAIN_O) $(LTASK_O) $(LUA_O) $(DATALIST_O) $(BUILD)/yoga.o $(ZLIB_O) $(MINIZIP_O)
+$(BIN)/$(APPNAME): $(MAIN_O) $(PLATFORM_O) $(LTASK_O) $(LUA_O) $(DATALIST_O) $(BUILD)/yoga.o $(ZLIB_O) $(MINIZIP_O)
 	$(LD) $(OUTPUT_EXE) $@ $^ $(LDFLAGS)
 	
 clean :
