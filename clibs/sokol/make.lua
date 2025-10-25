@@ -3,6 +3,8 @@ local fs = require "bee.filesystem"
 
 local deps = {}
 
+local shdc<const> = lm.shdc or ""
+
 local function compile_shader(src, name, lang)
   local dep = name .. "_shader"
   deps[#deps + 1] = dep
@@ -12,6 +14,7 @@ local function compile_shader(src, name, lang)
     inputs = lm.basedir .. "/" .. src,
     outputs = lm.basedir .. "/" .. target,
     args = {
+      shdc,
       "$in",
       "$out",
       lang,

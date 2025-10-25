@@ -25,6 +25,9 @@ lm:source_set "soluna_src" {
   sources = {
     "src/*.c",
   },
+  objdeps = {
+    "compile_lua_code",
+  },
   defines = {
     commit and string.format('SOLUNA_HASH_VERSION=\\"%s\\"', commit),
   },

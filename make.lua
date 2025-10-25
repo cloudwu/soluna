@@ -126,7 +126,6 @@ lm:import "clibs/soluna/make.lua"
 lm:phony "precompile" {
   deps = {
     "compile_shaders",
-    "compile_lua_code",
   },
 }
 
