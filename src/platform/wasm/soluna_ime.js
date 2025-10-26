@@ -48,6 +48,7 @@ mergeInto(LibraryManager.library, {
     label.style.left = '-10000px';
     label.style.top = '-10000px';
     label.style.font = '16px sans-serif';
+    label.style.color = '#000';
     document.body.appendChild(label);
 
     var callSetComposing = function (flag) {
@@ -68,7 +69,7 @@ mergeInto(LibraryManager.library, {
       mods: 0,
       rect: { x: 0, y: 0, w: 1, h: 1 },
       customFont: null,
-      customFontSize: 0
+      customFontSize: 0,
     };
 
     state.resolveCanvas = function () {
@@ -274,6 +275,9 @@ mergeInto(LibraryManager.library, {
         state.suppressNextInput = true;
       } else {
         state.expectNextInput = true;
+        if (Module._soluna_wasm_block_next_keypair) {
+          Module._soluna_wasm_block_next_keypair();
+        }
       }
       state.node.value = '';
       state.hidePreedit();
@@ -313,6 +317,34 @@ mergeInto(LibraryManager.library, {
       state.positionPreedit();
     };
 
+    var ensureFocusOnTouch = function () {
+      if (!state.active) {
+        return;
+      }
+      var el = state.node;
+      if (!el) {
+        return;
+      }
+      el.style.display = 'block';
+      try {
+        el.focus({ preventScroll: true });
+      } catch (err) {
+        el.focus();
+      }
+    };
+
+    var clearFocusOnTouchEnd = function () {
+      if (state.active) {
+        return;
+      }
+      var el = state.node;
+      if (!el) {
+        return;
+      }
+      el.blur();
+      el.style.display = 'none';
+    };
+
     globalScope.addEventListener('keydown', updateMods, true);
     globalScope.addEventListener('keyup', updateMods, true);
     globalScope.addEventListener('blur', function () {
@@ -327,6 +359,9 @@ mergeInto(LibraryManager.library, {
       }
     });
     globalScope.addEventListener('resize', reposition);
+    globalScope.addEventListener('touchstart', ensureFocusOnTouch, true);
+    globalScope.addEventListener('touchend', clearFocusOnTouchEnd, true);
+    globalScope.addEventListener('touchcancel', clearFocusOnTouchEnd, true);
     if (typeof document !== 'undefined') {
       document.addEventListener('scroll', reposition, true);
     }

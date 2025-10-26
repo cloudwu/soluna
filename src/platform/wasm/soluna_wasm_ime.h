@@ -31,6 +31,7 @@ static uint32_t g_soluna_wasm_ignore_chars[32];
 static int g_soluna_wasm_ignore_count = 0;
 static bool g_soluna_wasm_composing = false;
 static bool g_soluna_wasm_locale_ready = false;
+static int g_soluna_wasm_block_keys = 0;
 
 static void
 soluna_wasm_char_queue_push(uint32_t *buffer, int *count, int max, uint32_t code) {
@@ -179,10 +180,15 @@ soluna_wasm_should_block_key_event(const sapp_event *ev) {
     if (!ev) {
         return false;
     }
+    bool is_key_event = ev->type == SAPP_EVENTTYPE_KEY_DOWN || ev->type == SAPP_EVENTTYPE_KEY_UP;
+    if (g_soluna_wasm_block_keys > 0 && is_key_event) {
+        --g_soluna_wasm_block_keys;
+        return true;
+    }
     if (!soluna_wasm_is_composing()) {
         return false;
     }
-    return ev->type == SAPP_EVENTTYPE_KEY_DOWN || ev->type == SAPP_EVENTTYPE_KEY_UP;
+    return is_key_event;
 }
 
 static inline bool
@@ -233,6 +239,11 @@ soluna_wasm_ime_commit(const char *text, int modifiers) {
 EMSCRIPTEN_KEEPALIVE void
 soluna_wasm_set_composing(int active) {
     g_soluna_wasm_composing = (active != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE void
+soluna_wasm_block_next_keypair(void) {
+    g_soluna_wasm_block_keys = 2;
 }
 
 #endif /* __EMSCRIPTEN__ */
