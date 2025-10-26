@@ -22,6 +22,7 @@ void soluna_emit_char(uint32_t codepoint, uint32_t modifiers, bool repeat);
 extern void soluna_wasm_setup_ime(void);
 extern void soluna_wasm_dom_show(float x, float y, float w, float h);
 extern void soluna_wasm_dom_hide(void);
+extern void soluna_wasm_dom_set_font(const char *name, float size);
 
 static const int SOLUNA_WASM_CHAR_QUEUE_CAP = 32;
 static uint32_t g_soluna_wasm_expected_chars[32];
@@ -90,9 +91,26 @@ soluna_wasm_call_hide(void) {
 }
 
 static void
+soluna_wasm_call_set_font(const char *name, float size) {
+#if defined(__EMSCRIPTEN_PTHREADS__)
+    if (!emscripten_is_main_browser_thread()) {
+        emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_VIF, soluna_wasm_dom_set_font, (intptr_t)name, size);
+        return;
+    }
+#endif
+    soluna_wasm_dom_set_font(name, size);
+}
+
+static void
 soluna_wasm_reset_queues(void) {
     g_soluna_wasm_expected_count = 0;
     g_soluna_wasm_ignore_count = 0;
+}
+
+void
+soluna_wasm_set_font(const char *name, float size) {
+    soluna_wasm_call_setup();
+    soluna_wasm_call_set_font(name, size);
 }
 
 static void

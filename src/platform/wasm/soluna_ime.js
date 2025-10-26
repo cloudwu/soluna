@@ -25,7 +25,7 @@ mergeInto(LibraryManager.library, {
     ta.style.margin = '0';
     ta.style.padding = '0';
     ta.style.background = 'transparent';
-    ta.style.color = 'transparent';
+    ta.style.color = '#000';
     ta.style.whiteSpace = 'pre';
     ta.style.width = '1px';
     ta.style.height = '1px';
@@ -48,16 +48,6 @@ mergeInto(LibraryManager.library, {
     label.style.left = '-10000px';
     label.style.top = '-10000px';
     label.style.font = '16px sans-serif';
-    var defaultColor = '#000';
-    if (typeof window !== 'undefined' && window.getComputedStyle) {
-      try {
-        var bodyStyle = window.getComputedStyle(document.body);
-        if (bodyStyle && bodyStyle.color) {
-          defaultColor = bodyStyle.color;
-        }
-      } catch (err) {}
-    }
-    label.style.color = defaultColor;
     document.body.appendChild(label);
 
     var callSetComposing = function (flag) {
@@ -76,7 +66,9 @@ mergeInto(LibraryManager.library, {
       expectNextInput: false,
       suppressNextInput: false,
       mods: 0,
-      rect: { x: 0, y: 0, w: 1, h: 1 }
+      rect: { x: 0, y: 0, w: 1, h: 1 },
+      customFont: null,
+      customFontSize: 0
     };
 
     state.resolveCanvas = function () {
@@ -108,6 +100,31 @@ mergeInto(LibraryManager.library, {
       state.mods = mods;
     };
 
+    state.applyFontOverride = function () {
+      var textEl = state.node;
+      var labelEl = state.preedit;
+      if (!textEl) {
+        return;
+      }
+      if (state.customFont && state.customFont.length > 0) {
+        textEl.style.fontFamily = state.customFont;
+        if (labelEl) {
+          labelEl.style.fontFamily = state.customFont;
+        }
+      } else {
+        textEl.style.fontFamily = '';
+      }
+      if (state.customFontSize > 0) {
+        var sizePx = state.customFontSize + 'px';
+        textEl.style.fontSize = sizePx;
+        if (labelEl) {
+          labelEl.style.fontSize = sizePx;
+        }
+      } else {
+        textEl.style.fontSize = '';
+      }
+    };
+
     state.commitText = function (text) {
       if (!text || text.length === 0) {
         return;
@@ -124,37 +141,34 @@ mergeInto(LibraryManager.library, {
     };
 
     state.syncStylesFromCanvas = function (canvas, height) {
-      if (!canvas || typeof window === 'undefined' || !window.getComputedStyle) {
-        return;
-      }
-      var computed = null;
-      try {
-        computed = window.getComputedStyle(canvas);
-      } catch (err) {
-        computed = null;
-      }
-      if (!computed) {
-        return;
-      }
-      if (computed.font && computed.font.length > 0) {
-        state.preedit.style.font = computed.font;
-      } else {
-        if (computed.fontSize) {
-          state.preedit.style.fontSize = computed.fontSize;
+      var labelEl = state.preedit;
+      if (labelEl && canvas && typeof window !== 'undefined' && window.getComputedStyle) {
+        var computed = null;
+        try {
+          computed = window.getComputedStyle(canvas);
+        } catch (err) {
+          computed = null;
         }
-        if (computed.fontFamily) {
-          state.preedit.style.fontFamily = computed.fontFamily;
+        if (computed) {
+          if (computed.font && computed.font.length > 0) {
+            labelEl.style.font = computed.font;
+          } else {
+            if (computed.fontSize) {
+              labelEl.style.fontSize = computed.fontSize;
+            }
+            if (computed.fontFamily) {
+              labelEl.style.fontFamily = computed.fontFamily;
+            }
+            if (computed.fontWeight) {
+              labelEl.style.fontWeight = computed.fontWeight;
+            }
+          }
         }
-        if (computed.fontWeight) {
-          state.preedit.style.fontWeight = computed.fontWeight;
-        }
       }
-      if (computed.color) {
-        state.preedit.style.color = computed.color;
+      if (labelEl && Number.isFinite(height) && height > 0) {
+        labelEl.style.lineHeight = height + 'px';
       }
-      if (Number.isFinite(height) && height > 0) {
-        state.preedit.style.lineHeight = height + 'px';
-      }
+      state.applyFontOverride();
     };
 
     state.hidePreedit = function () {
@@ -384,5 +398,42 @@ mergeInto(LibraryManager.library, {
     if (Module.solunaSetComposing) {
       Module.solunaSetComposing(0);
     }
+  },
+
+  soluna_wasm_dom_set_font__deps: ['$UTF8ToString'],
+  soluna_wasm_dom_set_font: function (namePtr, size) {
+    var state = Module.solunaIme;
+    if (!state) {
+      return;
+    }
+    var resolvedName = null;
+    if (namePtr) {
+      try {
+        resolvedName = UTF8ToString(namePtr);
+      } catch (err) {
+        resolvedName = '';
+      }
+    }
+    if (resolvedName && resolvedName.length === 0) {
+      resolvedName = null;
+    }
+    var numericSize = 0;
+    if (Number.isFinite(size) && size > 0) {
+      numericSize = size;
+    }
+    var hasCustomFont = !!(resolvedName && resolvedName.length > 0);
+    state.customFont = hasCustomFont ? resolvedName : null;
+    state.customFontSize = numericSize;
+    if (!hasCustomFont && numericSize === 0) {
+      var canvas = state.resolveCanvas ? state.resolveCanvas() : null;
+      if (canvas) {
+        state.syncStylesFromCanvas(canvas, state.rect ? state.rect.h : 0);
+      } else {
+        state.applyFontOverride();
+      }
+    } else {
+      state.applyFontOverride();
+    }
+    state.positionPreedit();
   }
 });

@@ -413,6 +413,9 @@ lset_ime_font(lua_State *L) {
 #if defined(__APPLE__)
 		soluna_macos_set_ime_font(NULL, 0.0f);
 #endif
+#if defined(__EMSCRIPTEN__)
+		soluna_wasm_set_font(NULL, 0.0f);
+#endif
 		return 0;
 	}
 	if (top == 1) {
@@ -434,6 +437,9 @@ lset_ime_font(lua_State *L) {
 #endif
 #if defined(__APPLE__)
 	soluna_macos_set_ime_font(name, size);
+#endif
+#if defined(__EMSCRIPTEN__)
+	soluna_wasm_set_font(name, size);
 #endif
 	return 0;
 }
