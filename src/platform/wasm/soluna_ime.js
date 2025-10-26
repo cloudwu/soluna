@@ -8,6 +8,7 @@ mergeInto(LibraryManager.library, {
       return;
     }
     var globalScope = (typeof window !== 'undefined') ? window : self;
+
     var ta = document.createElement('textarea');
     ta.setAttribute('autocapitalize', 'off');
     ta.setAttribute('autocomplete', 'off');
@@ -24,7 +25,7 @@ mergeInto(LibraryManager.library, {
     ta.style.margin = '0';
     ta.style.padding = '0';
     ta.style.background = 'transparent';
-    ta.style.color = 'transparent';
+    ta.style.color = '#000';
     ta.style.whiteSpace = 'pre';
     ta.style.width = '1px';
     ta.style.height = '1px';
@@ -32,6 +33,23 @@ mergeInto(LibraryManager.library, {
     ta.style.top = '-10000px';
     ta.style.display = 'none';
     document.body.appendChild(ta);
+
+    var label = document.createElement('div');
+    label.setAttribute('aria-hidden', 'true');
+    label.style.position = 'absolute';
+    label.style.pointerEvents = 'none';
+    label.style.zIndex = '2147483647';
+    label.style.whiteSpace = 'pre';
+    label.style.margin = '0';
+    label.style.padding = '0';
+    label.style.border = '0';
+    label.style.background = 'transparent';
+    label.style.display = 'none';
+    label.style.left = '-10000px';
+    label.style.top = '-10000px';
+    label.style.font = '16px sans-serif';
+    label.style.color = '#000';
+    document.body.appendChild(label);
 
     var callSetComposing = function (flag) {
       if (Module._soluna_wasm_set_composing) {
@@ -42,12 +60,36 @@ mergeInto(LibraryManager.library, {
 
     var state = {
       node: ta,
+      preedit: label,
+      preeditText: '',
       active: false,
       composing: false,
       expectNextInput: false,
       suppressNextInput: false,
       mods: 0,
-      rect: { x: 0, y: 0, w: 1, h: 1 }
+      rect: { x: 0, y: 0, w: 1, h: 1 },
+      customFont: null,
+      customFontSize: 0,
+    };
+
+    state.resolveCanvas = function () {
+      if (Module.canvas) {
+        return Module.canvas;
+      }
+      if (typeof document === 'undefined') {
+        return null;
+      }
+      var selector = Module.solunaCanvasSelector || '#canvas';
+      var canvas = null;
+      try {
+        canvas = document.querySelector(selector);
+      } catch (err) {
+        canvas = null;
+      }
+      if (!canvas) {
+        canvas = document.querySelector('canvas');
+      }
+      return canvas || null;
     };
 
     state.updateModsFromEvent = function (ev) {
@@ -57,6 +99,31 @@ mergeInto(LibraryManager.library, {
       if (ev && ev.altKey) { mods |= 4; }
       if (ev && ev.metaKey) { mods |= 8; }
       state.mods = mods;
+    };
+
+    state.applyFontOverride = function () {
+      var textEl = state.node;
+      var labelEl = state.preedit;
+      if (!textEl) {
+        return;
+      }
+      if (state.customFont && state.customFont.length > 0) {
+        textEl.style.fontFamily = state.customFont;
+        if (labelEl) {
+          labelEl.style.fontFamily = state.customFont;
+        }
+      } else {
+        textEl.style.fontFamily = '';
+      }
+      if (state.customFontSize > 0) {
+        var sizePx = state.customFontSize + 'px';
+        textEl.style.fontSize = sizePx;
+        if (labelEl) {
+          labelEl.style.fontSize = sizePx;
+        }
+      } else {
+        textEl.style.fontSize = '';
+      }
     };
 
     state.commitText = function (text) {
@@ -74,11 +141,120 @@ mergeInto(LibraryManager.library, {
       });
     };
 
+    state.syncStylesFromCanvas = function (canvas, height) {
+      var labelEl = state.preedit;
+      if (labelEl && canvas && typeof window !== 'undefined' && window.getComputedStyle) {
+        var computed = null;
+        try {
+          computed = window.getComputedStyle(canvas);
+        } catch (err) {
+          computed = null;
+        }
+        if (computed) {
+          if (computed.font && computed.font.length > 0) {
+            labelEl.style.font = computed.font;
+          } else {
+            if (computed.fontSize) {
+              labelEl.style.fontSize = computed.fontSize;
+            }
+            if (computed.fontFamily) {
+              labelEl.style.fontFamily = computed.fontFamily;
+            }
+            if (computed.fontWeight) {
+              labelEl.style.fontWeight = computed.fontWeight;
+            }
+          }
+        }
+      }
+      if (labelEl && Number.isFinite(height) && height > 0) {
+        labelEl.style.lineHeight = height + 'px';
+      }
+      state.applyFontOverride();
+    };
+
+    state.hidePreedit = function () {
+      state.preeditText = '';
+      var labelEl = state.preedit;
+      if (labelEl) {
+        labelEl.textContent = '';
+        labelEl.style.display = 'none';
+      }
+    };
+
+    state.positionPreedit = function () {
+      var labelEl = state.preedit;
+      if (!labelEl || labelEl.style.display === 'none') {
+        return;
+      }
+      var canvas = state.resolveCanvas();
+      if (!canvas) {
+        return;
+      }
+      var rect = canvas.getBoundingClientRect();
+      var scrollX = (typeof window !== 'undefined' && typeof window.scrollX === 'number') ? window.scrollX : 0;
+      var scrollY = (typeof window !== 'undefined' && typeof window.scrollY === 'number') ? window.scrollY : 0;
+      var canvasLeft = rect.left + scrollX;
+      var canvasTop = rect.top + scrollY;
+      var caretX = canvasLeft + state.rect.x;
+      var caretY = canvasTop + state.rect.y;
+      var caretWidth = state.rect.w;
+      var caretHeight = state.rect.h;
+      if (!Number.isFinite(caretWidth) || caretWidth <= 0) {
+        caretWidth = 1;
+      }
+      if (!Number.isFinite(caretHeight) || caretHeight <= 0) {
+        caretHeight = 16;
+      }
+      var labelWidth = labelEl.offsetWidth;
+      var labelHeight = labelEl.offsetHeight;
+      if (labelWidth <= 0) {
+        labelWidth = caretWidth;
+      }
+      if (labelHeight <= 0) {
+        labelHeight = caretHeight;
+      }
+      var canvasRight = canvasLeft + rect.width;
+      var canvasBottom = canvasTop + rect.height;
+      var left = caretX;
+      if (left + labelWidth > canvasRight) {
+        left = canvasRight - labelWidth;
+      }
+      if (left < canvasLeft) {
+        left = canvasLeft;
+      }
+      var baseline = caretY + caretHeight;
+      var top = baseline - labelHeight;
+      if (top < canvasTop) {
+        top = caretY + caretHeight;
+        if (top + labelHeight > canvasBottom) {
+          top = Math.max(canvasTop, Math.min(canvasBottom - labelHeight, baseline - labelHeight));
+        }
+      }
+      labelEl.style.left = Math.round(left) + 'px';
+      labelEl.style.top = Math.round(top) + 'px';
+    };
+
+    state.setPreeditText = function (text) {
+      var labelEl = state.preedit;
+      if (!labelEl) {
+        return;
+      }
+      state.preeditText = text || '';
+      if (!state.preeditText) {
+        state.hidePreedit();
+        return;
+      }
+      labelEl.textContent = state.preeditText;
+      labelEl.style.display = 'inline-block';
+      state.positionPreedit();
+    };
+
     ta.addEventListener('compositionstart', function (ev) {
       state.composing = true;
       state.expectNextInput = false;
       state.suppressNextInput = false;
       state.updateModsFromEvent(ev);
+      state.setPreeditText('');
       if (Module.solunaSetComposing) {
         Module.solunaSetComposing(1);
       }
@@ -86,6 +262,8 @@ mergeInto(LibraryManager.library, {
 
     ta.addEventListener('compositionupdate', function (ev) {
       state.updateModsFromEvent(ev);
+      var text = (ev && typeof ev.data === 'string') ? ev.data : '';
+      state.setPreeditText(text);
     });
 
     ta.addEventListener('compositionend', function (ev) {
@@ -97,8 +275,12 @@ mergeInto(LibraryManager.library, {
         state.suppressNextInput = true;
       } else {
         state.expectNextInput = true;
+        if (Module._soluna_wasm_block_next_keypair) {
+          Module._soluna_wasm_block_next_keypair();
+        }
       }
       state.node.value = '';
+      state.hidePreedit();
       if (Module.solunaSetComposing) {
         Module.solunaSetComposing(0);
       }
@@ -131,6 +313,38 @@ mergeInto(LibraryManager.library, {
       state.updateModsFromEvent(ev);
     };
 
+    var reposition = function () {
+      state.positionPreedit();
+    };
+
+    var ensureFocusOnTouch = function () {
+      if (!state.active) {
+        return;
+      }
+      var el = state.node;
+      if (!el) {
+        return;
+      }
+      el.style.display = 'block';
+      try {
+        el.focus({ preventScroll: true });
+      } catch (err) {
+        el.focus();
+      }
+    };
+
+    var clearFocusOnTouchEnd = function () {
+      if (state.active) {
+        return;
+      }
+      var el = state.node;
+      if (!el) {
+        return;
+      }
+      el.blur();
+      el.style.display = 'none';
+    };
+
     globalScope.addEventListener('keydown', updateMods, true);
     globalScope.addEventListener('keyup', updateMods, true);
     globalScope.addEventListener('blur', function () {
@@ -139,10 +353,18 @@ mergeInto(LibraryManager.library, {
       state.expectNextInput = false;
       state.suppressNextInput = false;
       state.node.value = '';
+      state.hidePreedit();
       if (Module.solunaSetComposing) {
         Module.solunaSetComposing(0);
       }
     });
+    globalScope.addEventListener('resize', reposition);
+    globalScope.addEventListener('touchstart', ensureFocusOnTouch, true);
+    globalScope.addEventListener('touchend', clearFocusOnTouchEnd, true);
+    globalScope.addEventListener('touchcancel', clearFocusOnTouchEnd, true);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('scroll', reposition, true);
+    }
 
     Module.solunaIme = state;
   },
@@ -152,18 +374,24 @@ mergeInto(LibraryManager.library, {
     if (!state || typeof document === 'undefined') {
       return;
     }
-    var selector = Module.solunaCanvasSelector || '#canvas';
-    var canvas = Module.canvas || document.querySelector(selector) || document.querySelector('canvas');
+    var canvas = state.resolveCanvas();
     if (!canvas) {
       return;
     }
     var rect = canvas.getBoundingClientRect();
-    var canvasLeft = rect.left + window.scrollX;
-    var canvasTop = rect.top + window.scrollY;
+    var scrollX = (typeof window !== 'undefined' && typeof window.scrollX === 'number') ? window.scrollX : 0;
+    var scrollY = (typeof window !== 'undefined' && typeof window.scrollY === 'number') ? window.scrollY : 0;
+    var canvasLeft = rect.left + scrollX;
+    var canvasTop = rect.top + scrollY;
     var left = canvasLeft + x;
     var top = canvasTop + y;
     var width = Math.max(1, Number.isFinite(w) ? w : 1);
     var height = Math.max(1, (Number.isFinite(h) && h > 0) ? h : 16);
+
+    state.rect.x = x;
+    state.rect.y = y;
+    state.rect.w = width;
+    state.rect.h = height;
 
     var el = state.node;
     el.style.display = 'block';
@@ -176,6 +404,8 @@ mergeInto(LibraryManager.library, {
       el.value = '';
     }
     state.active = true;
+    state.syncStylesFromCanvas(canvas, height);
+    state.positionPreedit();
     try {
       el.focus({ preventScroll: true });
     } catch (err) {
@@ -198,9 +428,47 @@ mergeInto(LibraryManager.library, {
     var el = state.node;
     el.value = '';
     el.style.display = 'none';
+    state.hidePreedit();
     el.blur();
     if (Module.solunaSetComposing) {
       Module.solunaSetComposing(0);
     }
+  },
+
+  soluna_wasm_dom_set_font__deps: ['$UTF8ToString'],
+  soluna_wasm_dom_set_font: function (namePtr, size) {
+    var state = Module.solunaIme;
+    if (!state) {
+      return;
+    }
+    var resolvedName = null;
+    if (namePtr) {
+      try {
+        resolvedName = UTF8ToString(namePtr);
+      } catch (err) {
+        resolvedName = '';
+      }
+    }
+    if (resolvedName && resolvedName.length === 0) {
+      resolvedName = null;
+    }
+    var numericSize = 0;
+    if (Number.isFinite(size) && size > 0) {
+      numericSize = size;
+    }
+    var hasCustomFont = !!(resolvedName && resolvedName.length > 0);
+    state.customFont = hasCustomFont ? resolvedName : null;
+    state.customFontSize = numericSize;
+    if (!hasCustomFont && numericSize === 0) {
+      var canvas = state.resolveCanvas ? state.resolveCanvas() : null;
+      if (canvas) {
+        state.syncStylesFromCanvas(canvas, state.rect ? state.rect.h : 0);
+      } else {
+        state.applyFontOverride();
+      }
+    } else {
+      state.applyFontOverride();
+    }
+    state.positionPreedit();
   }
 });
