@@ -81,7 +81,7 @@ lm:conf({
     },
   },
   emcc = {
-    c = "gnu11",
+    c = "c11",
     flags = {
       "-Wall",
       "-pthread",
@@ -92,6 +92,7 @@ lm:conf({
     },
     ldflags = {
       '--js-library=src/platform/wasm/soluna_ime.js',
+      '--js-library=src/platform/wasm/soluna_openurl.js',
       "--use-port=emdawnwebgpu",
       "-s ALLOW_MEMORY_GROWTH",
       "-s FORCE_FILESYSTEM=1",

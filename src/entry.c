@@ -31,16 +31,6 @@
 
 #endif
 
-#if defined(__EMSCRIPTEN__)
-#include <emscripten/emscripten.h>
-#include <emscripten/html5.h>
-#if defined(__EMSCRIPTEN_PTHREADS__)
-#include <emscripten/threading.h>
-#endif
-#include <wchar.h>
-#include <uchar.h>
-#endif
-
 #include "version.h"
 
 #define FRAME_CALLBACK 1
@@ -65,6 +55,9 @@
 #endif
 #if defined(__linux__)
 #include "platform/linux/soluna_linux_ime.h"
+#endif
+#if defined(__EMSCRIPTEN__)
+#include "platform/wasm/soluna_wasm_ime.h"
 #endif
 
 
@@ -137,12 +130,6 @@ message_release(struct soluna_message *msg) {
 	free(msg);
 }
 
-#if defined(__EMSCRIPTEN__)
-extern void soluna_wasm_setup_ime(void);
-extern void soluna_wasm_dom_show(float x, float y, float w, float h);
-extern void soluna_wasm_dom_hide(void);
-#endif
-
 void
 soluna_emit_char(uint32_t codepoint, uint32_t modifiers, bool repeat) {
 	sapp_event ev;
@@ -154,171 +141,6 @@ soluna_emit_char(uint32_t codepoint, uint32_t modifiers, bool repeat) {
 	ev.key_repeat = repeat;
 	app_event(&ev);
 }
-
-
-
-
-#if defined(__EMSCRIPTEN__)
-static const int SOLUNA_WASM_CHAR_QUEUE_CAP = 32;
-static uint32_t g_soluna_wasm_expected_chars[32];
-static int g_soluna_wasm_expected_count = 0;
-static uint32_t g_soluna_wasm_ignore_chars[32];
-static int g_soluna_wasm_ignore_count = 0;
-static bool g_soluna_wasm_composing = false;
-static bool g_soluna_wasm_locale_ready = false;
-static void
-soluna_char_queue_push(uint32_t *buffer, int *count, int max, uint32_t code) {
-	if (*count == max) {
-		memmove(buffer, buffer + 1, (size_t)(max - 1) * sizeof(uint32_t));
-		buffer[max - 1] = code;
-	} else {
-		buffer[*count] = code;
-		(*count)++;
-	}
-}
-
-static bool
-soluna_char_queue_consume(uint32_t *buffer, int *count, uint32_t code) {
-	for (int i = 0; i < *count; ++i) {
-		if (buffer[i] == code) {
-			if (i < *count - 1) {
-				memmove(buffer + i, buffer + i + 1, (size_t)(*count - i - 1) * sizeof(uint32_t));
-			}
-			(*count)--;
-			return true;
-		}
-	}
-	return false;
-}
-
-static void
-soluna_wasm_setup_on_main(void) {
-	soluna_wasm_setup_ime();
-}
-
-static void
-soluna_wasm_dom_show_on_main(float x, float y, float w, float h) {
-	soluna_wasm_dom_show(x, y, w, h);
-}
-
-static void
-soluna_wasm_dom_hide_on_main(void) {
-	soluna_wasm_dom_hide();
-}
-
-static void
-soluna_wasm_call_setup(void) {
-#if defined(__EMSCRIPTEN_PTHREADS__)
-	if (!emscripten_is_main_browser_thread()) {
-		emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_V, soluna_wasm_setup_on_main);
-		return;
-	}
-#endif
-	soluna_wasm_setup_on_main();
-}
-
-static void
-soluna_wasm_call_show(float x, float y, float w, float h) {
-#if defined(__EMSCRIPTEN_PTHREADS__)
-	if (!emscripten_is_main_browser_thread()) {
-		emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_VFFFF, soluna_wasm_dom_show_on_main, x, y, w, h);
-		return;
-	}
-#endif
-	soluna_wasm_dom_show_on_main(x, y, w, h);
-}
-
-static void
-soluna_wasm_call_hide(void) {
-#if defined(__EMSCRIPTEN_PTHREADS__)
-	if (!emscripten_is_main_browser_thread()) {
-		emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_V, soluna_wasm_dom_hide_on_main);
-		return;
-	}
-#endif
-	soluna_wasm_dom_hide_on_main();
-}
-
-static void
-soluna_wasm_reset_queues(void) {
-	g_soluna_wasm_expected_count = 0;
-	g_soluna_wasm_ignore_count = 0;
-}
-
-static void
-soluna_wasm_ensure_ime(void) {
-	soluna_wasm_call_setup();
-}
-
-static void
-soluna_wasm_hide(void) {
-	soluna_wasm_reset_queues();
-	soluna_wasm_call_hide();
-	g_soluna_wasm_composing = false;
-}
-
-static void
-soluna_wasm_apply_rect(void) {
-	if (!g_soluna_ime_rect.valid) {
-		soluna_wasm_hide();
-		return;
-	}
-	soluna_wasm_ensure_ime();
-	soluna_wasm_call_show(g_soluna_ime_rect.x, g_soluna_ime_rect.y, g_soluna_ime_rect.w, g_soluna_ime_rect.h);
-}
-
-static void
-soluna_wasm_ensure_locale(void) {
-	if (g_soluna_wasm_locale_ready) {
-		return;
-	}
-	if (!setlocale(LC_CTYPE, "C.UTF-8")) {
-		if (!setlocale(LC_CTYPE, "en_US.UTF-8")) {
-			setlocale(LC_CTYPE, "C");
-		}
-	}
-	g_soluna_wasm_locale_ready = true;
-}
-
-static void
-soluna_wasm_emit_utf8(const char *text, uint32_t mods) {
-	if (text == NULL) {
-		return;
-	}
-	soluna_wasm_ensure_locale();
-	mbstate_t state;
-	memset(&state, 0, sizeof(state));
-	const char *ptr = text;
-	while (*ptr) {
-		char32_t ch = 0;
-		size_t consumed = mbrtoc32(&ch, ptr, MB_CUR_MAX, &state);
-		if (consumed == (size_t)-1 || consumed == (size_t)-2) {
-			memset(&state, 0, sizeof(state));
-			++ptr;
-			continue;
-		}
-		if (consumed == 0) {
-			consumed = 1;
-		}
-		soluna_char_queue_push(g_soluna_wasm_expected_chars, &g_soluna_wasm_expected_count, SOLUNA_WASM_CHAR_QUEUE_CAP, (uint32_t)ch);
-		soluna_emit_char((uint32_t)ch, mods, false);
-		ptr += consumed;
-	}
-}
-
-EMSCRIPTEN_KEEPALIVE void
-soluna_wasm_ime_commit(const char *text, int modifiers) {
-	if (text == NULL || text[0] == '\0') {
-		return;
-	}
-	soluna_wasm_emit_utf8(text, (uint32_t)modifiers);
-}
-
-EMSCRIPTEN_KEEPALIVE void
-soluna_wasm_set_composing(int active) {
-	g_soluna_wasm_composing = (active != 0);
-}
-#endif
 
 static int
 lmessage_send(lua_State *L) {
@@ -950,9 +772,7 @@ app_event(const sapp_event* ev) {
 	}
 #endif
 #if defined(__EMSCRIPTEN__)
-	if (g_soluna_wasm_composing &&
-		(ev->type == SAPP_EVENTTYPE_KEY_DOWN ||
-		 ev->type == SAPP_EVENTTYPE_KEY_UP)) {
+	if (soluna_wasm_should_block_key_event(ev)) {
 		return;
 	}
 #endif
@@ -962,17 +782,8 @@ app_event(const sapp_event* ev) {
 	}
 #endif
 #if defined(__EMSCRIPTEN__)
-	if (ev->type == SAPP_EVENTTYPE_CHAR) {
-		if (soluna_char_queue_consume(g_soluna_wasm_expected_chars, &g_soluna_wasm_expected_count, ev->char_code)) {
-			soluna_char_queue_push(g_soluna_wasm_ignore_chars, &g_soluna_wasm_ignore_count, SOLUNA_WASM_CHAR_QUEUE_CAP, ev->char_code);
-		} else if (g_soluna_wasm_ignore_count > 0) {
-			if (soluna_char_queue_consume(g_soluna_wasm_ignore_chars, &g_soluna_wasm_ignore_count, ev->char_code)) {
-				return;
-			} else if (g_soluna_wasm_ignore_count > 0) {
-				uint32_t stale = g_soluna_wasm_ignore_chars[0];
-				soluna_char_queue_consume(g_soluna_wasm_ignore_chars, &g_soluna_wasm_ignore_count, stale);
-			}
-		}
+	if (soluna_wasm_filter_char_event(ev)) {
+		return;
 	}
 #endif
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
@@ -984,11 +795,7 @@ app_event(const sapp_event* ev) {
 	soluna_linux_handle_event(ev);
 #endif
 #if defined(__EMSCRIPTEN__)
-	if (ev->type == SAPP_EVENTTYPE_UNFOCUSED) {
-		soluna_wasm_hide();
-	} else if ((ev->type == SAPP_EVENTTYPE_FOCUSED || ev->type == SAPP_EVENTTYPE_RESIZED) && g_soluna_ime_rect.valid) {
-		soluna_wasm_apply_rect();
-	}
+	soluna_wasm_handle_event(ev);
 #endif
 	lua_State *L = get_L(CTX);
 	if (L) {

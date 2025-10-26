@@ -17,10 +17,26 @@ open_url(lua_State *L, const char *url) {
 
 #elif defined(__EMSCRIPTEN__)
 #include <emscripten/emscripten.h>
+#if defined(__EMSCRIPTEN_PTHREADS__)
+#include <emscripten/threading.h>
+#endif
+
+extern void soluna_wasm_open_url(const char *url);
+
+static void
+soluna_wasm_call_open_url(const char *url) {
+#if defined(__EMSCRIPTEN_PTHREADS__)
+  if (!emscripten_is_main_browser_thread()) {
+    emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_VI, soluna_wasm_open_url, url);
+    return;
+  }
+#endif
+  soluna_wasm_open_url(url);
+}
 
 static void
 open_url(lua_State *L, const char *url) {
-  MAIN_THREAD_ASYNC_EM_ASM(window.open(UTF8ToString($0), '_blank'), url);
+  soluna_wasm_call_open_url(url);
 }
 
 #elif defined(__APPLE__) || defined(__linux__)
