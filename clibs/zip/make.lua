@@ -28,3 +28,10 @@ lm:source_set "zlib" {
     "!gz*.c",
   },
 }
+
+lm:source_set "zip_src" {
+  deps = {
+    "minizip",
+    "zlib",
+  }
+}

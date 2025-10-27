@@ -18,7 +18,7 @@ Soluna 可以运行在 Windows、Linux、macOS 和现代浏览器（通过 WebAs
 
 - [API 参考](./docs)
 - [示例](./test)
-- [Wiki](./wiki)
+- [Wiki](https://github.com/cloudwu/soluna/wiki)
 
 ## 预编译二进制文件
 

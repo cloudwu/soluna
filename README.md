@@ -18,7 +18,7 @@ It is built on top of [sokol](https://github.com/floooh/sokol) and leverages the
 
 - [API Reference](./docs)
 - [Examples](./test)
-- [Wiki](./wiki)
+- [Wiki](https://github.com/cloudwu/soluna/wiki)
 
 ## Precompiled Binaries
 

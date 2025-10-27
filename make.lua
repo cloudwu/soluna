@@ -116,29 +116,21 @@ lm:conf({
   }
 })
 
-lm:import "clibs/lua/make.lua"
-lm:import "clibs/yoga/make.lua"
-lm:import "clibs/datalist/make.lua"
-lm:import "clibs/sokol/make.lua"
-lm:import "clibs/ltask/make.lua"
-lm:import "clibs/zlib/make.lua"
+local deps = {"soluna_src"}
+
+for path in fs.pairs(lm.basedir .. "/clibs") do
+  local name = path:stem():string()
+  if name ~= "soluna" and fs.exists(path / "make.lua") then
+    local makefile = ("clibs/%s/make.lua"):format(name)
+    lm:import(makefile)
+    deps[#deps + 1] = name .. "_src"
+  end
+end
+
 lm:import "clibs/soluna/make.lua"
 
-lm:phony "precompile" {
-  deps = {
-    "compile_shaders",
-  },
+lm:exe "soluna" {
+  deps = deps,
 }
 
-lm:exe "soluna" {
-  deps = {
-    "lua_src",
-    "soluna_src",
-    "ltask_src",
-    "yoga_src",
-    "precompile",
-    "datalist_src",
-    "zlib",
-    "minizip",
-  },
-}
+lm:default "soluna"

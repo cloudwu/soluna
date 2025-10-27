@@ -87,14 +87,12 @@ runs:
       shell: powershell
       working-directory: ${{ inputs.soluna_path }}
       run: |
-        luamake precompile
         luamake soluna
     - name: Build (Unix)
       if: runner.os != 'Windows' && steps.cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ inputs.soluna_path }}
       run: |
-        luamake precompile
         luamake soluna
     - uses: mymindstorm/setup-emsdk@v14
       if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
@@ -106,7 +104,6 @@ runs:
       working-directory: ${{ inputs.soluna_path }}
       shell: bash
       run: |
-        luamake -compiler emcc precompile
         luamake -compiler emcc
         SOLUNA_JS="soluna.js"
         SOLUNA_JS_PATH=$(find bin -name $SOLUNA_JS | head -n 1)
