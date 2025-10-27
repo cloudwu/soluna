@@ -1,5 +1,7 @@
 local lm = require "luamake"
 local subprocess = require "bee.subprocess"
+local compile_lua = require "compile_lua"
+local compile_shader = require "compile_shader"
 
 lm.rootdir = lm.basedir
 
@@ -21,13 +23,16 @@ if ok then
   end
 end
 
+local objdeps = {}
+
+compile_lua(objdeps)
+compile_shader(objdeps)
+
 lm:source_set "soluna_src" {
   sources = {
     "src/*.c",
   },
-  objdeps = {
-    "compile_lua_code",
-  },
+  objdeps = objdeps,
   defines = {
     commit and string.format('SOLUNA_HASH_VERSION=\\"%s\\"', commit),
   },

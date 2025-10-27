@@ -1,16 +1,13 @@
 local lm = require "luamake"
 local fs = require "bee.filesystem"
 
-local deps = {}
-
 local shdc<const> = lm.shdc or ""
 
 local function compile_shader(src, name, lang)
   local dep = name .. "_shader"
-  deps[#deps + 1] = dep
   local target = lm.builddir .. "/" .. name
   lm:runlua(dep) {
-    script = lm.basedir .. "/clibs/sokol/shader2c.lua",
+    script = lm.basedir .. "/clibs/soluna/shader2c.lua",
     inputs = lm.basedir .. "/" .. src,
     outputs = lm.basedir .. "/" .. target,
     args = {
@@ -20,6 +17,7 @@ local function compile_shader(src, name, lang)
       lang,
     },
   }
+  return dep
 end
 
 local function shader_lang()
@@ -39,14 +37,13 @@ local function shader_lang()
   return "unknown"
 end
 
-for path in fs.pairs("src") do
-  local lang = shader_lang()
-  if path:extension() == ".glsl" then
-    local base = path:stem():string()
-    compile_shader(path:string(), base .. ".glsl.h", lang)
+return function(objdeps)
+  for path in fs.pairs("src") do
+    local lang = shader_lang()
+    if path:extension() == ".glsl" then
+      local base = path:stem():string()
+      local dep = compile_shader(path:string(), base .. ".glsl.h", lang)
+      objdeps[#objdeps + 1] = dep
+    end
   end
 end
-
-lm:phony "compile_shaders" {
-  deps = deps,
-}
