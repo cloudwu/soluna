@@ -1,5 +1,6 @@
 local package = package
 local table = table
+local coroutine = coroutine
 
 global load, require, assert, select, error, tostring, print
 
@@ -82,6 +83,7 @@ local function start(config)
 		root_initfunc = root_config.initfunc,
 		mainthread = config.mainthread,
 	}
+	coroutine.yield() -- continue in frame/event callback
 	-- wait for INIT_EVENT, see start.lua
 	boot.mainthread_wait()
 	local sender, sender_ud = bootstrap.external_sender(ctx)
@@ -157,7 +159,8 @@ local api = {}
 
 function api.start(app)
 	args.app = app
-	return function() return start {
+	local start_thread = coroutine.create(start)
+	coroutine.resume(start_thread, {
 		args = args,
 		core = {
 			debuglog = "=", -- stdout
@@ -176,7 +179,12 @@ function api.start(app)
 				unique = true,
 			},
 		},
-	} end
+	})
+	return function ()
+		local ok, ret = coroutine.resume(start_thread)
+		assert(ok, ret)
+		return ret
+	end
 end
 
 function api.init(desc)
