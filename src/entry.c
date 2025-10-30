@@ -705,14 +705,12 @@ app_init() {
 		
 	lua_State *L = CTX->L;
 	if (start_app(L)) {
-		sargs_shutdown();
 		if (L) {
 			lua_close(L);
 		}
 		CTX->L = NULL;
+		CTX->quitL = NULL;
 		sapp_quit();
-	} else {
-		sargs_shutdown();
 	}
 }
 
@@ -723,10 +721,7 @@ get_L(struct app_context *ctx) {
 	lua_State *L = ctx->L;
 	if (L == NULL) {
 		if (ctx->quitL != NULL) {
-			ctx->L = ctx->quitL;
-			ctx->quitL = NULL;
 			sapp_quit();
-			return NULL;
 		}
 	}
 	return L;
@@ -755,9 +750,13 @@ app_frame() {
 
 static void
 app_cleanup() {
-	lua_State *L = get_L(CTX);
+	if (CTX == NULL)
+		return;
+	lua_State *L = CTX->quitL;
 	if (L) {
 		invoke_callback(L, CLEANUP_CALLBACK, 0);
+		lua_close(L);
+		CTX->quitL = NULL;
 	}
 #if defined(__linux__)
 	soluna_linux_shutdown_ime();
@@ -867,6 +866,7 @@ sokol_main(int argc, char* argv[]) {
 			lua_pushlightuserdata(L, (void *)err);
 			lua_replace(L, 1);
 		}
+		sargs_shutdown();
 		
 		if (init_settings(L, &d)) {
 			lua_replace(L, 1);
