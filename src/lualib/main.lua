@@ -157,7 +157,7 @@ local api = {}
 
 function api.start(app)
 	args.app = app
-	return start {
+	return function() return start {
 		args = args,
 		core = {
 			debuglog = "=", -- stdout
@@ -176,7 +176,7 @@ function api.start(app)
 				unique = true,
 			},
 		},
-	}
+	} end
 end
 
 function api.init(desc)

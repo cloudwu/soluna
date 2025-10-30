@@ -89,6 +89,7 @@ static void app_event(const sapp_event* ev);
 struct app_context {
 	lua_State *L;
 	lua_State *quitL;
+	lua_State *initL;
 	int (*send_log)(void *ud, unsigned int id, void *data, uint32_t sz);
 	void *send_log_ud;
 	void *mqueue;
@@ -616,9 +617,9 @@ get_function(lua_State *L, const char *key, int index) {
 }
 
 static int
-init_callback(lua_State *L, struct app_context * ctx) {
+init_(lua_State *L, struct app_context * ctx) {
 	if (!lua_istable(L, -1)) {
-		fprintf(stderr, "main.lua need return a table, it's %s\n", lua_typename(L, lua_type(L, -1)));
+		fprintf(stderr, "init callback should return a table, it's %s\n", lua_typename(L, lua_type(L, -1)));
 		return 1;
 	}
 	ctx->send_log = get_ud(L, "send_log");
@@ -631,6 +632,16 @@ init_callback(lua_State *L, struct app_context * ctx) {
 	if (get_function(L, "event", EVENT_CALLBACK))
 		return 1;
 	lua_settop(L, CALLBACK_COUNT);
+
+	return 0;
+}
+
+static int
+delay_init(lua_State *L) {
+	if (!lua_isfunction(L, -1)) {
+		fprintf(stderr, "api.start() should return an init function, it's %s\n", lua_typename(L, lua_type(L, -1)));
+		return 1;
+	}
 	return 0;
 }
 
@@ -682,7 +693,7 @@ start_app(lua_State *L) {
 		fprintf(stderr, "Start fatal : %s\n", lua_tostring(L, -1));
 		return 1;
 	} else {
-		return init_callback(L, CTX);
+		return delay_init(L);
 	}
 }
 
@@ -703,16 +714,13 @@ app_init() {
         .logger.func = log_func,			
 	});
 		
-	lua_State *L = CTX->L;
+	lua_State *L = CTX->initL;
 	if (start_app(L)) {
-		sargs_shutdown();
 		if (L) {
 			lua_close(L);
 		}
-		CTX->L = NULL;
+		CTX->initL = NULL;
 		sapp_quit();
-	} else {
-		sargs_shutdown();
 	}
 }
 
@@ -723,10 +731,21 @@ get_L(struct app_context *ctx) {
 	lua_State *L = ctx->L;
 	if (L == NULL) {
 		if (ctx->quitL != NULL) {
-			ctx->L = ctx->quitL;
-			ctx->quitL = NULL;
 			sapp_quit();
 			return NULL;
+		}
+		lua_State *initL = ctx->initL;
+		if (initL) {
+			if (lua_pcall(initL, 0, 1, 0) != LUA_OK) {
+				fprintf(stderr, "Init error : %s\n", lua_tostring(initL, -1));
+				sapp_quit();
+			} else if (init_(initL, ctx)) {
+				CTX->quitL = initL;
+				sapp_quit();
+			}
+			ctx->initL = NULL;
+			ctx->L = initL;
+			L = initL;
 		}
 	}
 	return L;
@@ -755,9 +774,13 @@ app_frame() {
 
 static void
 app_cleanup() {
-	lua_State *L = get_L(CTX);
+	if (CTX == NULL)
+		return;
+	lua_State *L = CTX->quitL;
 	if (L) {
 		invoke_callback(L, CLEANUP_CALLBACK, 0);
+		lua_close(L);
+		CTX->quitL = NULL;
 	}
 #if defined(__linux__)
 	soluna_linux_shutdown_ime();
@@ -867,14 +890,15 @@ sokol_main(int argc, char* argv[]) {
 			lua_pushlightuserdata(L, (void *)err);
 			lua_replace(L, 1);
 		}
-		
+		sargs_shutdown();
 		if (init_settings(L, &d)) {
 			lua_replace(L, 1);
 		}
 	}
 
-	app.L = L;
+	app.L = NULL;
 	app.quitL = NULL;
+	app.initL = L;
 	app.send_log = NULL;
 	app.send_log_ud = NULL;
 	app.mqueue = NULL;
