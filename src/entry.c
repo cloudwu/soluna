@@ -732,7 +732,6 @@ get_L(struct app_context *ctx) {
 	if (L == NULL) {
 		if (ctx->quitL != NULL) {
 			sapp_quit();
-			return NULL;
 		}
 		lua_State *initL = ctx->initL;
 		if (initL) {
