@@ -84,8 +84,15 @@ local function start(config)
 		mainthread = config.mainthread,
 	}
 	coroutine.yield() -- continue in frame/event callback
-	-- wait for INIT_EVENT, see start.lua
-	boot.mainthread_wait()
+	while true do
+		-- wait for INIT_EVENT, see start.lua
+		if boot.mainthread_wait(true) then
+			-- wait fail, not ready
+			coroutine.yield(false)
+		else
+			break
+		end
+	end
 	local sender, sender_ud = bootstrap.external_sender(ctx)
 	local c_sendmessage = require "soluna.app".sendmessage
 	local function send_message(...)

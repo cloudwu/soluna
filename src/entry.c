@@ -735,12 +735,23 @@ get_L(struct app_context *ctx) {
 		}
 		lua_State *initL = ctx->initL;
 		if (initL) {
+			lua_pushvalue(initL, -1);
 			if (lua_pcall(initL, 0, 1, 0) != LUA_OK) {
 				fprintf(stderr, "Init error : %s\n", lua_tostring(initL, -1));
 				sapp_quit();
-			} else if (init_(initL, ctx)) {
-				CTX->quitL = initL;
-				sapp_quit();
+			} else {
+				if (lua_isboolean(initL, -1)) {
+					// not ready
+					lua_pop(initL, 1);
+					return NULL;
+				} else {
+					// remove init function
+					lua_replace(initL, -2);
+				}
+				if (init_(initL, ctx)) {
+					CTX->quitL = initL;
+					sapp_quit();
+				}
 			}
 			ctx->initL = NULL;
 			ctx->L = initL;
