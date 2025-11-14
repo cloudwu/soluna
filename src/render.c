@@ -2,6 +2,7 @@
 #include <lauxlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "sokol/sokol_gfx.h"
 #include "sokol/sokol_glue.h"
@@ -11,6 +12,7 @@
 #include "sprite_submit.h"
 #include "batch.h"
 #include "spritemgr.h"
+#include "render_blit.h"
 
 #define UNIFORM_MAX 4
 #define BINDINGNAME_MAX 32
@@ -28,6 +30,60 @@ struct image {
 struct sampler {
 	sg_sampler handle;
 };
+
+struct offscreen_state {
+	bool enabled;
+	int width;
+	int height;
+	sg_image image;
+	sg_view color_view;
+	sg_view sample_view;
+	sg_sampler sampler;
+	sg_pass pass;
+};
+
+static struct offscreen_state OFFSCREEN;
+
+static void
+offscreen_destroy(void) {
+	if (OFFSCREEN.color_view.id) {
+		sg_destroy_view(OFFSCREEN.color_view);
+	}
+	if (OFFSCREEN.sample_view.id) {
+		sg_destroy_view(OFFSCREEN.sample_view);
+	}
+	if (OFFSCREEN.sampler.id) {
+		sg_destroy_sampler(OFFSCREEN.sampler);
+	}
+	if (OFFSCREEN.image.id) {
+		sg_destroy_image(OFFSCREEN.image);
+	}
+	OFFSCREEN = (struct offscreen_state){0};
+}
+
+static void
+offscreen_apply_viewport(int canvas_width, int canvas_height) {
+	if (canvas_width <= 0 || canvas_height <= 0 || OFFSCREEN.width <= 0 || OFFSCREEN.height <= 0) {
+		sg_apply_viewport(0, 0, canvas_width, canvas_height, true);
+		return;
+	}
+	const float canvas_aspect = (float)canvas_width / (float)canvas_height;
+	const float content_aspect = (float)OFFSCREEN.width / (float)OFFSCREEN.height;
+	int vp_w = canvas_width;
+	int vp_h = canvas_height;
+	int vp_x = 0;
+	int vp_y = 0;
+	if (content_aspect > canvas_aspect) {
+		vp_w = canvas_width;
+		vp_h = (int)(vp_w / content_aspect);
+		vp_y = (canvas_height - vp_h) / 2;
+	} else if (content_aspect < canvas_aspect) {
+		vp_h = canvas_height;
+		vp_w = (int)(vp_h * content_aspect);
+		vp_x = (canvas_width - vp_w) / 2;
+	}
+	sg_apply_viewport(vp_x, vp_y, vp_w, vp_h, true);
+}
 
 static struct sg_buffer_usage
 get_buffer_type(lua_State *L, int index) {
@@ -219,7 +275,6 @@ lbuffer(lua_State *L) {
 	return 1;
 }
 
-// todo : offscreen pass
 struct pass {
 	sg_pass_action pass_action;
 };
@@ -262,13 +317,32 @@ read_color_action(lua_State *L, int index, sg_pass_action *action, int idx) {
 static int
 lpass_begin(lua_State *L) {
 	struct pass * p = (struct pass *)luaL_checkudata(L, 1, "SOKOL_PASS");
-	sg_begin_pass(&(sg_pass) { .action = p->pass_action, .swapchain = sglue_swapchain() });
+	if (OFFSCREEN.enabled) {
+		OFFSCREEN.pass.action = p->pass_action;
+		sg_begin_pass(&OFFSCREEN.pass);
+	} else {
+		sg_begin_pass(&(sg_pass){ .action = p->pass_action, .swapchain = sglue_swapchain() });
+	}
 	return 0;
 }
 
 static int
 lpass_end(lua_State *L) {
-	sg_end_pass();
+	if (OFFSCREEN.enabled) {
+		sg_end_pass();
+		int canvas_width = sapp_width();
+		int canvas_height = sapp_height();
+		sg_pass display_pass = {
+			.action = OFFSCREEN.pass.action,
+			.swapchain = sglue_swapchain(),
+		};
+		sg_begin_pass(&display_pass);
+		offscreen_apply_viewport(canvas_width, canvas_height);
+		soluna_render_blit(OFFSCREEN.sample_view, OFFSCREEN.sampler);
+		sg_end_pass();
+	} else {
+		sg_end_pass();
+	}
 	return 0;
 }
 
@@ -316,6 +390,59 @@ lpass_new(lua_State *L) {
 	}
 	lua_setmetatable(L, -2);
 	return 1;
+}
+
+static bool
+offscreen_create(int width, int height, sg_filter filter) {
+	offscreen_destroy();
+	if (width <= 0 || height <= 0) {
+		return false;
+	}
+	OFFSCREEN.image = sg_make_image(&(sg_image_desc){
+		.width = width,
+		.height = height,
+		.pixel_format = SG_PIXELFORMAT_RGBA8,
+		.usage.color_attachment = true,
+		.label = "soluna-offscreen-image",
+	});
+	if (OFFSCREEN.image.id == SG_INVALID_ID) {
+		offscreen_destroy();
+		return false;
+	}
+	OFFSCREEN.color_view = sg_make_view(&(sg_view_desc){
+		.color_attachment.image = OFFSCREEN.image,
+	});
+	if (OFFSCREEN.color_view.id == SG_INVALID_ID) {
+		offscreen_destroy();
+		return false;
+	}
+	OFFSCREEN.sample_view = sg_make_view(&(sg_view_desc){
+		.texture.image = OFFSCREEN.image,
+	});
+	if (OFFSCREEN.sample_view.id == SG_INVALID_ID) {
+		offscreen_destroy();
+		return false;
+	}
+	OFFSCREEN.sampler = sg_make_sampler(&(sg_sampler_desc){
+		.min_filter = filter,
+		.mag_filter = filter,
+		.wrap_u = SG_WRAP_CLAMP_TO_EDGE,
+		.wrap_v = SG_WRAP_CLAMP_TO_EDGE,
+		.label = "soluna-offscreen-sampler",
+	});
+	if (OFFSCREEN.sampler.id == SG_INVALID_ID) {
+		offscreen_destroy();
+		return false;
+	}
+	OFFSCREEN.pass = (sg_pass){
+		.attachments = {
+			.colors[0] = OFFSCREEN.color_view,
+		},
+	};
+	OFFSCREEN.width = width;
+	OFFSCREEN.height = height;
+	OFFSCREEN.enabled = true;
+	return true;
 }
 
 static int
@@ -495,6 +622,37 @@ lsrbuffer(lua_State *L) {
 	return 1;
 }
 
+static sg_filter
+filter_from_string(const char *str) {
+	if (str == NULL) {
+		return SG_FILTER_LINEAR;
+	}
+	if (strcmp(str, "nearest") == 0) {
+		return SG_FILTER_NEAREST;
+	}
+	return SG_FILTER_LINEAR;
+}
+
+static int
+loffscreen_setup(lua_State *L) {
+	if (lua_isnoneornil(L, 1)) {
+		offscreen_destroy();
+		return 0;
+	}
+	int width = luaL_checkinteger(L, 1);
+	int height = luaL_optinteger(L, 2, 0);
+	if (width <= 0 || height <= 0) {
+		offscreen_destroy();
+		return 0;
+	}
+	const char *filter_str = luaL_optstring(L, 3, "linear");
+	sg_filter filter = filter_from_string(filter_str);
+	if (!offscreen_create(width, height, filter)) {
+		return luaL_error(L, "failed to setup offscreen render target");
+	}
+	return 0;
+}
+
 struct inst_object {
 	float x, y;
 	float sr_index;
@@ -539,6 +697,7 @@ int
 luaopen_render(lua_State *L) {
 	luaL_checkversion(L);
 	luaL_Reg l[] = {
+		{ "offscreen_setup", loffscreen_setup },
 		{ "pass", lpass_new },
 		{ "submit", lsubmit },
 		{ "image", limage },

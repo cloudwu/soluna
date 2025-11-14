@@ -238,6 +238,18 @@ local function render_init(arg)
 	font.init()
 
 	local texture_size = setting.texture_size
+	local off_w = setting.render_width
+	local off_h = setting.render_height
+	local use_offscreen = off_w and off_h and off_w > 0 and off_h > 0
+	local filter = setting.render_filter
+	if filter ~= "nearest" then
+		filter = "linear"
+	end
+	if use_offscreen then
+		render.offscreen_setup(off_w, off_h, filter)
+	else
+		render.offscreen_setup()
+	end
 
 	local img = render.image {
 		width = texture_size,
@@ -278,6 +290,7 @@ local function render_init(arg)
 		textures = { img } ,
 		font_texture = font_texture,
 		views = views,
+		offscreen_enabled = use_offscreen,
 	}
 	local bindings = render.bindings()
 	bindings:vbuffer(0, inst_buffer)
@@ -338,7 +351,9 @@ local function render_init(arg)
 			type = "float",
 		},
 	}
-	STATE.uniform.framesize = { 2/arg.width, -2/arg.height }
+	local content_w = use_offscreen and off_w or arg.width
+	local content_h = use_offscreen and off_h or arg.height
+	STATE.uniform.framesize = { 2/content_w, -2/content_h }
 	STATE.uniform.tex_size = 1/texture_size
 	
 	local tmp_buffer = render.tmp_buffer(setting.tmpbuffer_size)
@@ -384,7 +399,9 @@ function S.init(arg)
 end
 
 function S.resize(w, h)
-	STATE.uniform.framesize = { 2/w, -2/h }
+	if not STATE.offscreen_enabled then
+		STATE.uniform.framesize = { 2/w, -2/h }
+	end
 end
 
 return S
