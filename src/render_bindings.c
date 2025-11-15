@@ -131,6 +131,16 @@ lview_release(lua_State *L) {
 	return 0;
 }
 
+static int
+lview_getptr(lua_State *L) {
+	struct view *v = (struct view *)lua_touserdata(L, 1);
+	if (v->type == VIEW_TYPE_INVALID) {
+		return 0;
+	}
+	lua_pushlightuserdata(L, &v->view);
+	return 1;
+}
+
 int
 lview_new(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
@@ -174,6 +184,7 @@ lview_new(lua_State *L) {
 			{ "__index", NULL },
 			{ "__tostring", lview_tostring },
 			{ "__gc", lview_release },
+			{ "__call", lview_getptr },
 			{ NULL, NULL },
 		};
 		luaL_setfuncs(L, l, 0);

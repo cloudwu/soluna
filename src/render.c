@@ -221,7 +221,8 @@ lbuffer(lua_State *L) {
 
 // todo : offscreen pass
 struct pass {
-	sg_pass_action pass_action;
+	sg_pass pass;
+	int swapchain;
 };
 
 static int
@@ -262,7 +263,10 @@ read_color_action(lua_State *L, int index, sg_pass_action *action, int idx) {
 static int
 lpass_begin(lua_State *L) {
 	struct pass * p = (struct pass *)luaL_checkudata(L, 1, "SOKOL_PASS");
-	sg_begin_pass(&(sg_pass) { .action = p->pass_action, .swapchain = sglue_swapchain() });
+	if (p->swapchain) {
+		p->pass.swapchain = sglue_swapchain();
+	}
+	sg_begin_pass(&p->pass);
 	return 0;
 }
 
@@ -272,13 +276,30 @@ lpass_end(lua_State *L) {
 	return 0;
 }
 
+static void
+read_attachments(lua_State *L, sg_attachments *attachments) {
+	// todo : support depth stencil
+	luaL_checkudata(L, -1, "SOKOL_VIEW");
+	lua_call(L, 0, 1);
+	sg_view *v = (sg_view *)lua_touserdata(L, -1);
+	lua_pop(L, 1);
+	if (v == NULL) {
+		luaL_error(L, "Invalid view");
+	}
+	attachments->colors[0] = *v;
+}
+
 static int
 lpass_new(lua_State *L) {
 	struct pass * p = lua_newuserdatauv(L, sizeof(*p), 0);
 	memset(p, 0, sizeof(*p));
 	luaL_checktype(L, 1, LUA_TTABLE);
-	sg_pass_action *action = &p->pass_action;
-	// todo : store action
+	if (lua_getfield(L, 1, "swapchain") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
+		p->swapchain = true;
+	}
+	lua_pop(L, 1);
+
+	sg_pass_action *action = &p->pass.action;
 	
 	int i = 0;
 	while (read_color_action(L, 1, action, i)) {
@@ -300,6 +321,15 @@ lpass_new(lua_State *L) {
 			return luaL_error(L, "Invalid stencil %d", s);
 		action->depth.load_action = SG_LOADACTION_CLEAR;
 		action->depth.clear_value = s;
+	}
+	lua_pop(L, 1);
+	if (lua_getfield(L, 1, "attachment") != LUA_TNIL) {
+		if (p->swapchain) {
+			return luaL_error(L, "swapchain not allows with attachment");
+		}
+		read_attachments(L, &p->pass.attachments);
+	} else if (!p->swapchain) {
+		return luaL_error(L, "missing swapchain");
 	}
 	lua_pop(L, 1);
 	if (luaL_newmetatable(L, "SOKOL_PASS")) {

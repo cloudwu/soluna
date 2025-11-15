@@ -273,6 +273,7 @@ local function render_init(arg)
 	STATE = {
 		pass = render.pass {
 			color0 = setting.background,
+			swapchain = true,
 		},
 		default_sampler = render.sampler { label = "texquad-sampler" },
 		textures = { img } ,
