@@ -182,13 +182,13 @@ end
 function api.init(desc)
 	-- todo : settings
 	local zipfile = args[1] or args.zipfile or "main.zip"
-	if zipfile == args[1] then
-		table.remove(args, 1)
-	end
 	local embedsource = require "soluna.embedsource"
 	local packageloader = load(embedsource.runtime.packageloader(), "@src/lualib/packageloader.lua")
 	if packageloader(zipfile) then
 		args.zipfile = zipfile
+		if zipfile == args[1] then
+			table.remove(args, 1)
+		end
 	end
 	local initsetting = load(embedsource.lib.initsetting, "@3rd/ltask/lualib/initsetting.lua")()
 	local settings = initsetting.init(args)
