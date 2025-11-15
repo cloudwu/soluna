@@ -7,6 +7,7 @@ local defmat = require "soluna.material.default"
 local textmat = require "soluna.material.text"
 local quadmat = require "soluna.material.quad"
 local maskmat = require "soluna.material.mask"
+local blit = require "soluna.material.blit"
 local soluna_app = require "soluna.app"
 
 global require, assert, pairs, pcall, ipairs, print
@@ -180,6 +181,9 @@ local function frame(count)
 			obj.draw(ptr, n, tex)
 		end
 	STATE.pass:finish()
+	STATE.blit_pass:begin()
+		STATE.blit:draw()
+	STATE.blit_pass:finish()
 	render.submit()
 end
 
@@ -270,12 +274,51 @@ local function render_init(arg)
 		font = render.view { texture = font_texture },
 	}
 
+	local default_sampler = render.sampler { label = "texquad-sampler" }
+
+	local offscreen = {}
+	offscreen.img = render.image {
+		width = 640,
+		height = 480,
+		color_attachment = true,
+		label = "offscreen-image",
+	}
+	offscreen.depth = render.image {
+		width = 640,
+		height = 480,
+		depth_stencil_attachment = true,
+		label = "offscreen-depth",
+	}
+	offscreen.color_view = render.view {
+		color_attachment = offscreen.img
+	}
+	offscreen.depth_view = render.view {
+		depth_stencil_attachment = offscreen.depth
+	}
+	offscreen.sample_view = render.view {
+		texture = offscreen.img	
+	}
+	offscreen.blit_bindings = render.bindings()
+	offscreen.blit_bindings:view(0, offscreen.sample_view)
+	offscreen.blit_bindings:sampler(0, default_sampler)
+
 	STATE = {
+		offscreen = offscreen,
 		pass = render.pass {
+			color0 = setting.background,
+			attachment = {
+				depth_stencil = offscreen.depth_view,
+				color0 = offscreen.color_view,
+			},
+		},
+		blit_pass = render.pass {
 			color0 = setting.background,
 			swapchain = true,
 		},
-		default_sampler = render.sampler { label = "texquad-sampler" },
+		blit = blit.new {
+			bindings = offscreen.blit_bindings,
+		},
+		default_sampler = default_sampler,
 		textures = { img } ,
 		font_texture = font_texture,
 		views = views,
