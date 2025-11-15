@@ -77,7 +77,7 @@ static int
 lmaterial_mask_submit(lua_State *L) {
 	struct material_mask *m = (struct material_mask *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_MASK");
 	int batch_n = TMPBUFFER_SIZE(struct inst_object, &m->tmp);
-	submit_material(L, batch_n, m, submit);
+	util_submit_material(L, batch_n, m, submit);
 	return 0;
 }
 
@@ -119,36 +119,16 @@ lmaterial_mask_draw_ex(lua_State *L) {
 
 static void
 init_pipeline(struct material_mask *p) {
-	sg_shader shd = sg_make_shader(maskquad_shader_desc(sg_query_backend()));
-  if (sg_query_shader_state(shd) != SG_RESOURCESTATE_VALID) {
-    fprintf(stderr, "Failed to create shader for mask material!\n");
-  }
-
-	p->pip = sg_make_pipeline(&(sg_pipeline_desc) {
-		.layout = {
-			.buffers[0].step_func = SG_VERTEXSTEP_PER_INSTANCE,
-			.attrs = {
-					[ATTR_maskquad_position].format = SG_VERTEXFORMAT_FLOAT3,
-					[ATTR_maskquad_color].format = SG_VERTEXFORMAT_UBYTE4N,
-					[ATTR_maskquad_offset].format = SG_VERTEXFORMAT_UINT,
-					[ATTR_maskquad_u].format = SG_VERTEXFORMAT_UINT,
-					[ATTR_maskquad_v].format = SG_VERTEXFORMAT_UINT,
-				}
+	sg_pipeline_desc desc = {
+		.layout.attrs = {
+			[ATTR_maskquad_position].format = SG_VERTEXFORMAT_FLOAT3,
+			[ATTR_maskquad_color].format = SG_VERTEXFORMAT_UBYTE4N,
+			[ATTR_maskquad_offset].format = SG_VERTEXFORMAT_UINT,
+			[ATTR_maskquad_u].format = SG_VERTEXFORMAT_UINT,
+			[ATTR_maskquad_v].format = SG_VERTEXFORMAT_UINT,
         },
-		.colors[0].blend = (sg_blend_state) {
-			.enabled = true,
-			.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-			.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-			.src_factor_alpha = SG_BLENDFACTOR_ONE,
-			.dst_factor_alpha = SG_BLENDFACTOR_ZERO
-		},
-        .shader = shd,
-		.primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP,
-        .label = "mask-pipeline"
-    });
-  if (sg_query_pipeline_state(p->pip) != SG_RESOURCESTATE_VALID) {
-    fprintf(stderr, "Failed to create pipeline for mask material!\n");
-  }
+    };
+	p->pip = util_make_pipeline(&desc, maskquad_shader_desc, "mask-pipeline", 1);
 }
 
 static int
@@ -156,10 +136,10 @@ lnew_material_mask(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	struct material_mask *m = (struct material_mask *)lua_newuserdatauv(L, sizeof(*m), 5);
 	init_pipeline(m);
-	ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
-	ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
-	ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
-	ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
+	util_ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
+	util_ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
+	util_ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
+	util_ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
 	tmp_buffer_init(L, &m->tmp, 5, "tmp_buffer");
 	if (lua_getfield(L, 1, "sprite_bank") != LUA_TLIGHTUSERDATA) {
 		return luaL_error(L, "Missing .sprite_bank");

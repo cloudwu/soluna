@@ -63,7 +63,7 @@ static int
 lmaterial_default_submit(lua_State *L) {
 	struct material_default *m = (struct material_default *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_DEFAULT");
 	int batch_n = TMPBUFFER_SIZE(struct inst_object, &m->tmp);
-	submit_material(L, batch_n, m, submit);
+	util_submit_material(L, batch_n, m, submit);
 	return 0;
 }
 
@@ -104,35 +104,15 @@ lmaterial_default_draw_ex(lua_State *L) {
 
 static void
 init_pipeline(struct material_default *p) {
-	sg_shader shd = sg_make_shader(texquad_shader_desc(sg_query_backend()));
-  if (sg_query_shader_state(shd) != SG_RESOURCESTATE_VALID) {
-    fprintf(stderr, "failed to create shader for default material\n");
-  }
-
-	p->pip = sg_make_pipeline(&(sg_pipeline_desc) {
-		.layout = {
-			.buffers[0].step_func = SG_VERTEXSTEP_PER_INSTANCE,
-			.attrs = {
-					[ATTR_texquad_position].format = SG_VERTEXFORMAT_FLOAT3,
-					[ATTR_texquad_offset].format = SG_VERTEXFORMAT_UINT,
-					[ATTR_texquad_u].format = SG_VERTEXFORMAT_UINT,
-					[ATTR_texquad_v].format = SG_VERTEXFORMAT_UINT,
-				}
+	sg_pipeline_desc desc = {
+		.layout.attrs = {
+			[ATTR_texquad_position].format = SG_VERTEXFORMAT_FLOAT3,
+			[ATTR_texquad_offset].format = SG_VERTEXFORMAT_UINT,
+			[ATTR_texquad_u].format = SG_VERTEXFORMAT_UINT,
+			[ATTR_texquad_v].format = SG_VERTEXFORMAT_UINT,
         },
-		.colors[0].blend = (sg_blend_state) {
-			.enabled = true,
-			.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-			.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-			.src_factor_alpha = SG_BLENDFACTOR_ONE,
-			.dst_factor_alpha = SG_BLENDFACTOR_ZERO
-		},
-        .shader = shd,
-		.primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP,
-        .label = "default-pipeline"
-    });
-  if (sg_query_pipeline_state(p->pip) != SG_RESOURCESTATE_VALID) {
-    fprintf(stderr, "failed to create pipeline for default material\n");
-  }
+	};
+	p->pip = util_make_pipeline(&desc, texquad_shader_desc, "default-pipeline", 1);
 }
 
 static int
@@ -140,10 +120,10 @@ lnew_material_default(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	struct material_default *m = (struct material_default *)lua_newuserdatauv(L, sizeof(*m), 5);
 	init_pipeline(m);
-	ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
-	ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
-	ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
-	ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
+	util_ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
+	util_ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
+	util_ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
+	util_ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
 	tmp_buffer_init(L, &m->tmp, 5, "tmp_buffer");
 	if (lua_getfield(L, 1, "sprite_bank") != LUA_TLIGHTUSERDATA) {
 		return luaL_error(L, "Missing .sprite_bank");
