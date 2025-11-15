@@ -98,6 +98,7 @@ lbindings_apply(lua_State *L) {
 #define VIEW_TYPE_TEXTURE 1
 #define VIEW_TYPE_STORAGE 2
 #define VIEW_TYPE_COLOR_ATTACHMENT 3
+#define VIEW_TYPE_DEPTH_STENCIL_ATTACHMENT 4
 
 static inline const char *
 view_type_string(int type) {
@@ -105,6 +106,7 @@ view_type_string(int type) {
 	case VIEW_TYPE_TEXTURE : return "texture";
 	case VIEW_TYPE_STORAGE : return "storage";
 	case VIEW_TYPE_COLOR_ATTACHMENT : return "color_attachment";
+	case VIEW_TYPE_DEPTH_STENCIL_ATTACHMENT : return "depth_stencil_attachment";
 	default : return "invalid";
 	}
 }
@@ -183,6 +185,15 @@ lview_new(lua_State *L) {
 		v->type = VIEW_TYPE_COLOR_ATTACHMENT;
 		luaL_checkudata(L, -1, "SOKOL_IMAGE");
 		lua_pushlightuserdata(L, &desc.color_attachment.image);
+		lua_call(L, 1, 0);
+	} else {
+		lua_pop(L, 1);
+	}
+	if (lua_getfield(L, 1, "depth_stencil_attachment") == LUA_TUSERDATA) {
+		check_view_type(L, v);
+		v->type = VIEW_TYPE_DEPTH_STENCIL_ATTACHMENT;
+		luaL_checkudata(L, -1, "SOKOL_IMAGE");
+		lua_pushlightuserdata(L, &desc.depth_stencil_attachment.image);
 		lua_call(L, 1, 0);
 	} else {
 		lua_pop(L, 1);

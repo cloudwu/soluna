@@ -278,14 +278,33 @@ lpass_end(lua_State *L) {
 
 static void
 read_attachments(lua_State *L, sg_attachments *attachments) {
-	// todo : support depth stencil
+	luaL_checktype(L, -1, LUA_TTABLE);
+	int i;
+	for (i = 0; i < SG_MAX_COLOR_ATTACHMENTS; i++) {
+		char key[] = { 'c', 'o', 'l', 'o' , 'r' , '0' + i, '\0' };
+		if (lua_getfield(L, -1, key) == LUA_TNIL) {
+			lua_pop(L, 1);
+			break;
+		}
+		luaL_checkudata(L, -1, "SOKOL_VIEW");
+		lua_call(L, 0, 1);
+		sg_view *color_v = (sg_view *)lua_touserdata(L, -1);
+		if (color_v == NULL) {
+			luaL_error(L, "Invalid %s view", key);
+		}
+		attachments->colors[i] = *color_v;
+		lua_pop(L, 1);
+	}
+
+	lua_getfield(L, -1, "depth_stencil");
 	luaL_checkudata(L, -1, "SOKOL_VIEW");
 	lua_call(L, 0, 1);
-	sg_view *v = (sg_view *)lua_touserdata(L, -1);
-	if (v == NULL) {
-		luaL_error(L, "Invalid view");
+	sg_view *ds_v = (sg_view *)lua_touserdata(L, -1);
+	if (ds_v == NULL) {
+		luaL_error(L, "Invalid depth_stencil view");
 	}
-	attachments->colors[0] = *v;
+	attachments->depth_stencil = *ds_v;
+	lua_pop(L, 1);
 }
 
 static int
@@ -304,8 +323,6 @@ lpass_new(lua_State *L) {
 	while (read_color_action(L, 1, action, i)) {
 		++i;
 	}
-	// todo: support depth and stencil
-/*	
 	if (lua_getfield(L, 1, "depth") == LUA_TNIL) {
 		action->depth.load_action = SG_LOADACTION_DONTCARE;
 	} else {
@@ -324,7 +341,6 @@ lpass_new(lua_State *L) {
 		action->depth.clear_value = s;
 	}
 	lua_pop(L, 1);
-*/	
 	if (lua_getfield(L, 1, "attachment") != LUA_TNIL) {
 		if (p->swapchain) {
 			return luaL_error(L, "swapchain not allows with attachment");
@@ -379,6 +395,9 @@ get_pixel_format(lua_State *L, const char * type, int *pixel_size) {
 	} else if (strcmp(type, "R8") == 0) {
 		*pixel_size = 1;
 		return SG_PIXELFORMAT_R8;
+	} else if (strcmp(type, "DEPTH") == 0) {
+		*pixel_size = 0;
+		return SG_PIXELFORMAT_DEPTH;
 	}
 	return luaL_error(L, "Invalid pixel format %s", type);
 }
@@ -419,7 +438,14 @@ limage(lua_State *L) {
 	}
 	lua_pop(L, 1);
 	if (lua_getfield(L, 1, "color_attachment") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
+		img.pixel_format = 0;
 		img.usage.color_attachment = 1;
+		img.usage.dynamic_update = 0;
+	}
+	lua_pop(L, 1);
+	if (lua_getfield(L, 1, "depth_stencil_attachment") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
+		img.pixel_format = 0;
+		img.usage.depth_stencil_attachment = 1;
 		img.usage.dynamic_update = 0;
 	}
 	lua_pop(L, 1);

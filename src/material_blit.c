@@ -16,6 +16,7 @@ lmaterial_blit_draw(lua_State *L) {
 	struct material_blit *m = (struct material_blit *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_BLIT");
 	sg_apply_pipeline(m->pip);
 	sg_apply_bindings(&m->bind->bindings);
+	sg_draw(0, 4, 1);
 	return 0;
 }
 

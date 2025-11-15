@@ -4,7 +4,8 @@ out vec2 uv;
 
 void main() {
 	vec2 position = vec2(gl_VertexIndex & 1, gl_VertexIndex >> 1);
-	gl_Position = vec4(position * 2.0 - 1.0, 0.0, 1.0);
+	vec2 screen = position * 2.0 - 1.0;
+	gl_Position = vec4(screen.x, -screen.y, 0.0, 1.0);
 	uv = position;
 }
 @end
