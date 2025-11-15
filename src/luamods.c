@@ -21,6 +21,7 @@ int luaopen_material_default(lua_State *L);
 int luaopen_material_text(lua_State *L);
 int luaopen_material_quad(lua_State *L);
 int luaopen_material_mask(lua_State *L);
+int luaopen_material_blit(lua_State *L);
 int luaopen_soluna_app(lua_State *L);
 int luaopen_font_system(lua_State *L);
 int luaopen_gamepad_device(lua_State *L);
@@ -49,6 +50,7 @@ void soluna_embed(lua_State* L) {
 		{ "soluna.material.text", luaopen_material_text },
 		{ "soluna.material.quad", luaopen_material_quad },
 		{ "soluna.material.mask", luaopen_material_mask },
+		{ "soluna.material.blit", luaopen_material_blit },
 		{ "soluna.datalist", luaopen_datalist },
 		{ "soluna.file", luaopen_soluna_file },
 		{ "soluna.font", luaopen_font },
