@@ -282,7 +282,6 @@ read_attachments(lua_State *L, sg_attachments *attachments) {
 	luaL_checkudata(L, -1, "SOKOL_VIEW");
 	lua_call(L, 0, 1);
 	sg_view *v = (sg_view *)lua_touserdata(L, -1);
-	lua_pop(L, 1);
 	if (v == NULL) {
 		luaL_error(L, "Invalid view");
 	}
@@ -305,6 +304,8 @@ lpass_new(lua_State *L) {
 	while (read_color_action(L, 1, action, i)) {
 		++i;
 	}
+	// todo: support depth and stencil
+/*	
 	if (lua_getfield(L, 1, "depth") == LUA_TNIL) {
 		action->depth.load_action = SG_LOADACTION_DONTCARE;
 	} else {
@@ -323,6 +324,7 @@ lpass_new(lua_State *L) {
 		action->depth.clear_value = s;
 	}
 	lua_pop(L, 1);
+*/	
 	if (lua_getfield(L, 1, "attachment") != LUA_TNIL) {
 		if (p->swapchain) {
 			return luaL_error(L, "swapchain not allows with attachment");
@@ -414,6 +416,11 @@ limage(lua_State *L) {
 	} else {
 		img.pixel_format = SG_PIXELFORMAT_RGBA8;
 		pixel_size = 4;
+	}
+	lua_pop(L, 1);
+	if (lua_getfield(L, 1, "color_attachment") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
+		img.usage.color_attachment = 1;
+		img.usage.dynamic_update = 0;
 	}
 	lua_pop(L, 1);
 	// todo: type, render_target, num_slices, num_mipmaps, pixel_format, etc
