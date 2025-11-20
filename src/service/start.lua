@@ -16,6 +16,7 @@ local args = ...
 local S = {}
 
 local app = {}
+local app_event = {}
 local prehook = {}
 
 function app.cleanup()
@@ -57,15 +58,22 @@ end
 -- external message from soluna host
 function S.external(p)
 	local what, arg1, arg2 = message_unpack(p)
-	
+	local f = app[what]
+	if f then
+		f(arg1, arg2)
+		return
+	end
+	local async = ltask.async()
+	async:request(render_service, "event")
 	local pre = prehook[what]
 	if pre then
 		pre(arg1, arg2)
 	end
-	local f = app[what]
+	local f = app_event[what]
 	if f then
 		f(arg1, arg2)
 	end
+	async:wait()
 end
 
 local cleanup = util.func_chain()
@@ -145,7 +153,7 @@ local function init(arg)
 		end
 		for k,v in pairs(callback) do
 			if avail[k] then
-				app[k] = v
+				app_event[k] = v
 			end
 		end
 		

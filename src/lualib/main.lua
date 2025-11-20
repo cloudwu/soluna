@@ -87,7 +87,7 @@ local function start(config)
 	local sender, sender_ud = bootstrap.external_sender(ctx)
 	local c_sendmessage = require "soluna.app".sendmessage
 	local function send_message(...)
-		c_sendmessage(sender, sender_ud, ...)
+		return c_sendmessage(sender, sender_ud, ...)
 	end
 	local logger, logger_ud = bootstrap.log_sender(ctx)
 	local unpackevent = assert(soluna_app.unpackevent)
@@ -120,7 +120,7 @@ local function start(config)
 		send_log_ud = logger_ud,
 		mqueue = appmsg_queue,
 		cleanup = function()
-			send_message "cleanup"
+			while not send_message "cleanup" do end
 			bootstrap.wait(ctx)
 			mqueue.delete(appmsg_queue)
 			appmsg_queue = nil
@@ -130,11 +130,14 @@ local function start(config)
 			if v then
 				dispatch_appmsg(v)
 			end
-			send_message("frame", count)
-			boot.mainthread_wait()
+			if send_message("frame", count) then
+				boot.mainthread_wait()
+			end
 		end,
 		event = function(ev)
-			send_message(unpackevent(ev))
+			if send_message(unpackevent(ev)) then
+				boot.mainthread_wait()
+			end
 		end,
 	}
 end

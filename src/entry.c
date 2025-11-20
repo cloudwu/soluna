@@ -163,8 +163,12 @@ lmessage_send(lua_State *L) {
 		int p2 = luaL_checkinteger(L, 5);
 		msg = message_create(what, (int)p1, p2);
 	}
-	send_message(send_message_ud, msg);
-	return 0;
+	int fail = send_message(send_message_ud, msg);
+	if (fail) {
+		message_release(msg);
+	}
+	lua_pushboolean(L, !fail);
+	return 1;
 }
 
 static int

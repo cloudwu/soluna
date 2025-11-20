@@ -196,6 +196,12 @@ function S.frame(count)
 	assert(ok, err)
 end
 
+local function dummy() end
+
+function S.event()
+	ltask.mainthread_run(dummy)
+end
+
 S.register_batch = assert(batch.register)
 S.submit_batch = assert(batch.submit)
 
