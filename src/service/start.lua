@@ -23,28 +23,26 @@ function app.cleanup()
 	ltask.send(1, "quit_ltask")
 end
 
-local init_token
-function app.frame(count)
-	local f
-	if init_token == nil then
-		init_token = {}
-		f = ltask.wait(init_token)
-	else
-		f = init_token
-	end
-	init_token = nil
-	f(count)
+local function skip()
+	ltask.mainthread_run(function() end)
 end
 
-local function frame_callback(f)
-	if init_token then
-		ltask.wakeup(init_token, f)
-	else
-		init_token = f
+local init_func
+function app.frame()
+	if init_func then
+		local ok , err_func = xpcall(init_func, debug.traceback)
+		if ok then
+			app.frame = err_func or skip
+		else
+			app.frame = skip
+			skip()
+			ltask.log.error(err_func)
+			soluna_app.quit()
+		end
 	end
 end
 
-local render_service
+local render_service = ltask.self()
 local pre_size
 
 function prehook.window_resize(w, h)
@@ -54,6 +52,8 @@ function prehook.window_resize(w, h)
 		pre_size = { width = w, height = h }
 	end
 end
+
+S.event = skip
 
 -- external message from soluna host
 function S.external(p)
@@ -77,12 +77,6 @@ function S.external(p)
 end
 
 local cleanup = util.func_chain()
-
-local function skip_frame()
-	function app.frame()
-		ltask.mainthread_run(function() end)
-	end
-end
 
 local function init(arg)
 	if arg == nil then
@@ -133,9 +127,9 @@ local function init(arg)
 			height = arg.app.height,
 			table.unpack(arg),
 		}
-		
+
 		if type(callback) ~= "table" then
-			skip_frame()
+			app.frame = skip
 			soluna_app.close_window()
 			return
 		end
@@ -171,26 +165,15 @@ local function init(arg)
 		local function render_frame(count)
 			local ok, err = xpcall(frame, traceback, count)
 			if not ok then
-				skip_frame()
+				app.frame = skip
 				error(err)
 			end
 		end
 		
-		frame_callback(function()
-			-- replace app.frame
-			app.frame = render_frame
-			render_frame()
-		end)
+		return render_frame
 	end
-	
-	frame_callback(function ()
-		-- init render in the first frame, because render init would call some gfx api
-		local ok, err = xpcall(init_render, debug.traceback)
-		if not ok then
-			print(err)
-			soluna_app.close_window()
-		end
-	end)
+
+	return init_render()
 end
 
 function S.quit()
@@ -201,13 +184,10 @@ ltask.fork(function()
 	ltask.call(1, "external_forward", ltask.self(), "external")
 
 	-- trigger INIT_EVENT, see main.lua
-	ltask.mainthread_run(function() end)
-	
-	local ok , err = pcall(init, args)
-	if not ok then
-		ltask.mainthread_run(function() end)
-		ltask.log.error(err)
-		soluna_app.quit()
+	skip()
+
+	init_func = function()
+		return init(args)
 	end
 end)
 
