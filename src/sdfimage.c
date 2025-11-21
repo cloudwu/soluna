@@ -84,8 +84,7 @@ struct sdf_context {
 static void
 sdf_convert(unsigned char *bytes, int x, int y, double radius, double cutoff) {
 	int i;
-	int size = (x > y) ? x : y;
-	assert(size <= MAX_SIZE);
+	assert(x <= MAX_SIZE && y <= MAX_SIZE);
 	int length = x * y;
 	double *data = (double *)malloc(length * sizeof(double) * 3 + sizeof(struct sdf_context));
 	for (i = 0; i < length; i++) {
