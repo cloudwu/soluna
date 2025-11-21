@@ -30,11 +30,11 @@ end
 local init_func
 function app.frame()
 	if init_func then
+		app.frame = skip
 		local ok , err_func = xpcall(init_func, debug.traceback)
 		if ok then
 			app.frame = err_func or skip
 		else
-			app.frame = skip
 			skip()
 			ltask.log.error(err_func)
 			soluna_app.quit()
