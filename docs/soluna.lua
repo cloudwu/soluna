@@ -6,6 +6,12 @@
 --- This file documents the Soluna API using Lua meta annotations.
 ---
 
+--- Sprite ID type for single sprites or animation frames
+---@alias Sprite integer|integer[]
+
+--- Sprite bundle mapping sprite names to IDs
+---@alias SpriteBundle table<string, Sprite?>
+
 ---@class soluna
 local soluna = {}
 
@@ -56,7 +62,7 @@ function soluna.gamedir(name) end
 --- Loads a sprite bundle from a file
 ---
 ---@param filename string Path to sprite definition file (.dl format)
----@return table sprites Sprite bundle mapping sprite names to IDs
+---@return SpriteBundle sprites Sprite bundle mapping sprite names to IDs
 function soluna.load_sprites(filename) end
 
 return soluna
