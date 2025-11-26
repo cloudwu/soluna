@@ -44,4 +44,11 @@ function callback.mouse_move(x, y) end
 ---@param dy number Vertical scroll delta
 function callback.mouse_scroll(dx, dy) end
 
+---
+--- Called on window resize
+---
+---@param width integer New window width
+---@param height integer New window height
+function callback.window_resize(width, height) end
+
 return callback

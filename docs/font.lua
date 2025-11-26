@@ -17,7 +17,7 @@ function font.import(data) end
 --- Gets font ID by name
 ---
 ---@param name string Font name (empty string for last imported font)
----@return integer fontid Font ID
+---@return integer? fontid Font ID, or nil if font not found
 function font.name(name) end
 
 ---

@@ -11,7 +11,7 @@ local file = {}
 --- Loads a file's contents
 ---
 ---@param filename string File path
----@return string content File contents or nil on error
+---@return string? content File contents or nil on error
 function file.load(filename) end
 
 ---
@@ -22,10 +22,17 @@ function file.load(filename) end
 function file.attributes(filename) end
 
 ---
+--- Checks if a file exists
+---
+---@param filename string File path
+---@return boolean? exists True if file exists, nil if not
+function file.exist(filename) end
+
+---
 --- Checks if a local file exists
 ---
 ---@param filename string File path
----@return boolean exists True if file exists
+---@return boolean? exists True if file exists, nil if not
 function file.local_exist(filename) end
 
 ---

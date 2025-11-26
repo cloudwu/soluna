@@ -11,9 +11,9 @@ local image = {}
 --- Loads an image from binary data
 ---
 ---@param data string Image file data (PNG, JPG, etc.)
----@return userdata imagedata Image data
----@return integer width Image width
----@return integer height Image height
+---@return userdata? imagedata Image data, or nil on error
+---@return integer|string width_or_error Image width, or error message on failure
+---@return integer? height Image height
 function image.load(data) end
 
 ---
