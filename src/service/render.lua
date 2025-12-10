@@ -143,9 +143,24 @@ end
 
 -- todo: update mutiple images
 local update_image
+
 local function delay_update_image(imgmem)
 	function update_image()
-		STATE.textures[1]:update(imgmem)
+		local from = imgmem.from
+		for i = 1, #imgmem do
+			local tid = from + i
+			local tex = STATE.textures[tid]
+			if tex == nil then
+				local texture_size = setting.texture_size
+				tex = render.image {
+					width = texture_size,
+					height = texture_size,
+				}
+				STATE.textures[tid] = tex
+				STATE.views[tid] = render.view { texture = tex }
+			end
+			tex:update(imgmem[i])
+		end
 		update_image = nil
 	end
 end
@@ -224,17 +239,18 @@ end
 function S.load_sprites(name)
 	local loader = ltask.uniqueservice "loader"
 	local spr = ltask.call(loader, "loadbundle", name)
-	local rects = ltask.call(loader, "pack")
-	-- todo : load multiple textures
-	local rect = rects[1]
-
-	local imgmem = image.new(setting.texture_size, setting.texture_size)
-	local canvas = imgmem:canvas()
-	for id, v in pairs(rect) do
-		local src = image.canvas(v.data, v.w, v.h, v.stride)
-		image.blit(canvas, src, v.x, v.y)
+	local rects, from = ltask.call(loader, "pack")
+	local imgmems = { from = from }
+	for i = 1, #rects do
+		local imgmem = image.new(setting.texture_size, setting.texture_size)
+		local canvas = imgmem:canvas()
+		for id, v in pairs(rects[i]) do
+			local src = image.canvas(v.data, v.w, v.h, v.stride)
+			image.blit(canvas, src, v.x, v.y)
+		end
+		imgmems[i] = imgmem
 	end
-	delay_update_image(imgmem)
+	delay_update_image(imgmems)
 	return spr
 end
 
@@ -243,11 +259,6 @@ local function render_init(arg)
 
 	local texture_size = setting.texture_size
 
-	local img = render.image {
-		width = texture_size,
-		height = texture_size,
-	}
-	
 	local inst_buffer = render.buffer {
 		type = "vertex",
 		usage = "stream",
@@ -269,7 +280,6 @@ local function render_init(arg)
 		pixel_format = "R8",
 	}
 	local views = {
-		[1] = render.view { texture = img },
 		storage = render.view { storage = sr_buffer },
 		font = render.view { texture = font_texture },
 	}
@@ -280,14 +290,13 @@ local function render_init(arg)
 			swapchain = true,
 		},
 		default_sampler = render.sampler { label = "texquad-sampler" },
-		textures = { img } ,
+		textures = {},
 		font_texture = font_texture,
 		views = views,
 	}
 	local bindings = render.bindings()
 	bindings:vbuffer(0, inst_buffer)
 	bindings:view(0, views.storage)
-	bindings:view(1, views[1])
 	bindings:sampler(0, STATE.default_sampler)
 	
 	STATE.inst = assert(inst_buffer)
@@ -323,7 +332,6 @@ local function render_init(arg)
 
 		maskbind:vbuffer(0, STATE.mask_inst)
 		maskbind:view(0, views.storage)
-		maskbind:view(1, views[1])
 		maskbind:sampler(0, STATE.default_sampler)
 		 		
 		STATE.mask_bindings = maskbind
