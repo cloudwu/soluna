@@ -49,21 +49,26 @@ function S.loadbundle(filename)
 	return b
 end
 
--- todo: packing should be out of loader 
 function S.pack()
 	local texid, n = sprite_bank:pack()
-
-	local r = sprite_bank:altas(texid)
-	for id,v in pairs(r) do
-		local x = v >> 32
-		local y = v & 0xffffffff
-		local obj = sprite[id]
-		local c = filecache[obj.filename]
-		local data = image.canvas(c.data, c.w, c.h, obj.cx, obj.cy, obj.cw, obj.ch)
-		local w, h, ptr = image.canvas_size(data)
-		r[id] = { id = id, data = ptr, x = x, y = y, w = w, h = h, stride = c.w * 4, dx = obj.x, dy = obj.y }
+	-- upload rects into n textures, [texid, texid + n)
+	local results = {}
+	local texid_from = texid
+	for i = 1, n do
+		local r = sprite_bank:altas(texid)
+		for id,v in pairs(r) do
+			local x = v >> 32
+			local y = v & 0xffffffff
+			local obj = sprite[id]
+			local c = filecache[obj.filename]
+			local data = image.canvas(c.data, c.w, c.h, obj.cx, obj.cy, obj.cw, obj.ch)
+			local w, h, ptr = image.canvas_size(data)
+			r[id] = { id = id, data = ptr, x = x, y = y, w = w, h = h, stride = c.w * 4, dx = obj.x, dy = obj.y }
+		end
+		texid = texid + 1
+		results[i] = r
 	end
-	return r
+	return results, texid_from
 end
 
 function S.write(id, filename)

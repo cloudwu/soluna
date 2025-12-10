@@ -141,6 +141,7 @@ function S.app(settings)
 	end
 end
 
+-- todo: update mutiple images
 local update_image
 local function delay_update_image(imgmem)
 	function update_image()
@@ -229,7 +230,9 @@ end
 function S.load_sprites(name)
 	local loader = ltask.uniqueservice "loader"
 	local spr = ltask.call(loader, "loadbundle", name)
-	local rect = ltask.call(loader, "pack")
+	local rects = ltask.call(loader, "pack")
+	-- todo : load multiple textures
+	local rect = rects[1]
 
 	local imgmem = image.new(setting.texture_size, setting.texture_size)
 	local canvas = imgmem:canvas()

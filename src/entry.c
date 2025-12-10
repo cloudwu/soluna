@@ -851,8 +851,8 @@ sokol_main(int argc, char* argv[]) {
 	d.cleanup_cb = app_cleanup;
 	d.event_cb = app_event;
 	d.logger.func = log_func;
-	d.win32_console_utf8 = 1;
-	d.win32_console_attach = 1;
+	d.win32.console_utf8 = 1;
+	d.win32.console_attach = 1;
 	d.alpha = 0;
 	
 	// init L
