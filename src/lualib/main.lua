@@ -135,9 +135,7 @@ local function start(config)
 			end
 		end,
 		event = function(ev)
-			if send_message(unpackevent(ev)) then
-				boot.mainthread_wait()
-			end
+			send_message(unpackevent(ev))
 		end,
 	}
 end

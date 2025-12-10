@@ -63,8 +63,6 @@ function S.external(p)
 		f(arg1, arg2)
 		return
 	end
-	local async = ltask.async()
-	async:request(render_service, "event")
 	local pre = prehook[what]
 	if pre then
 		pre(arg1, arg2)
@@ -73,7 +71,6 @@ function S.external(p)
 	if f then
 		f(arg1, arg2)
 	end
-	async:wait()
 end
 
 local cleanup = util.func_chain()
