@@ -4,7 +4,16 @@ local soluna = require "soluna"
 local ltask = require "ltask"
 
 soluna.set_window_title "soluna sprite sample"
-local sprites = soluna.load_sprites "asset/sprites.dl"
+-- local sprites = soluna.load_sprites "asset/sprites.dl"
+local sprites = soluna.load_sprites {
+	path = "asset/",
+	{
+		name = "avatar",
+		filename = "avatar.png",
+		x = -0.5,
+		y = -1,
+	}
+}
 
 local args = ...
 local batch = args.batch

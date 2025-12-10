@@ -92,9 +92,7 @@ local function crop(item, filecache)
 	end
 end
 
-function M.load(filecache, filename)
-	local path = filename:match "(.*[/\\])[^/\\]+$"
-	local v = load_bundle(filename)
+local function load_list(filecache, v, path)
 	for idx, item in ipairs(v) do
 		local fname = item.filename or "Need filename for item " .. idx
 		if path then
@@ -102,6 +100,17 @@ function M.load(filecache, filename)
 		end
 		crop(item, filecache)
 	end
+end
+
+function M.load(filecache, filename, path)
+	local v
+	if type(filename) == "table" then
+		v = filename
+	else
+		path = path or filename:match "(.*[/\\])[^/\\]+$"
+		v = load_bundle(filename)
+	end
+	load_list(filecache, v, path)
 	return v
 end
 

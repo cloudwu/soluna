@@ -2,7 +2,7 @@ local image = require "soluna.image"
 local spritemgr = require "soluna.spritemgr"
 local spritebundle = require "soluna.spritebundle"
 
-global setmetatable, ipairs, pairs, assert
+global setmetatable, ipairs, pairs, assert, type
 
 local sprite_bank
 
@@ -19,34 +19,53 @@ end
 local bundle = {}
 local sprite = {}
 
-function S.loadbundle(filename)
-	local b = bundle[filename]
-	if not b then
-		local desc = spritebundle.load(filecache, filename)
-		b = {}
-		for _, item in ipairs(desc) do
-			local n = #item
-			if n == 0 then
-				local id = sprite_bank:add(item.cw, item.ch, item.x, item.y)
-				sprite_bank:touch(id)	-- todo: don't touch here
-				item.id = id
-				sprite[id] = item
-				b[item.name] = id
-			else
-				local pack = {}
-				b[item.name] = pack
-				for i = 1, n do
-					local s = item[i]
-					local id = sprite_bank:add(s.cw, s.ch, s.x, s.y)
-					sprite_bank:touch(id)	-- todo:
-					sprite[id] = s
-					pack[i] = id
-				end
+local function add_list(desc)
+	local b = {}
+	for _, item in ipairs(desc) do
+		local n = #item
+		if n == 0 then
+			local id = sprite_bank:add(item.cw, item.ch, item.x, item.y)
+			sprite_bank:touch(id)	-- todo: don't touch here
+			item.id = id
+			sprite[id] = item
+			b[item.name] = id
+		else
+			local pack = {}
+			b[item.name] = pack
+			for i = 1, n do
+				local s = item[i]
+				local id = sprite_bank:add(s.cw, s.ch, s.x, s.y)
+				sprite_bank:touch(id)	-- todo:
+				sprite[id] = s
+				pack[i] = id
 			end
 		end
-		bundle[filename] = b
 	end
 	return b
+end
+
+local function load_from_file(filename)
+	local b = bundle[filename]
+	if b then
+		return b
+	end
+	local desc = spritebundle.load(filecache, filename)
+	local b = add_list(desc)
+	bundle[filename] = b
+	return b
+end
+
+local function load_from_table(t)
+	local desc = spritebundle.load(filecache, t, t.path)
+	return add_list(desc)
+end
+
+function S.loadbundle(filename)
+	if type(filename) == "table" then
+		return load_from_table(filename)
+	else
+		return load_from_file(filename)
+	end
 end
 
 function S.pack()
