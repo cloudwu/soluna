@@ -1,0 +1,3 @@
+# a small texture size for testing
+texture_size : 64
+entry : mtex.lua
