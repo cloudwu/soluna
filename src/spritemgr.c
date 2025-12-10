@@ -35,24 +35,12 @@ lbank_add(lua_State *L) {
 	r->v = h;
 	r->off = (dx + 0x8000) << 16 | (dy + 0x8000);
 	r->texid = INVALID_TEXTUREID;
-	r->frame = 0;
 	lua_pushinteger(L, b->n);
 	return 1;
 }
 
 static int
-lbank_touch(lua_State *L) {
-	struct sprite_bank *b = (struct sprite_bank *)luaL_checkudata(L, 1, "SOLUNA_SPRITEBANK");
-	int id = luaL_checkinteger(L, 2) - 1;
-	if (id < 0 || id >= b->n)
-		return luaL_error(L, "Invalid sprite id %d", id);
-	sprite_touch(b, id);
-	return 0;
-}
-
-static int
 pack_sprite(struct sprite_bank *b, stbrp_context *ctx, stbrp_node *tmp, stbrp_rect *srect, int from, int reserved, int *reserved_n) {
-	int current_frame = b->current_frame;
 	int last_texid = b->texture_n;
 	
 	stbrp_init_target(ctx, b->texture_size, b->texture_size, tmp, MAX_NODE);
@@ -60,7 +48,8 @@ pack_sprite(struct sprite_bank *b, stbrp_context *ctx, stbrp_node *tmp, stbrp_re
 	int rect_i = reserved;
 	for (i=from;i<b->n;i++) {
 		struct sprite_rect *rect = &b->rect[i];
-		if ((rect->texid == 0 || rect->texid == last_texid) && rect->frame == current_frame) {
+		if (rect->texid == INVALID_TEXTUREID || rect->texid == last_texid) {
+			rect->texid = last_texid;
 			stbrp_rect * sr = &srect[rect_i++];
 			sr->id = i;
 			// reserve 1 pixel border
@@ -123,11 +112,6 @@ free_context(struct tmp_context *p) {
 static int
 lbank_pack(lua_State *L) {
 	struct sprite_bank *b = (struct sprite_bank *)luaL_checkudata(L, 1, "SOLUNA_SPRITEBANK");
-	if (b->texture_ready) {
-		++b->current_frame;
-		return 0;
-	}
-	
 	struct tmp_context *ctx = alloc_context(b->n);
 
 	int texture = b->texture_n;
@@ -141,12 +125,10 @@ lbank_pack(lua_State *L) {
 		++b->texture_n;
 	}
 	free_context(ctx);
-	b->texture_ready = 1;
 
 	lua_pushinteger(L, texture);
 	lua_pushinteger(L, b->texture_n - texture + 1);
 
-	++b->current_frame;
 	return 2;
 }
 
@@ -185,14 +167,11 @@ lsprite_newbank(lua_State *L) {
 	b->cap = cap;
 	b->texture_size = texture_size;
 	b->texture_n = 0;
-	b->current_frame = 0;
-	b->texture_ready = 0;
 	
 	if (luaL_newmetatable(L, "SOLUNA_SPRITEBANK")) {
 		luaL_Reg l[] = {
 			{ "__index", NULL },
 			{ "add", lbank_add },
-			{ "touch", lbank_touch },
 			{ "pack", lbank_pack },
 			{ "altas", lbank_altas },
 			{ "ptr", lbank_ptr },

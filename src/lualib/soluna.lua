@@ -71,11 +71,23 @@ function soluna.gamedir(name)
 end
 
 function soluna.load_sprites(filename)
-	local loader = ltask.uniqueservice "loader"
-	local sprites = ltask.call(loader, "loadbundle", filename)
 	local render = ltask.uniqueservice "render"
-	ltask.call(render, "load_sprites", filename)
+	local sprites = ltask.call(render, "load_sprites", filename)
 	return sprites
+end
+
+function soluna.preload(spr)
+	local loader = ltask.uniqueservice "loader"
+	if #spr == 0 then
+		ltask.call(loader, "preload", spr.filename, spr.content, spr.w, spr.h)
+	else
+		local async = ltask.async()
+		for i = 1, #spr do
+			local s = spr[i]
+			async:request(loader, "preload", s.filename, s.content, s.w, s.h)
+		end
+		async:wait()
+	end
 end
 
 local function version()

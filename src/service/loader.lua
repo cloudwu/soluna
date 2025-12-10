@@ -25,7 +25,6 @@ local function add_list(desc)
 		local n = #item
 		if n == 0 then
 			local id = sprite_bank:add(item.cw, item.ch, item.x, item.y)
-			sprite_bank:touch(id)	-- todo: don't touch here
 			item.id = id
 			sprite[id] = item
 			b[item.name] = id
@@ -35,7 +34,6 @@ local function add_list(desc)
 			for i = 1, n do
 				local s = item[i]
 				local id = sprite_bank:add(s.cw, s.ch, s.x, s.y)
-				sprite_bank:touch(id)	-- todo:
 				sprite[id] = s
 				pack[i] = id
 			end
@@ -98,6 +96,11 @@ function S.write(id, filename)
 	local img = image.new(obj.cw, obj.ch)
 	image.blit(img:canvas(), data)
 	img:write(filename)
+end
+
+function S.preload(filename, content, w, h)
+	assert(#content == w * h * 4)
+	filecache[filename] = { data = content, w = w, h = h }
 end
 
 return S

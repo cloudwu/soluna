@@ -241,6 +241,7 @@ function S.load_sprites(name)
 		image.blit(canvas, src, v.x, v.y)
 	end
 	delay_update_image(imgmem)
+	return spr
 end
 
 local function render_init(arg)
