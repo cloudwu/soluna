@@ -19,7 +19,6 @@ if ok then
     local output = process.stdout:read "a"
     commit = output:match "^%s*(.-)%s*$"
     process:wait()
-    print("Hash version: " .. commit)
   end
 end
 

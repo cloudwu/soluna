@@ -42,33 +42,6 @@ runs:
       run: |
         git submodule update --init --recursive
       shell: bash
-    - uses: actions/checkout@v5
-      if: steps.cache.outputs.cache-hit != 'true'
-      with:
-        repository: floooh/sokol-tools-bin
-        ref: "a06f19929ff8f9824ec6dd87c21329b1f205809e"
-        path: sokol-tools-bin
-        fetch-depth: 1
-    - name: Setup sokol-shdc
-      if: steps.cache.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        if [[ "$RUNNER_OS" == "Windows" ]]; then
-          TARGET_DIR="C:/Windows/System32"
-          SHDC_BINARY="sokol-shdc.exe"
-          FIND_PATH="bin/win32"
-        elif [[ "$RUNNER_OS" == "macOS" ]]; then
-          TARGET_DIR="/usr/local/bin"
-          SHDC_BINARY="sokol-shdc"
-          FIND_PATH="bin/osx_arm64"
-        else  # Linux
-          TARGET_DIR="/usr/local/bin"
-          SHDC_BINARY="sokol-shdc"
-          FIND_PATH="bin/linux"
-        fi
-        echo "Setting up sokol-tools from sokol-tools-bin/$FIND_PATH"
-        find sokol-tools-bin/$FIND_PATH -name $SHDC_BINARY -exec cp {} $TARGET_DIR \;
-        $SHDC_BINARY -h
     - uses: yuchanns/actions-luamake@v1
       if: steps.cache.outputs.cache-hit != 'true'
       with:
