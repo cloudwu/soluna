@@ -1,7 +1,15 @@
 local lm = require "luamake"
 local fs = require "bee.filesystem"
 
-local shdc<const> = lm.shdc or ""
+local paths = {
+  windows = "$PATH/win32/$NAME.exe",
+  macos = "$PATH/osx_arm64/$NAME",
+  linux = "$PATH/linux/$NAME",
+}
+local shdc = assert(paths[lm.os]):gsub("%$(%u+)", {
+  PATH = tostring(lm.basedir / "bin/sokol-tools-bin/bin"),
+  NAME = "sokol-shdc",
+})
 
 local function compile_shader(src, name, lang)
   local dep = name .. "_shader"

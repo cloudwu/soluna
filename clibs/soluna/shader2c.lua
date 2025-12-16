@@ -1,22 +1,5 @@
 local subprocess = require "bee.subprocess"
-local platform = require "bee.platform"
 local shdcexe, src, target, lang = ...
-
-local function find_executable(name)
-  local handle = io.popen("where " .. name .. " 2>nul")
-  if handle then
-    local path = handle:read("*line")
-    local success = handle:close()
-    if success and path and path ~= "" then
-      return path:gsub("%s+$", "")
-    end
-  end
-  return name
-end
-
-if shdcexe == "" then
-  shdcexe = platform.os == "windows" and find_executable("sokol-shdc.exe") or "sokol-shdc"
-end
 
 local process = assert(subprocess.spawn {
   shdcexe,
