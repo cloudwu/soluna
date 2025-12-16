@@ -8,7 +8,7 @@ CC?=gcc
 #CC=cl
 LD=$(CC)
 LUA_EXE=$(BUILD)/lua.exe
-SHDC=sokol-shdc.exe
+SHDC=$(BIN)/sokol-tools-bin/bin/win32/sokol-shdc.exe
 VERSION=$(shell git rev-parse HEAD)
 
 #for msvc
