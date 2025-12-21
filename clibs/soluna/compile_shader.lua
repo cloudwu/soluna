@@ -1,13 +1,26 @@
 local lm = require "luamake"
 local fs = require "bee.filesystem"
+local platform = require "bee.platform"
 
+local function shdc_plat()
+  if lm.os == "windows" then
+    return "win32"
+  end
+  if lm.os == "linux" then
+    return "linux"
+  end
+  if lm.os == "macos" then
+    return platform.Arch == "arm64" and "osx_arm64" or "osx"
+  end
+  return "unknown"
+end
 local paths = {
-  windows = "$PATH/win32/$NAME.exe",
-  macos = "$PATH/osx_arm64/$NAME",
-  linux = "$PATH/linux/$NAME",
+  windows = "$PATH/$NAME.exe",
+  macos = "$PATH/$NAME",
+  linux = "$PATH/$NAME",
 }
 local shdc = assert(paths[lm.os]):gsub("%$(%u+)", {
-  PATH = tostring(lm.basedir / "bin/sokol-tools-bin/bin"),
+  PATH = tostring(lm.basedir / "bin/sokol-tools-bin/bin" / shdc_plat()),
   NAME = "sokol-shdc",
 })
 
