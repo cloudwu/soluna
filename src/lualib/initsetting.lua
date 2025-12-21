@@ -43,7 +43,7 @@ end
 
 local function settings_filename(filename)
 	if filename then
-		local realname = lfs.realpath(filename)
+		local realname = assert(lfs.realpath(filename))
 		local curpath, name = realname:match "(.*)[/\\]([^/\\]+)$"
 		if curpath and name then
 			lfs.chdir(curpath)
