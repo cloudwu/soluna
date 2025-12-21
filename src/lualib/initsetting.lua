@@ -41,23 +41,27 @@ local function patch(s, k, v)
 	end
 end
 
-local function settings_filename(filename)
+local function settings_filename(filename, change_root)
 	if filename then
 		local realname = assert(lfs.realpath(filename))
-		local curpath, name = realname:match "(.*)[/\\]([^/\\]+)$"
-		if curpath and name then
-			lfs.chdir(curpath)
+		if change_root then
+			local curpath, name = realname:match "(.*)[/\\]([^/\\]+)$"
+			if curpath and name then
+				lfs.chdir(curpath)
+			end
+			return name
+		else
+			return realname
 		end
-		return name
 	end
 	if file.exist "main.game" then
 		return "main.game"
 	end
 end
 
-function S.init(args)
+function S.init(args, change_root)
 	local default_settings = datalist.parse(source.data.settingdefault)
-	local realname = settings_filename(args[1])
+	local realname = settings_filename(args[1], change_root)
 	if realname then
 		local data = file.load(realname) or error ("Can't open " .. realname)
 		local game_settings = datalist.parse(data)

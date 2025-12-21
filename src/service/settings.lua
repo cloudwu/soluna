@@ -8,7 +8,7 @@ local setting
 
 function S.init(args)
 	assert(setting == nil)
-	setting = initsetting.init(args)
+	setting = initsetting.init(args, true)
 end
 
 function S.get()
