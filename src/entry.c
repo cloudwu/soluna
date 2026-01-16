@@ -757,6 +757,10 @@ app_cleanup() {
 	if (CTX == NULL)
 		return;
 	lua_State *L = CTX->quitL;
+	if (L == NULL) {
+		L = CTX->L;
+		CTX->L = NULL;
+	}
 	if (L) {
 		invoke_callback(L, CLEANUP_CALLBACK, 0);
 		lua_close(L);
