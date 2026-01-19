@@ -8,6 +8,8 @@ Sokol + Lua = Soluna
 
 [English](./README.md)
 
+[在线演示](https://cloudwu.github.io/soluna/)
+
 一个基于 [sokol](https://github.com/floooh/sokol) 的 2D 游戏引擎。它以 Lua 为编程语言，整合了 ltask 作为多线程框架。sokol + lua 是其名字的由来。
 
 Soluna 可以运行在 Windows、Linux、macOS 和现代浏览器（通过 WebAssembly）上。

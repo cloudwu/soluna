@@ -1,0 +1,13 @@
+{{- $title := .Get "title" | plainify -}}
+{{- $subtitle := .Get "subtitle" -}}
+<section class="section">
+  <h2 class="section-title">{{ $title }}</h2>
+  {{- if $subtitle }}
+  {{- $subtitle = $subtitle | markdownify -}}
+  {{- $subtitle = replaceRE "^<p>(.*)</p>\\s*$" "$1" $subtitle -}}
+  <p class="section-subtitle">{{ $subtitle | safeHTML }}</p>
+  {{- end }}
+  {{- if .Inner }}
+  {{ .Inner | safeHTML }}
+  {{- end }}
+</section>

@@ -1,0 +1,11 @@
+baseURL = "/soluna/"
+title = "Soluna Web Lab"
+languageCode = "en-us"
+relativeURLs = false
+canonifyURLs = true
+
+[pagination]
+  pagerSize = 12
+
+[params]
+  description = "A framework you can use to make 2D games in Lua with multithreading, living on Windows, Linux, macOS and modern Browsers (via WebAssembly)."

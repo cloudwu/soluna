@@ -1,3 +1,3 @@
-local setting = require "soluna.setting"
+local soluna = require "soluna"
 
-print_r(setting)
+print_r(soluna.settings())

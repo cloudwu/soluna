@@ -1,0 +1,5 @@
+{{- $level := .Get "level" | default "1" -}}
+{{- $id := .Get "id" -}}
+{{- $text := .Get "text" -}}
+{{- $code := .Get "code" -}}
+<h{{ $level }} id="{{ $id }}"><a href="#{{ $id }}">{{ if $code }}<code>{{ $text | htmlEscape | safeHTML }}</code>{{ else }}{{ $text | htmlEscape | safeHTML }}{{ end }}</a></h{{ $level }}>
