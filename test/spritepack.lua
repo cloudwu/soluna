@@ -3,16 +3,10 @@ local spritemgr = require "soluna.spritemgr"
 -- texture size = 128
 local bank = spritemgr.newbank(65536, 128)
 
-local ids = {
-	bank:add(32, 16),
-	bank:add(64, 32),
-	bank:add(96, 96),
-	bank:add(96, 96),
-}
-
-for _, id in ipairs(ids) do
-	bank:touch(id)
-end
+bank:add(32, 16)
+bank:add(64, 32)
+bank:add(96, 96)
+bank:add(96, 96)
 
 local texid, n = bank:pack()
 print("Pack",n,"from",texid)

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} | {{ .Site.Title }}{{ end }}</title>
+    <meta name="description" content="{{ with .Params.description }}{{ . }}{{ else }}{{ .Site.Params.description }}{{ end }}" />
+    {{ $style := resources.Get "site.css" | resources.ExecuteAsTemplate "site.css" . | minify | fingerprint }}
+    <link rel="stylesheet" href="{{ $style.RelPermalink }}" />
+    {{ $htmx := resources.Get "htmx.js" | js.Build "htmx.js" | minify | fingerprint }}
+    <script src="{{ $htmx.RelPermalink }}" defer></script>
+  </head>
+  <body data-page="{{ .Section | default "home" }}" hx-boost="true" hx-target="#page-container" hx-select="#page-container" hx-swap="outerHTML show:window:top" hx-push-url="true">
+    <div class="page">
+      {{ partial "nav.html" . }}
+      <div id="page-container">
+        <main>
+          {{ block "main" . }}{{ end }}
+        </main>
+        <div id="page-scripts">
+          {{ block "page_script" . }}{{ end }}
+        </div>
+      </div>
+      {{ partial "footer.html" . }}
+    </div>
+    <script>
+      window.SOLUNA_BASE = "{{ "/" | relURL }}".replace(/\/$/, "");
+    </script>
+  </body>
+</html>

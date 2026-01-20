@@ -1,0 +1,35 @@
+{{ define "main" }}
+<section class="section">
+  <div class="section-header">
+    <div>
+      <h1 class="section-title">{{ .Title }}</h1>
+      <p class="section-subtitle">{{ .Params.description }}</p>
+    </div>
+  </div>
+</section>
+
+{{ $base := site.BaseURL | relURL }}
+<div class="menubar">
+  {{ $home := "/" | relURL }}
+  {{ $homeHref := $home }}
+  {{ if not (hasPrefix $home $base) }}
+    {{ $homeHref = printf "%s%s" $base (strings.TrimPrefix "/" $home) }}
+  {{ end }}
+  <a href="{{ $homeHref }}">home</a>
+</div>
+
+{{ $examples := sort .Pages "Params.example_id" }}
+<ul class="plain-list">
+  {{- range $examples }}
+  <li>
+    {{ $item := .RelPermalink }}
+    {{ $itemHref := $item }}
+    {{ if not (hasPrefix $item $base) }}
+      {{ $itemHref = printf "%s%s" $base (strings.TrimPrefix "/" $item) }}
+    {{ end }}
+    <a href="{{ $itemHref }}">{{ .Title }}</a>
+    <small>Entry: {{ .Params.entry }}</small>
+  </li>
+  {{- end }}
+</ul>
+{{ end }}
