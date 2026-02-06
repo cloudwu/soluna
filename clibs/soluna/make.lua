@@ -37,6 +37,7 @@ lm:source_set "soluna_src" {
   },
   includes = {
     "build",
+    "src",
     "3rd/lua",
     "3rd",
     "3rd/yoga",

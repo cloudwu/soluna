@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 
-#include "../../ime_state.h"
+#include "ime_state.h"
 #include "soluna_macos_ime.h"
 #include "sokol/sokol_app.h"
 
