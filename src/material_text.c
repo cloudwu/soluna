@@ -40,6 +40,7 @@ struct material_text {
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct font_manager *font;
+	sg_sampler text_sampler;
 	fs_params_t fs_uniform;
 	struct tmp_buffer tmp;
 };
@@ -169,6 +170,38 @@ init_pipeline(struct material_text *p) {
 }
 
 static int
+set_text_filter(lua_State *L, struct material_text *m, int index) {
+	int type = lua_getfield(L, index, "text_filter");
+	if (type == LUA_TNIL) {
+		lua_pop(L, 1);
+		return 0;
+	}
+	if (type != LUA_TSTRING) {
+		return luaL_error(L, ".text_filter must be string");
+	}
+	const char *filter = lua_tostring(L, -1);
+	lua_pop(L, 1);
+	if (strcmp(filter, "inherit") == 0) {
+		return 0;
+	}
+	sg_filter sgf;
+	if (strcmp(filter, "nearest") == 0) {
+		sgf = SG_FILTER_NEAREST;
+	} else if (strcmp(filter, "linear") == 0) {
+		sgf = SG_FILTER_LINEAR;
+	} else {
+		return luaL_error(L, "Invalid text_filter %s", filter);
+	}
+	struct sg_sampler_desc desc = {
+		.min_filter = sgf,
+		.mag_filter = sgf,
+	};
+	m->text_sampler = sg_make_sampler(&desc);
+	m->bind->bindings.samplers[0] = m->text_sampler;
+	return 0;
+}
+
+static int
 lnew_material_text_normal(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	struct material_text *m = (struct material_text *)lua_newuserdatauv(L, sizeof(*m), 5);
@@ -184,6 +217,7 @@ lnew_material_text_normal(lua_State *L) {
 	}
 	m->font = lua_touserdata(L, -1);
 	lua_pop(L, 1);
+	set_text_filter(L, m, 1);
 	
   fs_params_t temp = {
       .edge_mask = font_manager_sdf_mask(m->font),

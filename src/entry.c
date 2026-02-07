@@ -96,7 +96,7 @@ struct app_context {
 
 static struct app_context *CTX = NULL;
 
-struct soluna_ime_rect_state g_soluna_ime_rect = { 0.0f, 0.0f, 0.0f, 0.0f, false };
+struct soluna_ime_rect_state g_soluna_ime_rect = { 0.0f, 0.0f, 0.0f, 0.0f, 0, false, false };
 
 void soluna_emit_char(uint32_t codepoint, uint32_t modifiers, bool repeat);
 
@@ -375,6 +375,7 @@ static int
 lset_ime_rect(lua_State *L) {
 #if defined(__APPLE__) || defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__linux__) || defined(__EMSCRIPTEN__)
 	if (lua_isnoneornil(L, 1)) {
+		g_soluna_ime_rect.has_text_color = false;
 		g_soluna_ime_rect.valid = false;
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
 		soluna_win32_apply_ime_rect();
@@ -391,6 +392,16 @@ lset_ime_rect(lua_State *L) {
 	g_soluna_ime_rect.y = (float)luaL_checknumber(L, 2);
 	g_soluna_ime_rect.w = (float)luaL_checknumber(L, 3);
 	g_soluna_ime_rect.h = (float)luaL_checknumber(L, 4);
+	if (lua_isnoneornil(L, 5)) {
+		g_soluna_ime_rect.has_text_color = false;
+	} else {
+		uint32_t color = (uint32_t)luaL_checkinteger(L, 5);
+		if ((color & 0xff000000) == 0) {
+			color |= 0xff000000;
+		}
+		g_soluna_ime_rect.text_color = color;
+		g_soluna_ime_rect.has_text_color = true;
+	}
 	g_soluna_ime_rect.valid = true;
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
 	soluna_win32_apply_ime_rect();
