@@ -7,6 +7,7 @@ local mattext = require "soluna.material.text"
 local matquad = require "soluna.material.quad"
 local matmask = require "soluna.material.mask"
 local font = require "soluna.font"
+local file = require "soluna.file"
 local utf8 = utf8
 local math = math
 local string = string
@@ -36,6 +37,19 @@ local BOX_RADIUS <const> = 10
 local CURSOR_BLINK <const> = 30
 
 local function load_font()
+  if soluna.platform == "wasm" then
+    local bundled_name = "Source Han Sans SC Regular"
+    local bundled_path = "asset/font/SourceHanSansSC-Regular.ttf"
+    local bundled_data = file.load(bundled_path)
+    if bundled_data then
+      font.import(bundled_data)
+      local bundled_id = font.name(bundled_name)
+      if bundled_id then
+        return bundled_id, bundled_name
+      end
+    end
+  end
+
   local sysfont = require "soluna.font.system"
   local candidates = {
     "WenQuanYi Micro Hei",        -- Linux
