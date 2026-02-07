@@ -325,14 +325,11 @@ table.sort(example_paths)
 for _, path in ipairs(example_paths) do
   local name = path:match("([^/]+)%.lua$")
   if name then
-    local content = read_file(path)
-    if not content:find("font%.system") then
-      examples[#examples + 1] = {
-        id = name,
-        title = titleize(name),
-        entry = "test/" .. name .. ".lua",
-      }
-    end
+    examples[#examples + 1] = {
+      id = name,
+      title = titleize(name),
+      entry = "test/" .. name .. ".lua",
+    }
   end
 end
 

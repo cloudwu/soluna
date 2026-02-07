@@ -178,6 +178,19 @@
     return response.arrayBuffer();
   }
 
+  async function loadFontZip(base) {
+    const fontFiles = [
+      { url: `${base}/fonts/arial.ttf`, name: "asset/font/arial.ttf" },
+      { url: `${base}/fonts/SourceHanSansSC-Regular.ttf`, name: "asset/font/SourceHanSansSC-Regular.ttf" },
+    ];
+    const entries = [];
+    for (const file of fontFiles) {
+      const buf = await loadBuffer(file.url);
+      entries.push({ name: file.name, data: new Uint8Array(buf) });
+    }
+    return createZip(entries);
+  }
+
   function loadRuntimeScript(src) {
     return new Promise((resolve, reject) => {
       const script = document.createElement("script");
@@ -248,6 +261,16 @@
       return;
     }
 
+    setStatus("Preparing fonts...");
+    let fontZip;
+    try {
+      fontZip = await loadFontZip(base);
+    } catch (err) {
+      setStatus("Failed to load font assets.");
+      setNote(err.message);
+      return;
+    }
+
     const mainGame = "entry : main.lua\nhigh_dpi : true\n";
     const mainLuaBytes = new TextEncoder().encode(sourceText);
     const mainGameBytes = new TextEncoder().encode(mainGame);
@@ -259,7 +282,7 @@
     setStatus("Starting Soluna runtime...");
 
     window.Module = {
-      arguments: ["zipfile=/data/main.zip:/data/asset.zip"],
+      arguments: ["zipfile=/data/main.zip:/data/asset.zip:/data/font.zip"],
       canvas,
       print(text) {
         appendConsole(String(text || ""), false);
@@ -278,10 +301,13 @@
           Module.FS_createPath("/", "data", true, true);
           Module.addRunDependency("asset-zip");
           Module.addRunDependency("main-zip");
+          Module.addRunDependency("font-zip");
           Module.FS.writeFile("/data/asset.zip", new Uint8Array(assetBuffer), { canOwn: true });
           Module.FS.writeFile("/data/main.zip", mainZip, { canOwn: true });
+          Module.FS.writeFile("/data/font.zip", fontZip, { canOwn: true });
           Module.removeRunDependency("asset-zip");
           Module.removeRunDependency("main-zip");
+          Module.removeRunDependency("font-zip");
         },
       ],
       onAbort(reason) {
