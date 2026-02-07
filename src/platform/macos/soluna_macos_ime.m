@@ -1,35 +1,69 @@
 #import <Cocoa/Cocoa.h>
-#import <QuartzCore/QuartzCore.h>
-#import <CoreText/CoreText.h>
 #import <objc/runtime.h>
-#import <objc/message.h>
 
 #include <stdint.h>
 
-#include "../../ime_state.h"
+#include "ime_state.h"
 #include "soluna_macos_ime.h"
 #include "sokol/sokol_app.h"
 
 @interface _sapp_macos_view : NSView
 @end
 
+static void soluna_emit_nsstring(NSString *text);
+
+@interface SolunaIMETextView : NSTextView
+@end
+
+@implementation SolunaIMETextView
+- (BOOL)isOpaque {
+    return NO;
+}
+
+- (instancetype)initWithFrame:(NSRect)frameRect {
+    self = [super initWithFrame:frameRect];
+    if (self) {
+        [self setEditable:NO];
+        [self setSelectable:NO];
+        [self setRichText:NO];
+        [self setImportsGraphics:NO];
+        [self setAutomaticQuoteSubstitutionEnabled:NO];
+        [self setAutomaticDataDetectionEnabled:NO];
+        [self setAutomaticSpellingCorrectionEnabled:NO];
+        [self setDrawsBackground:NO];
+        [self setHorizontallyResizable:YES];
+        [self setVerticallyResizable:NO];
+        [self setTextContainerInset:NSMakeSize(0, 0)];
+        NSTextContainer *container = [self textContainer];
+        if (container) {
+            [container setLineFragmentPadding:0.0f];
+            [container setWidthTracksTextView:NO];
+            [container setContainerSize:NSMakeSize(CGFLOAT_MAX, CGFLOAT_MAX)];
+        }
+        [self setHidden:YES];
+    }
+    return self;
+}
+
+- (void)doCommandBySelector:(SEL)selector {
+    (void)selector;
+}
+@end
+
 // Forward declarations implemented in entry.c
 void soluna_emit_char(uint32_t codepoint, uint32_t modifiers, bool repeat);
 
 static bool g_soluna_macos_composition = false;
-static NSTextField *g_soluna_ime_label = nil;
+static SolunaIMETextView *g_soluna_ime_label = nil;
 static NSString *g_soluna_macos_ime_font_name = nil;
 static CGFloat g_soluna_macos_ime_font_size = 14.0f;
-static NSView *g_soluna_ime_caret = nil;
+static SolunaIMETextView *soluna_macos_ensure_ime_label(NSView *view);
+static const void *const kSolunaMarkedTextKey = &kSolunaMarkedTextKey;
+static const void *const kSolunaSelectedRangeKey = &kSolunaSelectedRangeKey;
+static const void *const kSolunaConsumedFlagKey = &kSolunaConsumedFlagKey;
 
-static NSString *soluna_current_marked_text(NSView *view);
-static NSRange soluna_current_selected_range(NSView *view);
-
-static void
-soluna_macos_apply_ime_font(void) {
-    if (!g_soluna_ime_label) {
-        return;
-    }
+static NSFont *
+soluna_macos_current_ime_font(void) {
     CGFloat size = g_soluna_macos_ime_font_size > 0.0f ? g_soluna_macos_ime_font_size : 14.0f;
     NSFont *font = nil;
     if (g_soluna_macos_ime_font_name) {
@@ -38,7 +72,17 @@ soluna_macos_apply_ime_font(void) {
     if (font == nil) {
         font = [NSFont systemFontOfSize:size];
     }
-    [g_soluna_ime_label setFont:font];
+    return font;
+}
+
+static void
+soluna_macos_apply_ime_font(void) {
+    if (g_soluna_ime_label) {
+        NSFont *font = soluna_macos_current_ime_font();
+        if (font) {
+            [g_soluna_ime_label setFont:font];
+        }
+    }
 }
 
 void
@@ -63,87 +107,6 @@ soluna_macos_set_ime_font(const char *font_name, float height_px) {
     soluna_macos_apply_ime_font();
 }
 
-static NSView *
-soluna_macos_ensure_ime_caret(NSView *view) {
-    if (g_soluna_ime_caret == nil) {
-        g_soluna_ime_caret = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 1, 1)];
-        [g_soluna_ime_caret setWantsLayer:YES];
-        CALayer *layer = [g_soluna_ime_caret layer];
-        if (layer) {
-            layer.backgroundColor = [[NSColor controlAccentColor] CGColor];
-        }
-    }
-    if (g_soluna_ime_caret.superview != view) {
-        [g_soluna_ime_caret removeFromSuperview];
-        if (view) {
-            NSView *relative = g_soluna_ime_label && g_soluna_ime_label.superview == view ? g_soluna_ime_label : nil;
-            [view addSubview:g_soluna_ime_caret positioned:NSWindowAbove relativeTo:relative];
-        }
-    }
-    return g_soluna_ime_caret;
-}
-
-static void
-soluna_macos_hide_ime_caret(void) {
-    if (g_soluna_ime_caret) {
-        [g_soluna_ime_caret setHidden:YES];
-    }
-}
-
-static void
-soluna_macos_position_ime_caret(NSView *view, NSTextField *label, NSAttributedString *attr, NSRange selectedRange) {
-    if (selectedRange.location == NSNotFound) {
-        soluna_macos_hide_ime_caret();
-        return;
-    }
-    NSView *caret = soluna_macos_ensure_ime_caret(view);
-    if (selectedRange.length > 0) {
-        [caret setHidden:YES];
-        return;
-    }
-    NSUInteger caretIndex = selectedRange.location + selectedRange.length;
-    NSUInteger textLength = attr.length;
-    if (caretIndex > textLength) {
-        caretIndex = textLength;
-    }
-    NSRect textRect = [[label cell] drawingRectForBounds:label.bounds];
-    CGFloat prefixWidth = 0.0f;
-    CGFloat lineHeight = 0.0f;
-    CTLineRef line = CTLineCreateWithAttributedString((CFAttributedStringRef)attr);
-    if (line) {
-        if (caretIndex > textLength) {
-            caretIndex = textLength;
-        }
-        double caretOffset = CTLineGetOffsetForStringIndex(line, caretIndex, NULL);
-        prefixWidth = (CGFloat)ceil(caretOffset);
-        double ascent = 0.0, descent = 0.0, leading = 0.0;
-        CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
-        lineHeight = (CGFloat)(ascent + descent + leading);
-        CFRelease(line);
-    }
-    NSRect caretFrame;
-    caretFrame.size.width = 2.0f;
-    if (lineHeight <= 0.0f) {
-        NSFont *font = [label font];
-        if (font) {
-            lineHeight = font.ascender - font.descender;
-        }
-        if (lineHeight <= 0.0f) {
-            lineHeight = g_soluna_macos_ime_font_size > 0.0f ? g_soluna_macos_ime_font_size : 14.0f;
-        }
-    }
-    caretFrame.size.height = MAX(1.0f, lineHeight);
-    caretFrame.origin.x = label.frame.origin.x + textRect.origin.x + prefixWidth;
-    CGFloat originY = label.frame.origin.y + textRect.origin.y;
-    CGFloat verticalAdjust = 0.0f;
-    if (textRect.size.height > caretFrame.size.height) {
-        verticalAdjust = (textRect.size.height - caretFrame.size.height) * 0.5f;
-    }
-    caretFrame.origin.y = originY + verticalAdjust;
-    [caret setFrame:NSIntegralRect(caretFrame)];
-    [caret setHidden:NO];
-}
-
 static NSRect
 soluna_current_caret_local_rect(NSView *view) {
     NSRect caret = NSMakeRect(0, 0, 1, 1);
@@ -159,21 +122,53 @@ soluna_current_caret_local_rect(NSView *view) {
     return caret;
 }
 
-static NSTextField *
+static void
+soluna_macos_position_ime_input_view(NSView *view) {
+    SolunaIMETextView *imeView = soluna_macos_ensure_ime_label(view);
+    if (!imeView || !g_soluna_ime_rect.valid) {
+        return;
+    }
+    NSRect caret = soluna_current_caret_local_rect(view);
+    NSRect bounds = view.bounds;
+    NSFont *font = soluna_macos_current_ime_font();
+    CGFloat ascender = 0.0f;
+    CGFloat descender = 0.0f;
+    CGFloat leading = 0.0f;
+    if (font) {
+        ascender = MAX(font.ascender, 0.0f);
+        descender = MIN(font.descender, 0.0f);
+        leading = MAX(font.leading, 0.0f);
+    }
+    CGFloat lineHeight = ascender - descender + leading;
+    if (lineHeight <= 0.0f) {
+        lineHeight = g_soluna_macos_ime_font_size > 0.0f ? g_soluna_macos_ime_font_size : 14.0f;
+    }
+    lineHeight = MAX(lineHeight, MAX(caret.size.height, 1.0f));
+    CGFloat baselineY = caret.origin.y + MAX(caret.size.height, 1.0f) * 0.5f;
+    CGFloat frameX = caret.origin.x;
+    CGFloat frameY = baselineY - ascender;
+    CGFloat frameW = MAX(1.0f, NSMaxX(bounds) - frameX);
+    CGFloat frameH = lineHeight;
+    NSRect frame = NSMakeRect(frameX, frameY, frameW, frameH);
+    CGFloat maxOriginX = NSMaxX(bounds) - 1.0f;
+    if (maxOriginX < bounds.origin.x) {
+        maxOriginX = bounds.origin.x;
+    }
+    if (frame.origin.x < bounds.origin.x) frame.origin.x = bounds.origin.x;
+    if (frame.origin.x > maxOriginX) frame.origin.x = maxOriginX;
+    if (frame.origin.y < bounds.origin.y) frame.origin.y = bounds.origin.y;
+    if (NSMaxX(frame) > NSMaxX(bounds)) frame.size.width = MAX(1.0f, NSMaxX(bounds) - frame.origin.x);
+    if (NSMaxY(frame) > NSMaxY(bounds)) frame.origin.y = NSMaxY(bounds) - frame.size.height;
+    [imeView setFrame:NSIntegralRect(frame)];
+    [imeView setHidden:NO];
+}
+
+static SolunaIMETextView *
 soluna_macos_ensure_ime_label(NSView *view) {
     if (g_soluna_ime_label == nil) {
-        g_soluna_ime_label = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 0, 0)];
-        [g_soluna_ime_label setEditable:NO];
-        [g_soluna_ime_label setSelectable:NO];
-        [g_soluna_ime_label setBezeled:NO];
-        [g_soluna_ime_label setDrawsBackground:NO];
-        [g_soluna_ime_label setBordered:NO];
-        [g_soluna_ime_label setBackgroundColor:[NSColor clearColor]];
+        g_soluna_ime_label = [[SolunaIMETextView alloc] initWithFrame:NSMakeRect(0, 0, 0, 0)];
         [g_soluna_ime_label setHidden:YES];
-        [g_soluna_ime_label setLineBreakMode:NSLineBreakByClipping];
-        [g_soluna_ime_label setUsesSingleLineMode:YES];
         [g_soluna_ime_label setTranslatesAutoresizingMaskIntoConstraints:YES];
-        soluna_macos_apply_ime_font();
     }
     if (g_soluna_ime_label.superview != view) {
         [g_soluna_ime_label removeFromSuperview];
@@ -188,78 +183,10 @@ soluna_macos_ensure_ime_label(NSView *view) {
 void
 soluna_macos_hide_ime_label(void) {
     if (g_soluna_ime_label) {
+        [g_soluna_ime_label setString:@""];
         [g_soluna_ime_label setHidden:YES];
     }
-    soluna_macos_hide_ime_caret();
 }
-
-static void
-soluna_macos_position_ime_label(NSView *view, NSString *text, NSRange selectedRange) {
-    if (text == nil || text.length == 0) {
-        soluna_macos_hide_ime_label();
-        return;
-    }
-    NSTextField *label = soluna_macos_ensure_ime_label(view);
-    if (label == nil) {
-        return;
-    }
-    NSMutableAttributedString *attr = [[[NSMutableAttributedString alloc] initWithString:text] autorelease];
-    NSRange fullRange = NSMakeRange(0, attr.length);
-    if (fullRange.length > 0) {
-        NSFont *labelFont = [label font];
-        if (labelFont) {
-            [attr addAttribute:NSFontAttributeName value:labelFont range:fullRange];
-        }
-        [attr addAttribute:NSForegroundColorAttributeName value:[NSColor textColor] range:fullRange];
-        [attr addAttribute:NSUnderlineStyleAttributeName value:@(NSUnderlineStyleSingle) range:fullRange];
-    }
-    if (selectedRange.length > 0 && NSMaxRange(selectedRange) <= attr.length) {
-        [attr addAttribute:NSBackgroundColorAttributeName value:[NSColor controlAccentColor] range:selectedRange];
-        [attr addAttribute:NSForegroundColorAttributeName value:[NSColor alternateSelectedControlTextColor] range:selectedRange];
-    }
-    [label setAttributedStringValue:attr];
-    NSSize textSize = [[label cell] cellSizeForBounds:NSMakeRect(0, 0, CGFLOAT_MAX, CGFLOAT_MAX)];
-    CGFloat padding = 6.0f;
-    textSize.width += padding;
-    textSize.height += padding;
-    NSRect caret = soluna_current_caret_local_rect(view);
-    CGFloat baseline = caret.origin.y + caret.size.height;
-    CGFloat baselineOffset = [label baselineOffsetFromBottom];
-    CGFloat frameOriginY = baseline - baselineOffset - textSize.height;
-    NSRect frame = NSMakeRect(caret.origin.x, frameOriginY, textSize.width, textSize.height);
-    NSRect bounds = view.bounds;
-    if (frame.origin.x < bounds.origin.x) {
-        frame.origin.x = bounds.origin.x;
-    }
-    CGFloat maxX = NSMaxX(bounds);
-    if (NSMaxX(frame) > maxX) {
-        frame.origin.x = maxX - frame.size.width;
-    }
-    if (frame.origin.y < bounds.origin.y) {
-        frame.origin.y = bounds.origin.y;
-    }
-    CGFloat maxY = NSMaxY(bounds);
-    if (NSMaxY(frame) > maxY) {
-        frame.origin.y = maxY - frame.size.height;
-    }
-    [label setFrame:NSIntegralRect(frame)];
-    [label setHidden:NO];
-    soluna_macos_position_ime_caret(view, label, attr, selectedRange);
-}
-
-static void
-soluna_macos_refresh_ime_label(NSView *view) {
-    if (g_soluna_ime_label == nil || [g_soluna_ime_label isHidden]) {
-        return;
-    }
-    NSString *text = soluna_current_marked_text(view);
-    NSRange range = soluna_current_selected_range(view);
-    soluna_macos_position_ime_label(view, text, range);
-}
-
-static const void *const kSolunaMarkedTextKey = &kSolunaMarkedTextKey;
-static const void *const kSolunaSelectedRangeKey = &kSolunaSelectedRangeKey;
-static const void *const kSolunaConsumedFlagKey = &kSolunaConsumedFlagKey;
 
 static uint32_t
 soluna_modifiers_from_event(NSEvent *event) {
@@ -296,6 +223,25 @@ soluna_utf32_from_substring(NSString *substr) {
     return buffer[0];
 }
 
+static void
+soluna_emit_nsstring(NSString *text) {
+    if (text == nil || text.length == 0) {
+        return;
+    }
+    uint32_t mods = soluna_modifiers_from_event([NSApp currentEvent]);
+    [text enumerateSubstringsInRange:NSMakeRange(0, text.length)
+        options:NSStringEnumerationByComposedCharacterSequences
+        usingBlock:^(NSString * _Nullable substring, NSRange substringRange, NSRange enclosingRange, BOOL * _Nonnull stop) {
+            (void)substringRange;
+            (void)enclosingRange;
+            (void)stop;
+            uint32_t codepoint = soluna_utf32_from_substring(substring);
+            if (codepoint != 0) {
+                soluna_emit_char(codepoint, mods, false);
+            }
+        }];
+}
+
 static NSString *
 soluna_plain_string(id string) {
     if ([string isKindOfClass:[NSAttributedString class]]) {
@@ -309,7 +255,7 @@ soluna_plain_string(id string) {
 
 static void
 soluna_store_marked_text(NSView *view, NSString *text, NSRange selected_range) {
-    if (text && text.length > 0) {
+    if (text != nil && text.length > 0) {
         objc_setAssociatedObject(view, kSolunaMarkedTextKey, text, OBJC_ASSOCIATION_COPY_NONATOMIC);
         NSValue *value = [NSValue valueWithRange:selected_range];
         objc_setAssociatedObject(view, kSolunaSelectedRangeKey, value, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -327,7 +273,7 @@ soluna_current_marked_text(NSView *view) {
 static bool
 soluna_view_has_marked_text(NSView *view) {
     NSString *text = soluna_current_marked_text(view);
-    return text && text.length > 0;
+    return text != nil && text.length > 0;
 }
 
 static NSRange
@@ -355,22 +301,41 @@ soluna_event_consumed(NSView *view) {
 }
 
 static void
-soluna_emit_nsstring(NSString *text) {
-    if (text == nil || text.length == 0) {
+soluna_update_ime_label(NSView *view, id markedText, NSRange selectedRange) {
+    NSString *plain = soluna_plain_string(markedText);
+    if (!g_soluna_ime_rect.valid || plain.length == 0) {
+        soluna_macos_hide_ime_label();
         return;
     }
-    uint32_t mods = soluna_modifiers_from_event([NSApp currentEvent]);
-    [text enumerateSubstringsInRange:NSMakeRange(0, text.length)
-        options:NSStringEnumerationByComposedCharacterSequences
-        usingBlock:^(NSString * _Nullable substring, NSRange substringRange, NSRange enclosingRange, BOOL * _Nonnull stop) {
-            (void)substringRange;
-            (void)enclosingRange;
-            (void)stop;
-            uint32_t codepoint = soluna_utf32_from_substring(substring);
-            if (codepoint != 0) {
-                soluna_emit_char(codepoint, mods, false);
-            }
-        }];
+    SolunaIMETextView *imeView = soluna_macos_ensure_ime_label(view);
+    if (!imeView) {
+        return;
+    }
+    soluna_macos_position_ime_input_view(view);
+    NSMutableAttributedString *attr = nil;
+    if ([markedText isKindOfClass:[NSAttributedString class]]) {
+        attr = [[(NSAttributedString *)markedText mutableCopy] autorelease];
+    } else {
+        attr = [[[NSMutableAttributedString alloc] initWithString:plain] autorelease];
+    }
+    if (attr.length > 0) {
+        NSRange full = NSMakeRange(0, attr.length);
+        NSFont *font = soluna_macos_current_ime_font();
+        if (font) {
+            [attr addAttribute:NSFontAttributeName value:font range:full];
+        }
+        [attr addAttribute:NSForegroundColorAttributeName value:[NSColor textColor] range:full];
+        if ([attr attribute:NSUnderlineStyleAttributeName atIndex:0 effectiveRange:NULL] == nil) {
+            [attr addAttribute:NSUnderlineStyleAttributeName value:@(NSUnderlineStyleSingle) range:full];
+        }
+    }
+    [[imeView textStorage] setAttributedString:attr];
+    if (selectedRange.location != NSNotFound && NSMaxRange(selectedRange) <= attr.length) {
+        [imeView setSelectedRange:selectedRange];
+    } else {
+        [imeView setSelectedRange:NSMakeRange(attr.length, 0)];
+    }
+    [imeView setHidden:NO];
 }
 
 static NSRect
@@ -390,20 +355,23 @@ soluna_current_caret_screen_rect(NSView *view) {
 @implementation _sapp_macos_view (SolunaIME)
 
 - (void)soluna_keyDown:(NSEvent *)event {
+    bool wasComposing = g_soluna_macos_composition || soluna_view_has_marked_text(self);
+    if (g_soluna_ime_rect.valid && wasComposing) {
+        soluna_macos_position_ime_input_view(self);
+    }
     soluna_set_event_consumed(self, false);
     BOOL handled = [[self inputContext] handleEvent:event];
     bool consumed = soluna_event_consumed(self);
     bool hasMarked = soluna_view_has_marked_text(self);
-    bool swallow_now = handled && (consumed || hasMarked);
-    if (swallow_now || g_soluna_macos_composition) {
-        g_soluna_macos_composition = hasMarked;
+    if (handled && (consumed || hasMarked)) {
+        g_soluna_macos_composition = true;
+        return;
+    }
+    if (g_soluna_macos_composition && hasMarked) {
         return;
     }
     g_soluna_macos_composition = false;
     [self soluna_keyDown:event];
-    if (handled && (consumed || hasMarked)) {
-        return;
-    }
 }
 
 - (void)insertText:(id)string replacementRange:(NSRange)replacementRange {
@@ -424,8 +392,9 @@ soluna_current_caret_screen_rect(NSView *view) {
     (void)replacementRange;
     NSString *plain = soluna_plain_string(string);
     soluna_store_marked_text(self, plain, selectedRange);
-    g_soluna_macos_composition = (string != nil);
-    soluna_macos_position_ime_label(self, plain, selectedRange);
+    g_soluna_macos_composition = true;
+    soluna_update_ime_label(self, string, selectedRange);
+    soluna_set_event_consumed(self, true);
 }
 
 - (void)unmarkText {
@@ -444,15 +413,14 @@ soluna_current_caret_screen_rect(NSView *view) {
 
 - (NSRange)markedRange {
     NSString *text = soluna_current_marked_text(self);
-    if (text && text.length > 0) {
+    if (text != nil && text.length > 0) {
         return NSMakeRange(0, text.length);
     }
     return NSMakeRange(NSNotFound, 0);
 }
 
 - (BOOL)hasMarkedText {
-    NSString *text = soluna_current_marked_text(self);
-    return text && text.length > 0;
+    return soluna_view_has_marked_text(self);
 }
 
 - (NSArray<NSAttributedStringKey> *)validAttributesForMarkedText {
@@ -461,10 +429,7 @@ soluna_current_caret_screen_rect(NSView *view) {
 
 - (NSAttributedString *)attributedSubstringForProposedRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
     NSString *text = soluna_current_marked_text(self);
-    if (text == nil) {
-        return nil;
-    }
-    if (range.location == NSNotFound) {
+    if (text == nil || range.location == NSNotFound) {
         return nil;
     }
     NSUInteger end = range.location + range.length;
@@ -523,10 +488,14 @@ soluna_macos_install_ime(void) {
 
 void
 soluna_macos_apply_ime_rect(void) {
-    if (g_soluna_ime_label && ![g_soluna_ime_label isHidden]) {
+    if (!g_soluna_ime_rect.valid) {
+        soluna_macos_hide_ime_label();
+        return;
+    }
+    if (g_soluna_ime_label) {
         NSView *view = [g_soluna_ime_label superview];
         if (view) {
-            soluna_macos_refresh_ime_label(view);
+            soluna_macos_position_ime_input_view(view);
         }
     }
 }

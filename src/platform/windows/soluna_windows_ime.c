@@ -9,7 +9,7 @@
 
 #include "sokol/sokol_app.h"
 
-#include "../../ime_state.h"
+#include "ime_state.h"
 #include "soluna_windows_ime.h"
 
 static WNDPROC g_soluna_prev_wndproc = NULL;

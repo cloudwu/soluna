@@ -1,24 +1,30 @@
 name: GitHub Pages
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - Nightly Build
+    types:
+      - completed
     branches:
       - master
-  pull_request:
   workflow_dispatch:
 
 jobs:
   build:
     name: Build Web Site
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-22.04
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
+      group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
     steps:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Build Soluna (WASM)
         uses: ./.github/actions/soluna
@@ -55,7 +61,9 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     needs: [build]
     runs-on: ubuntu-22.04
     permissions:

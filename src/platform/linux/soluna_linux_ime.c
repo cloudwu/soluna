@@ -11,7 +11,8 @@
 
 #include "sokol/sokol_app.h"
 
-#include "../../ime_state.h"
+#include "ime_state.h"
+#include "ime_char_filter.h"
 #include "soluna_linux_ime.h"
 
 void soluna_emit_char(uint32_t codepoint, uint32_t modifiers, bool repeat);
@@ -28,35 +29,20 @@ static int g_soluna_linux_expected_count = 0;
 static uint32_t g_soluna_linux_ignore_chars[32];
 static int g_soluna_linux_ignore_count = 0;
 
+static inline struct soluna_ime_char_filter_state
+soluna_linux_char_filter_state(void) {
+    return (struct soluna_ime_char_filter_state) {
+        .expected_chars = g_soluna_linux_expected_chars,
+        .expected_count = &g_soluna_linux_expected_count,
+        .ignore_chars = g_soluna_linux_ignore_chars,
+        .ignore_count = &g_soluna_linux_ignore_count,
+        .capacity = SOLUNA_LINUX_CHAR_QUEUE_CAP,
+    };
+}
+
 static void
 soluna_linux_reset_char_queues(void) {
-    g_soluna_linux_expected_count = 0;
-    g_soluna_linux_ignore_count = 0;
-}
-
-static void
-soluna_char_queue_push(uint32_t *buffer, int *count, int max, uint32_t code) {
-    if (*count == max) {
-        memmove(buffer, buffer + 1, (size_t)(max - 1) * sizeof(uint32_t));
-        buffer[max - 1] = code;
-    } else {
-        buffer[*count] = code;
-        (*count)++;
-    }
-}
-
-static bool
-soluna_char_queue_consume(uint32_t *buffer, int *count, uint32_t code) {
-    for (int i = 0; i < *count; ++i) {
-        if (buffer[i] == code) {
-            if (i < *count - 1) {
-                memmove(buffer + i, buffer + i + 1, (size_t)(*count - i - 1) * sizeof(uint32_t));
-            }
-            (*count)--;
-            return true;
-        }
-    }
-    return false;
+    soluna_ime_char_filter_reset(soluna_linux_char_filter_state());
 }
 
 static Display *
@@ -180,7 +166,7 @@ soluna_linux_emit_utf8(const char *text, int len, uint32_t mods, bool repeat) {
         if (consumed == 0) {
             consumed = 1;
         }
-        soluna_char_queue_push(g_soluna_linux_expected_chars, &g_soluna_linux_expected_count, SOLUNA_LINUX_CHAR_QUEUE_CAP, (uint32_t)ch);
+        soluna_ime_char_filter_push_expected(soluna_linux_char_filter_state(), (uint32_t)ch);
         soluna_emit_char((uint32_t)ch, mods, first ? repeat : false);
         first = false;
         ptr += consumed;
@@ -333,19 +319,7 @@ soluna_linux_should_skip_event(const sapp_event *ev) {
     if (!ev || ev->type != SAPP_EVENTTYPE_CHAR) {
         return false;
     }
-    if (soluna_char_queue_consume(g_soluna_linux_expected_chars, &g_soluna_linux_expected_count, ev->char_code)) {
-        soluna_char_queue_push(g_soluna_linux_ignore_chars, &g_soluna_linux_ignore_count, SOLUNA_LINUX_CHAR_QUEUE_CAP, ev->char_code);
-        return false;
-    }
-    if (g_soluna_linux_ignore_count > 0) {
-        if (soluna_char_queue_consume(g_soluna_linux_ignore_chars, &g_soluna_linux_ignore_count, ev->char_code)) {
-            return true;
-        } else if (g_soluna_linux_ignore_count > 0) {
-            uint32_t stale = g_soluna_linux_ignore_chars[0];
-            soluna_char_queue_consume(g_soluna_linux_ignore_chars, &g_soluna_linux_ignore_count, stale);
-        }
-    }
-    return false;
+    return soluna_ime_char_filter_should_skip(soluna_linux_char_filter_state(), ev->char_code);
 }
 
 void

@@ -16,7 +16,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "../../ime_state.h"
+#include "ime_state.h"
+#include "ime_char_filter.h"
 
 void soluna_emit_char(uint32_t codepoint, uint32_t modifiers, bool repeat);
 extern void soluna_wasm_setup_ime(void);
@@ -33,29 +34,15 @@ static bool g_soluna_wasm_composing = false;
 static bool g_soluna_wasm_locale_ready = false;
 static int g_soluna_wasm_block_keys = 0;
 
-static void
-soluna_wasm_char_queue_push(uint32_t *buffer, int *count, int max, uint32_t code) {
-    if (*count == max) {
-        memmove(buffer, buffer + 1, (size_t)(max - 1) * sizeof(uint32_t));
-        buffer[max - 1] = code;
-    } else {
-        buffer[*count] = code;
-        (*count)++;
-    }
-}
-
-static bool
-soluna_wasm_char_queue_consume(uint32_t *buffer, int *count, uint32_t code) {
-    for (int i = 0; i < *count; ++i) {
-        if (buffer[i] == code) {
-            if (i < *count - 1) {
-                memmove(buffer + i, buffer + i + 1, (size_t)(*count - i - 1) * sizeof(uint32_t));
-            }
-            (*count)--;
-            return true;
-        }
-    }
-    return false;
+static inline struct soluna_ime_char_filter_state
+soluna_wasm_char_filter_state(void) {
+    return (struct soluna_ime_char_filter_state) {
+        .expected_chars = g_soluna_wasm_expected_chars,
+        .expected_count = &g_soluna_wasm_expected_count,
+        .ignore_chars = g_soluna_wasm_ignore_chars,
+        .ignore_count = &g_soluna_wasm_ignore_count,
+        .capacity = SOLUNA_WASM_CHAR_QUEUE_CAP,
+    };
 }
 
 static void
@@ -104,8 +91,7 @@ soluna_wasm_call_set_font(const char *name, float size) {
 
 static void
 soluna_wasm_reset_queues(void) {
-    g_soluna_wasm_expected_count = 0;
-    g_soluna_wasm_ignore_count = 0;
+    soluna_ime_char_filter_reset(soluna_wasm_char_filter_state());
 }
 
 void
@@ -147,7 +133,7 @@ soluna_wasm_emit_utf8(const char *text, uint32_t mods) {
         if (consumed == 0) {
             consumed = 1;
         }
-        soluna_wasm_char_queue_push(g_soluna_wasm_expected_chars, &g_soluna_wasm_expected_count, SOLUNA_WASM_CHAR_QUEUE_CAP, (uint32_t)ch);
+        soluna_ime_char_filter_push_expected(soluna_wasm_char_filter_state(), (uint32_t)ch);
         soluna_emit_char((uint32_t)ch, mods, false);
         ptr += consumed;
     }
@@ -196,19 +182,7 @@ soluna_wasm_filter_char_event(const sapp_event *ev) {
     if (!ev || ev->type != SAPP_EVENTTYPE_CHAR) {
         return false;
     }
-    if (soluna_wasm_char_queue_consume(g_soluna_wasm_expected_chars, &g_soluna_wasm_expected_count, ev->char_code)) {
-        soluna_wasm_char_queue_push(g_soluna_wasm_ignore_chars, &g_soluna_wasm_ignore_count, SOLUNA_WASM_CHAR_QUEUE_CAP, ev->char_code);
-        return false;
-    }
-    if (g_soluna_wasm_ignore_count > 0) {
-        if (soluna_wasm_char_queue_consume(g_soluna_wasm_ignore_chars, &g_soluna_wasm_ignore_count, ev->char_code)) {
-            return true;
-        } else if (g_soluna_wasm_ignore_count > 0) {
-            uint32_t stale = g_soluna_wasm_ignore_chars[0];
-            soluna_wasm_char_queue_consume(g_soluna_wasm_ignore_chars, &g_soluna_wasm_ignore_count, stale);
-        }
-    }
-    return false;
+    return soluna_ime_char_filter_should_skip(soluna_wasm_char_filter_state(), ev->char_code);
 }
 
 static inline void
