@@ -105,7 +105,7 @@ local materials = {
 			STATE.material_text:submit(ptr, n)
 		end,
 		draw = function(ptr, n)
-			STATE.bindings:view(1, STATE.views.font)
+			STATE.text_bindings:view(1, STATE.views.font)
 			STATE.material_text:draw(ptr, n)
 		end,
 	},
@@ -173,6 +173,7 @@ local function frame(count)
 	if update_image then update_image() end
 	STATE.drawmgr:reset()
 	STATE.bindings:base(0)
+	STATE.text_bindings:base(0)
 	STATE.quad_bindings:base(0)
 	STATE.mask_bindings:base(0)
 	for i = 1, batch_n do
@@ -265,6 +266,12 @@ local function render_init(arg)
 		label = "texquad-instance",
 		size = defmat.instance_size * setting.draw_instance,	-- textmat.instance_size is the same
 	}
+	local text_inst_buffer = render.buffer {
+		type = "vertex",
+		usage = "stream",
+		label = "text-instance",
+		size = defmat.instance_size * setting.draw_instance,
+	}
 	local sr_buffer = render.buffer {
 		type = "storage",
 		usage = "dynamic",
@@ -300,10 +307,17 @@ local function render_init(arg)
 	bindings:sampler(0, STATE.default_sampler)
 	
 	STATE.inst = assert(inst_buffer)
+	STATE.text_inst = assert(text_inst_buffer)
 	STATE.srbuffer = assert(sr_buffer)
 
 	STATE.srbuffer_mem = render.srbuffer(setting.srbuffer_size)
 	STATE.bindings = bindings
+
+	local text_bindings = render.bindings()
+	text_bindings:vbuffer(0, text_inst_buffer)
+	text_bindings:view(0, views.storage)
+	text_bindings:sampler(0, STATE.default_sampler)
+	STATE.text_bindings = text_bindings
 
 	do
 		STATE.quad_inst = render.buffer {
@@ -375,11 +389,12 @@ local function render_init(arg)
 	}
 	
 	STATE.material_text = textmat.normal {
-		inst_buffer = STATE.inst,
-		bindings = STATE.bindings,
+		inst_buffer = STATE.text_inst,
+		bindings = STATE.text_bindings,
 		uniform = STATE.uniform,
 		sr_buffer = STATE.srbuffer_mem,
 		font_manager = font.cobj,
+		text_filter = setting.text_filter,
 		tmp_buffer = tmp_buffer,
 	}
 
