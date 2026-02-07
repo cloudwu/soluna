@@ -1,0 +1,66 @@
+{{ define "main" }}
+<section class="section">
+  <div class="section-header">
+    <div>
+      <h1 class="section-title">{{ .Title }}</h1>
+      <p class="section-subtitle">Entry: {{ .Params.entry }}</p>
+    </div>
+  </div>
+</section>
+
+{{ $base := site.BaseURL | relURL }}
+<div class="menubar">
+  {{ $gallery := "/examples/" | relURL }}
+  {{ $galleryHref := $gallery }}
+  {{ if not (hasPrefix $gallery $base) }}
+    {{ $galleryHref = printf "%s%s" $base (strings.TrimPrefix "/" $gallery) }}
+  {{ end }}
+  <a href="{{ $galleryHref }}">gallery</a>
+</div>
+
+{{ $examples := sort (where site.RegularPages "Section" "examples") "Params.example_id" }}
+<div class="play-shell">
+  <div class="play-tabs">
+    {{ range $examples }}
+    {{ $item := .RelPermalink }}
+    {{ $itemHref := $item }}
+    {{ if not (hasPrefix $item $base) }}
+      {{ $itemHref = printf "%s%s" $base (strings.TrimPrefix "/" $item) }}
+    {{ end }}
+    <a class="play-tab{{ if eq .RelPermalink $.RelPermalink }} active{{ end }}"
+      href="{{ $itemHref }}">{{ .Title }}</a>
+    {{ end }}
+  </div>
+  <div class="play-stage">
+    <iframe
+      id="soluna-frame"
+      class="play-frame"
+      title="Soluna runtime"
+      loading="lazy"></iframe>
+    <div class="overlay" id="play-overlay">
+      <div class="overlay-card">
+        <div class="overlay-title">Preparing Runtime</div>
+        <p class="overlay-status" id="play-status">Loading assets...</p>
+        <div class="note" id="play-note"></div>
+      </div>
+    </div>
+  </div>
+  <div class="console-panel">
+    <div class="console-header">
+      <div class="console-title">Console</div>
+    </div>
+    <pre class="console-body" id="console-output"></pre>
+  </div>
+  <div class="code-panel">
+    <div class="code-header">
+      <div class="code-title">Example Source</div>
+    </div>
+    <pre class="code-block"><code id="code-content"></code></pre>
+  </div>
+</div>
+{{ end }}
+
+{{ define "page_script" }}
+{{ $script := resources.Get "play.js" | minify | fingerprint }}
+<script src="{{ $script.RelPermalink }}"></script>
+{{ end }}

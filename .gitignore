@@ -5,3 +5,9 @@ bin/macos
 bin/mingw
 bin/msvc
 bin/emcc
+web/public
+web/data
+web/static/runtime
+web/static/data
+web/content/examples/*.md
+!web/content/examples/_index.md
