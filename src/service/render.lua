@@ -105,7 +105,7 @@ local materials = {
 			STATE.material_text:submit(ptr, n)
 		end,
 		draw = function(ptr, n)
-			STATE.bindings:view(1, STATE.views.font)
+			STATE.text_bindings:view(1, STATE.views.font)
 			STATE.material_text:draw(ptr, n)
 		end,
 	},
@@ -173,6 +173,7 @@ local function frame(count)
 	if update_image then update_image() end
 	STATE.drawmgr:reset()
 	STATE.bindings:base(0)
+	STATE.text_bindings:base(0)
 	STATE.quad_bindings:base(0)
 	STATE.mask_bindings:base(0)
 	for i = 1, batch_n do
@@ -306,6 +307,22 @@ local function render_init(arg)
 	STATE.bindings = bindings
 
 	do
+		local text_sampler_desc = setting.text_sampler
+		if text_sampler_desc then
+			text_sampler_desc.label = text_sampler_desc.label or "text-sampler"
+			STATE.text_sampler = render.sampler(text_sampler_desc)
+			local text_bindings = render.bindings()
+			text_bindings:vbuffer(0, STATE.inst)
+			text_bindings:view(0, views.storage)
+			text_bindings:sampler(0, STATE.text_sampler)
+
+			STATE.text_bindings = text_bindings
+		else
+			STATE.text_bindings = STATE.bindings
+		end
+	end
+
+	do
 		STATE.quad_inst = render.buffer {
 			type = "vertex",
 			usage = "stream",
@@ -376,7 +393,7 @@ local function render_init(arg)
 	
 	STATE.material_text = textmat.normal {
 		inst_buffer = STATE.inst,
-		bindings = STATE.bindings,
+		bindings = STATE.text_bindings,
 		uniform = STATE.uniform,
 		sr_buffer = STATE.srbuffer_mem,
 		font_manager = font.cobj,

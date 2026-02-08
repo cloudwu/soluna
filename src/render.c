@@ -479,6 +479,39 @@ lsampler_ref(lua_State *L) {
 	return 0;
 }
 
+struct enum_string {
+	const char *name;
+	int v;
+};
+
+static int
+convert_enum(lua_State *L, struct enum_string *es, const char *name) {
+	while (es->name) {
+		if (strcmp(name, es->name) == 0) {
+			return es->v;
+		}
+		++es;
+	}
+	return luaL_error(L, "Invalid enum %s", name);
+}
+
+static int
+read_enum(lua_State *L, const char *key, struct enum_string *es) {
+	int r = 0;
+	switch (lua_getfield(L, 1, key)) {
+		case LUA_TNIL:
+			break;
+		case LUA_TSTRING:
+			r = convert_enum(L, es, lua_tostring(L, -1));
+			break;
+		default :
+			return luaL_error(L, "Invalid .%s (should be a string, it's %s)", key,
+				lua_typename(L, lua_type(L, -1)));
+	}
+	lua_pop(L, 1);
+	return r;
+}
+
 static int
 lsampler(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
@@ -488,7 +521,28 @@ lsampler(lua_State *L) {
 		desc.label = lua_tostring(L, -1);
 	}
 	lua_pop(L, 1);
-	// todo : set filter , etc
+	static struct enum_string filter[] = {
+		{ "nearest", SG_FILTER_NEAREST },
+		{ "linear", SG_FILTER_LINEAR },
+		{ NULL, 0 },
+	};
+	desc.min_filter = read_enum(L, "min_filter", filter);
+	desc.mag_filter = read_enum(L, "mag_filter", filter);
+	desc.mipmap_filter = read_enum(L, "mipmap_filter", filter);
+	
+	static struct enum_string wrap[] = {
+		{ "repeat", SG_WRAP_REPEAT },
+		{ "edge", SG_WRAP_CLAMP_TO_EDGE },
+		{ "border", SG_WRAP_CLAMP_TO_BORDER },
+		{ "mirror", SG_WRAP_MIRRORED_REPEAT },
+		{ NULL, 0 },
+	};
+	desc.wrap_u = read_enum(L, "wrap_u", wrap);
+	desc.wrap_v = read_enum(L, "wrap_v", wrap);
+	desc.wrap_w = read_enum(L, "wrap_w", wrap);
+	
+	// todo : set min_lod/max_lod/border_color etc.
+	
 	s->handle = sg_make_sampler(&desc);
 	
 	if (luaL_newmetatable(L, "SOKOL_SAMPLER")) {
