@@ -271,7 +271,7 @@
       return;
     }
 
-    const mainGame = "entry : main.lua\nhigh_dpi : true\n";
+    const mainGame = "entry : main.lua\nhigh_dpi : true\ntext_sampler :\n  min_filter : linear\n  mag_filter : linear\n";
     const mainLuaBytes = new TextEncoder().encode(sourceText);
     const mainGameBytes = new TextEncoder().encode(mainGame);
     const mainZip = createZip([

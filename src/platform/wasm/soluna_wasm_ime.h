@@ -24,6 +24,7 @@ extern void soluna_wasm_setup_ime(void);
 extern void soluna_wasm_dom_show(float x, float y, float w, float h);
 extern void soluna_wasm_dom_hide(void);
 extern void soluna_wasm_dom_set_font(const char *name, float size);
+extern void soluna_wasm_dom_set_color(uint32_t color);
 
 static const int SOLUNA_WASM_CHAR_QUEUE_CAP = 32;
 static uint32_t g_soluna_wasm_expected_chars[32];
@@ -87,6 +88,17 @@ soluna_wasm_call_set_font(const char *name, float size) {
     }
 #endif
     soluna_wasm_dom_set_font(name, size);
+}
+
+static void
+soluna_wasm_call_set_color(uint32_t color) {
+#if defined(__EMSCRIPTEN_PTHREADS__)
+    if (!emscripten_is_main_browser_thread()) {
+        emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_VI, soluna_wasm_dom_set_color, color);
+        return;
+    }
+#endif
+    soluna_wasm_dom_set_color(color);
 }
 
 static void
@@ -158,6 +170,7 @@ soluna_wasm_apply_rect(void) {
         return;
     }
     soluna_wasm_call_setup();
+    soluna_wasm_call_set_color(g_soluna_ime_rect.text_color);
     soluna_wasm_call_show(g_soluna_ime_rect.x, g_soluna_ime_rect.y, g_soluna_ime_rect.w, g_soluna_ime_rect.h);
 }
 

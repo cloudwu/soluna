@@ -96,7 +96,7 @@ struct app_context {
 
 static struct app_context *CTX = NULL;
 
-struct soluna_ime_rect_state g_soluna_ime_rect = { 0.0f, 0.0f, 0.0f, 0.0f, false };
+struct soluna_ime_rect_state g_soluna_ime_rect = { 0.0f, 0.0f, 0.0f, 0.0f, 0, false };
 
 void soluna_emit_char(uint32_t codepoint, uint32_t modifiers, bool repeat);
 
@@ -329,6 +329,18 @@ icon_copy_image(lua_State *L, int index, sapp_image_desc *dst, struct icon_pixel
 	payload->ptr = copy;
 }
 
+static float
+get_field_float(lua_State *L, int index, const char *field) {
+	lua_getfield(L, index, field);
+	if (lua_getfield(L, index, field) != LUA_TNUMBER) {
+      return luaL_error(L, "Invalid .%s type (%s is not a number)",
+        field, lua_typename(L, lua_type(L, -1)));
+	}
+ 	float value = (float)lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	return value;
+}
+
 static int
 lset_icon(lua_State *L) {
 	if (lua_isnoneornil(L, 1))
@@ -375,6 +387,7 @@ static int
 lset_ime_rect(lua_State *L) {
 #if defined(__APPLE__) || defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__linux__) || defined(__EMSCRIPTEN__)
 	if (lua_isnoneornil(L, 1)) {
+		g_soluna_ime_rect.text_color = 0;
 		g_soluna_ime_rect.valid = false;
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
 		soluna_win32_apply_ime_rect();
@@ -387,10 +400,22 @@ lset_ime_rect(lua_State *L) {
 #endif
 		return 0;
 	}
-	g_soluna_ime_rect.x = (float)luaL_checknumber(L, 1);
-	g_soluna_ime_rect.y = (float)luaL_checknumber(L, 2);
-	g_soluna_ime_rect.w = (float)luaL_checknumber(L, 3);
-	g_soluna_ime_rect.h = (float)luaL_checknumber(L, 4);
+	luaL_checktype(L, 1, LUA_TTABLE);
+	g_soluna_ime_rect.x = get_field_float(L, 1, "x");
+	g_soluna_ime_rect.y = get_field_float(L, 1, "y");
+	g_soluna_ime_rect.w = get_field_float(L, 1, "width");
+	g_soluna_ime_rect.h = get_field_float(L, 1, "height");
+
+	if (lua_getfield(L, 1, "text_color") == LUA_TNIL) {
+		g_soluna_ime_rect.text_color = 0;
+	} else {
+		uint32_t color = (uint32_t)luaL_checkinteger(L, -1);
+		if ((color & 0xff000000) == 0) {
+			color |= 0xff000000;
+		}
+		g_soluna_ime_rect.text_color = color;
+	}
+	lua_pop(L, 1);
 	g_soluna_ime_rect.valid = true;
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
 	soluna_win32_apply_ime_rect();

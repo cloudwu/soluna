@@ -70,6 +70,9 @@ mergeInto(LibraryManager.library, {
       rect: { x: 0, y: 0, w: 1, h: 1 },
       customFont: null,
       customFontSize: 0,
+      customTextColor: null,
+      metricCanvas: null,
+      metricContext: null,
     };
 
     state.resolveCanvas = function () {
@@ -126,6 +129,34 @@ mergeInto(LibraryManager.library, {
       }
     };
 
+    state.applyColorOverride = function () {
+      var textEl = state.node;
+      var labelEl = state.preedit;
+      if (!textEl) {
+        return;
+      }
+      if (state.customTextColor && state.customTextColor.length > 0) {
+        textEl.style.color = state.customTextColor;
+        if (labelEl) {
+          labelEl.style.color = state.customTextColor;
+        }
+      } else {
+        textEl.style.color = '';
+        if (labelEl) {
+          labelEl.style.color = '';
+        }
+      }
+    };
+
+    state.refreshColorFromContext = function () {
+      var canvas = state.resolveCanvas ? state.resolveCanvas() : null;
+      if (!state.customTextColor && canvas) {
+        state.syncStylesFromCanvas(canvas, state.rect ? state.rect.h : 0);
+        return;
+      }
+      state.applyColorOverride();
+    };
+
     state.commitText = function (text) {
       if (!text || text.length === 0) {
         return;
@@ -142,8 +173,9 @@ mergeInto(LibraryManager.library, {
     };
 
     state.syncStylesFromCanvas = function (canvas, height) {
+      var textEl = state.node;
       var labelEl = state.preedit;
-      if (labelEl && canvas && typeof window !== 'undefined' && window.getComputedStyle) {
+      if (canvas && typeof window !== 'undefined' && window.getComputedStyle) {
         var computed = null;
         try {
           computed = window.getComputedStyle(canvas);
@@ -151,17 +183,31 @@ mergeInto(LibraryManager.library, {
           computed = null;
         }
         if (computed) {
+          if (textEl && computed.color) {
+            textEl.style.color = computed.color;
+          }
+          if (labelEl && computed.color) {
+            labelEl.style.color = computed.color;
+          }
           if (computed.font && computed.font.length > 0) {
-            labelEl.style.font = computed.font;
+            if (labelEl) {
+              labelEl.style.font = computed.font;
+            }
           } else {
             if (computed.fontSize) {
-              labelEl.style.fontSize = computed.fontSize;
+              if (labelEl) {
+                labelEl.style.fontSize = computed.fontSize;
+              }
             }
             if (computed.fontFamily) {
-              labelEl.style.fontFamily = computed.fontFamily;
+              if (labelEl) {
+                labelEl.style.fontFamily = computed.fontFamily;
+              }
             }
             if (computed.fontWeight) {
-              labelEl.style.fontWeight = computed.fontWeight;
+              if (labelEl) {
+                labelEl.style.fontWeight = computed.fontWeight;
+              }
             }
           }
         }
@@ -170,6 +216,9 @@ mergeInto(LibraryManager.library, {
         labelEl.style.lineHeight = height + 'px';
       }
       state.applyFontOverride();
+      if (state.customTextColor && state.customTextColor.length > 0) {
+        state.applyColorOverride();
+      }
     };
 
     state.hidePreedit = function () {
@@ -179,6 +228,83 @@ mergeInto(LibraryManager.library, {
         labelEl.textContent = '';
         labelEl.style.display = 'none';
       }
+    };
+
+    state.parseCssPixel = function (value) {
+      if (!value || typeof value !== 'string') {
+        return 0;
+      }
+      var n = parseFloat(value);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    state.resolvePreeditAscent = function (labelEl, caretHeight) {
+      var lineHeight = caretHeight > 0 ? caretHeight : 16;
+      var fontSize = lineHeight;
+      var fontSpec = '';
+      if (typeof window !== 'undefined' && window.getComputedStyle) {
+        var computed = null;
+        try {
+          computed = window.getComputedStyle(labelEl);
+        } catch (err) {
+          computed = null;
+        }
+        if (computed) {
+          var parsedLineHeight = state.parseCssPixel(computed.lineHeight);
+          if (parsedLineHeight > 0) {
+            lineHeight = parsedLineHeight;
+          }
+          var parsedFontSize = state.parseCssPixel(computed.fontSize);
+          if (parsedFontSize > 0) {
+            fontSize = parsedFontSize;
+          }
+          if (computed.font && computed.font.length > 0) {
+            fontSpec = computed.font;
+          }
+        }
+      }
+      if (!fontSpec || fontSpec.length === 0) {
+        fontSpec = labelEl.style.font || (fontSize + 'px sans-serif');
+      }
+      var ascent = 0;
+      var descent = 0;
+      if (typeof document !== 'undefined') {
+        if (!state.metricCanvas) {
+          state.metricCanvas = document.createElement('canvas');
+        }
+        if (!state.metricContext && state.metricCanvas) {
+          state.metricContext = state.metricCanvas.getContext('2d');
+        }
+      }
+      if (state.metricContext) {
+        try {
+          state.metricContext.font = fontSpec;
+          var metrics = state.metricContext.measureText('Mg');
+          if (metrics) {
+            if (Number.isFinite(metrics.actualBoundingBoxAscent) && metrics.actualBoundingBoxAscent > 0) {
+              ascent = metrics.actualBoundingBoxAscent;
+            }
+            if (Number.isFinite(metrics.actualBoundingBoxDescent) && metrics.actualBoundingBoxDescent > 0) {
+              descent = metrics.actualBoundingBoxDescent;
+            }
+          }
+        } catch (err) {
+          ascent = 0;
+          descent = 0;
+        }
+      }
+      if (ascent <= 0) {
+        ascent = fontSize * 0.8;
+      }
+      if (descent <= 0) {
+        descent = Math.max(fontSize - ascent, fontSize * 0.2);
+      }
+      var contentHeight = ascent + descent;
+      var leading = lineHeight - contentHeight;
+      if (!Number.isFinite(leading) || leading < 0) {
+        leading = 0;
+      }
+      return ascent + leading * 0.5;
     };
 
     state.positionPreedit = function () {
@@ -223,11 +349,15 @@ mergeInto(LibraryManager.library, {
         left = canvasLeft;
       }
       var baseline = caretY + caretHeight;
-      var top = baseline - labelHeight;
+      var ascent = state.resolvePreeditAscent(labelEl, caretHeight);
+      if (!Number.isFinite(ascent) || ascent <= 0) {
+        ascent = labelHeight;
+      }
+      var top = baseline - ascent;
       if (top < canvasTop) {
         top = caretY + caretHeight;
         if (top + labelHeight > canvasBottom) {
-          top = Math.max(canvasTop, Math.min(canvasBottom - labelHeight, baseline - labelHeight));
+          top = Math.max(canvasTop, Math.min(canvasBottom - labelHeight, baseline - ascent));
         }
       }
       labelEl.style.left = Math.round(left) + 'px';
@@ -469,6 +599,25 @@ mergeInto(LibraryManager.library, {
     } else {
       state.applyFontOverride();
     }
+    state.positionPreedit();
+  },
+
+  soluna_wasm_dom_set_color: function (color) {
+    var state = Module.solunaIme;
+    if (!state) {
+      return;
+    }
+    var value = (color >>> 0);
+    if (value !== 0) {
+      var a = ((value >>> 24) & 0xff) / 255;
+      var r = (value >>> 16) & 0xff;
+      var g = (value >>> 8) & 0xff;
+      var b = value & 0xff;
+      state.customTextColor = 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    } else {
+      state.customTextColor = null;
+    }
+    state.refreshColorFromContext();
     state.positionPreedit();
   }
 });
