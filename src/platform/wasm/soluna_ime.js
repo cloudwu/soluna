@@ -70,6 +70,7 @@ mergeInto(LibraryManager.library, {
       rect: { x: 0, y: 0, w: 1, h: 1 },
       customFont: null,
       customFontSize: 0,
+      customTextColor: null,
     };
 
     state.resolveCanvas = function () {
@@ -126,6 +127,34 @@ mergeInto(LibraryManager.library, {
       }
     };
 
+    state.applyColorOverride = function () {
+      var textEl = state.node;
+      var labelEl = state.preedit;
+      if (!textEl) {
+        return;
+      }
+      if (state.customTextColor && state.customTextColor.length > 0) {
+        textEl.style.color = state.customTextColor;
+        if (labelEl) {
+          labelEl.style.color = state.customTextColor;
+        }
+      } else {
+        textEl.style.color = '';
+        if (labelEl) {
+          labelEl.style.color = '';
+        }
+      }
+    };
+
+    state.refreshColorFromContext = function () {
+      var canvas = state.resolveCanvas ? state.resolveCanvas() : null;
+      if (!state.customTextColor && canvas) {
+        state.syncStylesFromCanvas(canvas, state.rect ? state.rect.h : 0);
+        return;
+      }
+      state.applyColorOverride();
+    };
+
     state.commitText = function (text) {
       if (!text || text.length === 0) {
         return;
@@ -142,8 +171,9 @@ mergeInto(LibraryManager.library, {
     };
 
     state.syncStylesFromCanvas = function (canvas, height) {
+      var textEl = state.node;
       var labelEl = state.preedit;
-      if (labelEl && canvas && typeof window !== 'undefined' && window.getComputedStyle) {
+      if (canvas && typeof window !== 'undefined' && window.getComputedStyle) {
         var computed = null;
         try {
           computed = window.getComputedStyle(canvas);
@@ -151,17 +181,31 @@ mergeInto(LibraryManager.library, {
           computed = null;
         }
         if (computed) {
+          if (textEl && computed.color) {
+            textEl.style.color = computed.color;
+          }
+          if (labelEl && computed.color) {
+            labelEl.style.color = computed.color;
+          }
           if (computed.font && computed.font.length > 0) {
-            labelEl.style.font = computed.font;
+            if (labelEl) {
+              labelEl.style.font = computed.font;
+            }
           } else {
             if (computed.fontSize) {
-              labelEl.style.fontSize = computed.fontSize;
+              if (labelEl) {
+                labelEl.style.fontSize = computed.fontSize;
+              }
             }
             if (computed.fontFamily) {
-              labelEl.style.fontFamily = computed.fontFamily;
+              if (labelEl) {
+                labelEl.style.fontFamily = computed.fontFamily;
+              }
             }
             if (computed.fontWeight) {
-              labelEl.style.fontWeight = computed.fontWeight;
+              if (labelEl) {
+                labelEl.style.fontWeight = computed.fontWeight;
+              }
             }
           }
         }
@@ -170,6 +214,9 @@ mergeInto(LibraryManager.library, {
         labelEl.style.lineHeight = height + 'px';
       }
       state.applyFontOverride();
+      if (state.customTextColor && state.customTextColor.length > 0) {
+        state.applyColorOverride();
+      }
     };
 
     state.hidePreedit = function () {
@@ -469,6 +516,25 @@ mergeInto(LibraryManager.library, {
     } else {
       state.applyFontOverride();
     }
+    state.positionPreedit();
+  },
+
+  soluna_wasm_dom_set_color: function (color) {
+    var state = Module.solunaIme;
+    if (!state) {
+      return;
+    }
+    var value = (color >>> 0);
+    if (value !== 0) {
+      var a = ((value >>> 24) & 0xff) / 255;
+      var r = (value >>> 16) & 0xff;
+      var g = (value >>> 8) & 0xff;
+      var b = value & 0xff;
+      state.customTextColor = 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    } else {
+      state.customTextColor = null;
+    }
+    state.refreshColorFromContext();
     state.positionPreedit();
   }
 });

@@ -373,7 +373,13 @@ function callback.frame()
   state.cursor = n
   descent = descent or 0
   if state.focused then
-    app.set_ime_rect(tx + cx, ty + cy - descent, cw, ch)
+    app.set_ime_rect {
+      x = tx + cx,
+      y = ty + cy - descent,
+      width = cw,
+      height = ch,
+      text_color = 0xff000000,
+    }
   else
     app.set_ime_rect(nil)
   end

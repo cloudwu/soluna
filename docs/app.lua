@@ -27,11 +27,11 @@ function app.set_ime_font(font_name, font_size) end
 --- Sets the IME (Input Method Editor) position rectangle
 ---
 --- Defines the screen position where IME candidate window should appear.
+--- Pass `nil` to clear IME rect.
+--- `text_color` is optional ARGB color. `0` means no custom color.
 ---
----@param x integer X position of IME rectangle
----@param y integer Y position of IME rectangle
----@param width integer Width of IME rectangle
----@param height integer Height of IME rectangle
-function app.set_ime_rect(x, y, width, height) end
+---@param rect table|nil
+---Optional fields: `x`, `y`, `width`/`w`, `height`/`h`, `text_color`/`color`.
+function app.set_ime_rect(rect) end
 
 return app

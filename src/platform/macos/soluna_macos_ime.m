@@ -75,6 +75,19 @@ soluna_macos_current_ime_font(void) {
     return font;
 }
 
+static NSColor *
+soluna_macos_current_text_color(void) {
+    if (g_soluna_ime_rect.text_color == 0) {
+        return [NSColor textColor];
+    }
+    uint32_t c = g_soluna_ime_rect.text_color;
+    CGFloat a = ((c >> 24) & 0xff) / 255.0f;
+    CGFloat r = ((c >> 16) & 0xff) / 255.0f;
+    CGFloat g = ((c >> 8) & 0xff) / 255.0f;
+    CGFloat b = (c & 0xff) / 255.0f;
+    return [NSColor colorWithRed:r green:g blue:b alpha:a];
+}
+
 static void
 soluna_macos_apply_ime_font(void) {
     if (g_soluna_ime_label) {
@@ -324,7 +337,7 @@ soluna_update_ime_label(NSView *view, id markedText, NSRange selectedRange) {
         if (font) {
             [attr addAttribute:NSFontAttributeName value:font range:full];
         }
-        [attr addAttribute:NSForegroundColorAttributeName value:[NSColor textColor] range:full];
+        [attr addAttribute:NSForegroundColorAttributeName value:soluna_macos_current_text_color() range:full];
         if ([attr attribute:NSUnderlineStyleAttributeName atIndex:0 effectiveRange:NULL] == nil) {
             [attr addAttribute:NSUnderlineStyleAttributeName value:@(NSUnderlineStyleSingle) range:full];
         }
@@ -495,7 +508,12 @@ soluna_macos_apply_ime_rect(void) {
     if (g_soluna_ime_label) {
         NSView *view = [g_soluna_ime_label superview];
         if (view) {
-            soluna_macos_position_ime_input_view(view);
+            NSString *text = soluna_current_marked_text(view);
+            if (text && text.length > 0) {
+                soluna_update_ime_label(view, text, soluna_current_selected_range(view));
+            } else {
+                soluna_macos_position_ime_input_view(view);
+            }
         }
     }
 }
