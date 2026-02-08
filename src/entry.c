@@ -332,10 +332,11 @@ icon_copy_image(lua_State *L, int index, sapp_image_desc *dst, struct icon_pixel
 static float
 get_field_float(lua_State *L, int index, const char *field) {
 	lua_getfield(L, index, field);
-	if (lua_isnil(L, -1)) {
-		luaL_error(L, "ime rect missing %s", field);
+	if (lua_getfield(L, index, field) != LUA_TNUMBER) {
+      return luaL_error(L, "Invalid .%s type (%s is not a number)",
+        field, lua_typename(L, lua_type(L, -1)));
 	}
-	float value = (float)luaL_checknumber(L, -1);
+ 	float value = (float)lua_tonumber(L, -1);
 	lua_pop(L, 1);
 	return value;
 }
@@ -405,8 +406,7 @@ lset_ime_rect(lua_State *L) {
 	g_soluna_ime_rect.w = get_field_float(L, 1, "width");
 	g_soluna_ime_rect.h = get_field_float(L, 1, "height");
 
-	lua_getfield(L, 1, "text_color");
-	if (lua_isnil(L, -1)) {
+	if (lua_getfield(L, 1, "text_color") == LUA_TNIL) {
 		g_soluna_ime_rect.text_color = 0;
 	} else {
 		uint32_t color = (uint32_t)luaL_checkinteger(L, -1);

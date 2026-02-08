@@ -71,6 +71,8 @@ mergeInto(LibraryManager.library, {
       customFont: null,
       customFontSize: 0,
       customTextColor: null,
+      metricCanvas: null,
+      metricContext: null,
     };
 
     state.resolveCanvas = function () {
@@ -228,6 +230,83 @@ mergeInto(LibraryManager.library, {
       }
     };
 
+    state.parseCssPixel = function (value) {
+      if (!value || typeof value !== 'string') {
+        return 0;
+      }
+      var n = parseFloat(value);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    state.resolvePreeditAscent = function (labelEl, caretHeight) {
+      var lineHeight = caretHeight > 0 ? caretHeight : 16;
+      var fontSize = lineHeight;
+      var fontSpec = '';
+      if (typeof window !== 'undefined' && window.getComputedStyle) {
+        var computed = null;
+        try {
+          computed = window.getComputedStyle(labelEl);
+        } catch (err) {
+          computed = null;
+        }
+        if (computed) {
+          var parsedLineHeight = state.parseCssPixel(computed.lineHeight);
+          if (parsedLineHeight > 0) {
+            lineHeight = parsedLineHeight;
+          }
+          var parsedFontSize = state.parseCssPixel(computed.fontSize);
+          if (parsedFontSize > 0) {
+            fontSize = parsedFontSize;
+          }
+          if (computed.font && computed.font.length > 0) {
+            fontSpec = computed.font;
+          }
+        }
+      }
+      if (!fontSpec || fontSpec.length === 0) {
+        fontSpec = labelEl.style.font || (fontSize + 'px sans-serif');
+      }
+      var ascent = 0;
+      var descent = 0;
+      if (typeof document !== 'undefined') {
+        if (!state.metricCanvas) {
+          state.metricCanvas = document.createElement('canvas');
+        }
+        if (!state.metricContext && state.metricCanvas) {
+          state.metricContext = state.metricCanvas.getContext('2d');
+        }
+      }
+      if (state.metricContext) {
+        try {
+          state.metricContext.font = fontSpec;
+          var metrics = state.metricContext.measureText('Mg');
+          if (metrics) {
+            if (Number.isFinite(metrics.actualBoundingBoxAscent) && metrics.actualBoundingBoxAscent > 0) {
+              ascent = metrics.actualBoundingBoxAscent;
+            }
+            if (Number.isFinite(metrics.actualBoundingBoxDescent) && metrics.actualBoundingBoxDescent > 0) {
+              descent = metrics.actualBoundingBoxDescent;
+            }
+          }
+        } catch (err) {
+          ascent = 0;
+          descent = 0;
+        }
+      }
+      if (ascent <= 0) {
+        ascent = fontSize * 0.8;
+      }
+      if (descent <= 0) {
+        descent = Math.max(fontSize - ascent, fontSize * 0.2);
+      }
+      var contentHeight = ascent + descent;
+      var leading = lineHeight - contentHeight;
+      if (!Number.isFinite(leading) || leading < 0) {
+        leading = 0;
+      }
+      return ascent + leading * 0.5;
+    };
+
     state.positionPreedit = function () {
       var labelEl = state.preedit;
       if (!labelEl || labelEl.style.display === 'none') {
@@ -270,11 +349,15 @@ mergeInto(LibraryManager.library, {
         left = canvasLeft;
       }
       var baseline = caretY + caretHeight;
-      var top = baseline - labelHeight;
+      var ascent = state.resolvePreeditAscent(labelEl, caretHeight);
+      if (!Number.isFinite(ascent) || ascent <= 0) {
+        ascent = labelHeight;
+      }
+      var top = baseline - ascent;
       if (top < canvasTop) {
         top = caretY + caretHeight;
         if (top + labelHeight > canvasBottom) {
-          top = Math.max(canvasTop, Math.min(canvasBottom - labelHeight, baseline - labelHeight));
+          top = Math.max(canvasTop, Math.min(canvasBottom - labelHeight, baseline - ascent));
         }
       }
       labelEl.style.left = Math.round(left) + 'px';
