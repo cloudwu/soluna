@@ -124,12 +124,8 @@ $(BUILD)/soluna_entry.o : src/entry.c src/version.h
 $(BUILD)/soluna_%.o : src/%.c
 	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC)
 
-
 $(BUILD)/platform_%.o : src/platform/windows/%.c
-	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC)
-
-$(BUILD)/platform_%.o : src/platform/windows/%.c
-	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC)
+	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC) -Isrc
 
 $(BUILD)/ltask_%.o : 3rd/ltask/src/%.c
 	$(COMPILE_C) $(LUAINC) -D_WIN32_WINNT=0x0601 -DLTASK_EXTERNAL_OPENLIBS=soluna_openlibs
