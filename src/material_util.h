@@ -8,6 +8,7 @@
 #define MATERIAL_TEXT_NORMAL 1
 #define MATERIAL_QUAD 2
 #define MATERIAL_MASK 3
+#define MATERIAL_PERSPECTIVE_QUAD 4
 
 void util_ref_object(lua_State *L, void *ptr, int uv_index, const char *key, const char *luatype, int direct);
 
