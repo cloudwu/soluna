@@ -25,7 +25,9 @@ local matproj = {}
 ---
 --- The result should be passed to `batch:add(...)`.
 --- The sprite index is 1-based, consistent with sprite bundle ids.
---- UV flip is controlled by the sign of `scale_x/scale_y`.
+--- `scale_x/scale_y` are applied directly to local geometry.
+--- If negative, geometry is reflected around local origin `(0, 0)`.
+--- To mirror around a different axis, define `quad` around your desired pivot.
 ---
 ---@param sprite integer 1-based sprite id
 ---@param options soluna.material.perspective_quad.options Perspective quad options

@@ -17,7 +17,6 @@ local CARD_H <const> = 196
 local HALF_W <const> = CARD_W * 0.5
 local HALF_H <const> = CARD_H * 0.5
 local TILE_BG <const> = 0x303845ff
-local CLEAR_BG <const> = 0x171b22ff
 local WHITE <const> = 0xffffffff
 local LABEL_TEXT <const> = 0xe7edf5
 local LABEL_H <const> = 20
@@ -228,7 +227,6 @@ end
 function callback.frame(count)
 	local t = count * 0.03
 
-	batch:add(matquad.quad(args.width, args.height, CLEAR_BG), 0, 0)
 	draw_flip_cases(t)
 	draw_perspective_compare(t)
 	draw_arbitrary_quad_cases(t)

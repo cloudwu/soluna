@@ -14,8 +14,6 @@
 
 #define PQUAD_CORNER_N 4
 #define PQUAD_INFO_CORNER_MASK 0x3u
-#define PQUAD_INFO_FLIP_X (1u << 2)
-#define PQUAD_INFO_FLIP_Y (1u << 3)
 #define PQUAD_POS_FIX_SCALE 256.0f
 #define PQUAD_POS_FIX_INV_SCALE (1.0f / PQUAD_POS_FIX_SCALE)
 
@@ -116,17 +114,19 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 		int base = i * PQUAD_CORNER_N;
 		int j;
 		int sprite = -1;
-		uint32_t info_flags = 0;
 		float pos[PQUAD_CORNER_N][2];
 		for (j=0;j<PQUAD_CORNER_N;j++) {
 			struct draw_primitive *p = &prim[(base + j) * 2];
 			assert(p->sprite == -MATERIAL_PERSPECTIVE_QUAD);
 			struct pquad_meta *meta = (struct pquad_meta *)&prim[(base + j) * 2 + 1];
+			uint32_t meta_flags = meta->info & ~PQUAD_INFO_CORNER_MASK;
 			if (j == 0) {
 				sprite = meta->header.sprite;
-				info_flags = meta->info & ~PQUAD_INFO_CORNER_MASK;
+				if (meta_flags != 0) {
+					luaL_error(L, "Invalid perspective quad stream flags 0x%x", meta_flags);
+				}
 				inst->color = meta->color;
-			} else if (meta->header.sprite != sprite || (meta->info & ~PQUAD_INFO_CORNER_MASK) != info_flags) {
+			} else if (meta->header.sprite != sprite || meta_flags != 0) {
 				luaL_error(L, "Invalid perspective quad stream");
 			}
 
@@ -150,14 +150,6 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 		float v = (float)(r->v >> 16);
 		float uw = (float)(r->u & 0xffff);
 		float vh = (float)(r->v & 0xffff);
-		if (info_flags & PQUAD_INFO_FLIP_X) {
-			u += uw;
-			uw = -uw;
-		}
-		if (info_flags & PQUAD_INFO_FLIP_Y) {
-			v += vh;
-			vh = -vh;
-		}
 		inst->uv_rect[0] = u;
 		inst->uv_rect[1] = v;
 		inst->uv_rect[2] = uw;
@@ -261,10 +253,9 @@ lnew_material_perspective_quad(lua_State *L) {
 
 static inline float
 get_number_field(lua_State *L, int index, const char *field, float defv) {
-	float v = defv;
-	if (lua_getfield(L, index, field) == LUA_TNUMBER) {
-		v = lua_tonumber(L, -1);
-	}
+	float v;
+	lua_getfield(L, index, field);
+	v = luaL_optnumber(L, -1, defv);
 	lua_pop(L, 1);
 	return v;
 }
@@ -274,7 +265,7 @@ get_quad(lua_State *L, int index, float quad[8]) {
 	if (lua_getfield(L, index, "quad") == LUA_TTABLE) {
 		int i;
 		for (i=0;i<8;i++) {
-			lua_rawgeti(L, -1, i + 1);
+			lua_geti(L, -1, i + 1);
 			quad[i] = luaL_checknumber(L, -1);
 			lua_pop(L, 1);
 		}
@@ -300,18 +291,16 @@ get_quad(lua_State *L, int index, float quad[8]) {
 static void
 get_q(lua_State *L, int index, float q[4]) {
 	int i;
-	for (i=0;i<4;i++) {
-		q[i] = 1.0f;
-	}
 	if (lua_getfield(L, index, "q") != LUA_TTABLE) {
+		for (i=0;i<4;i++) {
+			q[i] = 1.0f;
+		}
 		lua_pop(L, 1);
 		return;
 	}
 	for (i=0;i<4;i++) {
-		lua_rawgeti(L, -1, i + 1);
-		if (lua_type(L, -1) == LUA_TNUMBER) {
-			q[i] = lua_tonumber(L, -1);
-		}
+		lua_geti(L, -1, i + 1);
+		q[i] = luaL_optnumber(L, -1, 1.0f);
 		lua_pop(L, 1);
 	}
 	lua_pop(L, 1);
@@ -319,12 +308,11 @@ get_q(lua_State *L, int index, float q[4]) {
 
 static uint32_t
 get_color(lua_State *L, int index) {
-	uint32_t color = 0xffffffff;
-	if (lua_getfield(L, index, "color") == LUA_TNUMBER) {
-		color = (uint32_t)lua_tointeger(L, -1);
-		if (!(color & 0xff000000))
-			color |= 0xff000000;
-	}
+	uint32_t color;
+	lua_getfield(L, index, "color");
+	color = (uint32_t)luaL_optinteger(L, -1, 0xffffffff);
+	if (!(color & 0xff000000))
+		color |= 0xff000000;
 	lua_pop(L, 1);
 	return color;
 }
@@ -340,16 +328,6 @@ lperspective_quad_sprite(lua_State *L) {
 	float scale_y = get_number_field(L, 2, "scale_y", 1.0f);
 	float shear_x = get_number_field(L, 2, "shear_x", 0.0f);
 	float shear_y = get_number_field(L, 2, "shear_y", 0.0f);
-
-	uint32_t info = 0;
-	if (scale_x < 0.0f) {
-		scale_x = -scale_x;
-		info |= PQUAD_INFO_FLIP_X;
-	}
-	if (scale_y < 0.0f) {
-		scale_y = -scale_y;
-		info |= PQUAD_INFO_FLIP_Y;
-	}
 
 	float q[4];
 	get_q(L, 2, q);
@@ -369,7 +347,7 @@ lperspective_quad_sprite(lua_State *L) {
 		prim[i].pos.sprite = -MATERIAL_PERSPECTIVE_QUAD;
 
 		prim[i].u.meta.header.sprite = sprite;
-		prim[i].u.meta.info = info | (uint32_t)i;
+		prim[i].u.meta.info = (uint32_t)i;
 		prim[i].u.meta.q = q[i];
 		prim[i].u.meta.color = color;
 	}
