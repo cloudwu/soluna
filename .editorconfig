@@ -1,0 +1,10 @@
+# see https://github.com/CppCXY/EmmyLuaCodeStyle
+[*.lua]
+
+max_line_length = 120
+end_of_line = lf
+indent_style = tab
+indent_size = 4
+quote_style = double
+call_arg_parentheses = remove
+auto_collapse_lines = false

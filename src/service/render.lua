@@ -7,6 +7,7 @@ local defmat = require "soluna.material.default"
 local textmat = require "soluna.material.text"
 local quadmat = require "soluna.material.quad"
 local maskmat = require "soluna.material.mask"
+local pqmat = require "soluna.material.perspective_quad"
 local soluna_app = require "soluna.app"
 
 global require, assert, pairs, pcall, ipairs, print
@@ -17,6 +18,7 @@ local DEFAULT_MAT <const> = 0
 local TEXT_MAT <const> = 1
 local QUAD_MAT <const> = 2
 local MASK_MAT <const> = 3
+local PERSPECTIVE_QUAD_MAT <const> = 4
 
 local font = {} ;  do
 	local mgr = require "soluna.font.manager"
@@ -125,7 +127,16 @@ local materials = {
 			STATE.mask_bindings:view(1, STATE.views[tex+1])
 			STATE.material_mask:draw(ptr, n, tex)
 		end,
-	}
+	},
+	[PERSPECTIVE_QUAD_MAT] = {
+		submit = function(ptr, n)
+			STATE.material_perspective_quad:submit(ptr, n)
+		end,
+		draw = function(ptr, n, tex)
+			STATE.perspective_quad_bindings:view(1, STATE.views[tex+1])
+			STATE.material_perspective_quad:draw(ptr, n, tex)
+		end,
+	},
 }
 
 
@@ -176,6 +187,7 @@ local function frame(count)
 	STATE.text_bindings:base(0)
 	STATE.quad_bindings:base(0)
 	STATE.mask_bindings:base(0)
+	STATE.perspective_quad_bindings:base(0)
 	for i = 1, batch_n do
 		local ptr, size = batch[i][1]()
 		if ptr then
@@ -353,6 +365,21 @@ local function render_init(arg)
 		 		
 		STATE.mask_bindings = maskbind
 	end
+
+	do
+		STATE.perspective_quad_inst = render.buffer {
+			type = "vertex",
+			usage = "stream",
+			label = "perspective-quad-instance",
+			size = pqmat.instance_size * setting.draw_instance,
+		}
+
+		local pqbind = render.bindings()
+		pqbind:vbuffer(0, STATE.perspective_quad_inst)
+		pqbind:sampler(0, STATE.default_sampler)
+
+		STATE.perspective_quad_bindings = pqbind
+	end
 	
 	STATE.drawmgr = drawmgr.new(arg.bank_ptr, setting.draw_instance)
 	
@@ -405,6 +432,14 @@ local function render_init(arg)
 		bindings = STATE.quad_bindings,
 		uniform = STATE.uniform,
 		sr_buffer = STATE.srbuffer_mem,
+		tmp_buffer = tmp_buffer,
+	}
+
+	STATE.material_perspective_quad = pqmat.new {
+		inst_buffer = STATE.perspective_quad_inst,
+		bindings = STATE.perspective_quad_bindings,
+		uniform = STATE.uniform,
+		sprite_bank = arg.bank_ptr,
 		tmp_buffer = tmp_buffer,
 	}
 end
