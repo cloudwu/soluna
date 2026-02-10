@@ -18,7 +18,7 @@ local matproj = {}
 ---@field shear_x? number Local x shear (default: 0.0)
 ---@field shear_y? number Local y shear (default: 0.0)
 ---@field q? number[] Perspective factors as {q0,q1,q2,q3}, defaults to all 1.0
----@field color? integer Color tint in RGBA format (0xRRGGBBAA), default: 0xffffffff
+---@field color? integer Color tint in ARGB format (0xAARRGGBB), default: 0xffffffff
 
 ---
 --- Creates a perspective quad sprite command stream.
