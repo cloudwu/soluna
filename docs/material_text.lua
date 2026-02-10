@@ -14,7 +14,8 @@ local mattext = {}
 --- 1. block(text, width, height) - creates a renderable text sprite
 --- 2. cursor(text, position, width, height) - calculates cursor position in text
 ---
---- Color format: RGBA as 32-bit integer. If alpha channel (high byte) is 0, defaults to 0xFF (opaque).
+--- Color format: ARGB as 32-bit integer 0xAARRGGBB.
+--- If alpha channel (high byte) is 0, defaults to 0xFF (opaque).
 --- Alignment codes (case-insensitive, can be combined):
 ---   Horizontal: L (left), C (center), R (right)
 ---   Vertical: T (top), V (center), B (bottom)
@@ -23,7 +24,7 @@ local mattext = {}
 ---@param fontcobj userdata Font system C object from font.cobj()
 ---@param fontid integer Font ID from font.name()
 ---@param size? integer Font size in pixels (default: 16)
----@param color? integer Text color (RGBA as 0xRRGGBBAA, default: 0xff000000 = opaque black)
+---@param color? integer Text color (ARGB as 0xAARRGGBB, default: 0xff000000 = opaque black)
 ---@param alignment? string Alignment code (default: no alignment)
 ---@return fun(text: string, width: integer, height: integer): userdata block_function Creates text sprite
 ---@return fun(text: string, position: integer, width: integer, height: integer): integer, integer, integer, integer, integer, integer cursor_function Returns x, y, w, h, actual_position, descent

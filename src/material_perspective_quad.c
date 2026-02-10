@@ -17,11 +17,15 @@
 #define PQUAD_POS_FIX_SCALE 256.0f
 #define PQUAD_POS_FIX_INV_SCALE (1.0f / PQUAD_POS_FIX_SCALE)
 
+struct color {
+	unsigned char channel[4];
+};
+
 struct pquad_meta {
 	struct draw_primitive_external header;
 	uint32_t info;
 	float q;
-	uint32_t color;
+	struct color color;
 };
 
 struct corner_primitive {
@@ -38,7 +42,7 @@ struct inst_object {
 	float pos_h2[3];
 	float uv_rect[4];
 	float q[4];
-	uint32_t color;
+	struct color color;
 };
 
 struct material_perspective_quad {
@@ -306,15 +310,20 @@ get_q(lua_State *L, int index, float q[4]) {
 	lua_pop(L, 1);
 }
 
-static uint32_t
+static struct color
 get_color(lua_State *L, int index) {
 	uint32_t color;
+	struct color c;
 	lua_getfield(L, index, "color");
 	color = (uint32_t)luaL_optinteger(L, -1, 0xffffffff);
 	if (!(color & 0xff000000))
 		color |= 0xff000000;
+	c.channel[0] = (color >> 16) & 0xff;
+	c.channel[1] = (color >> 8) & 0xff;
+	c.channel[2] = color & 0xff;
+	c.channel[3] = (color >> 24) & 0xff;
 	lua_pop(L, 1);
-	return color;
+	return c;
 }
 
 static int
@@ -331,7 +340,7 @@ lperspective_quad_sprite(lua_State *L) {
 
 	float q[4];
 	get_q(L, 2, q);
-	uint32_t color = get_color(L, 2);
+	struct color color = get_color(L, 2);
 
 	struct corner_primitive prim[PQUAD_CORNER_N];
 	int i;
