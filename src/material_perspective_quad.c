@@ -14,6 +14,9 @@
 
 #define PQUAD_CORNER_N 4
 #define PQUAD_INFO_CORNER_MASK 0x3u
+#define PQUAD_INFO_USE_SPRITE_RECT 0x4u
+#define PQUAD_PACK_MASK_16 0xffffu
+#define PQUAD_OFF_BIAS 0x8000
 #define PQUAD_POS_FIX_SCALE 256.0f
 #define PQUAD_POS_FIX_INV_SCALE (1.0f / PQUAD_POS_FIX_SCALE)
 
@@ -55,6 +58,24 @@ struct material_perspective_quad {
 };
 
 #define PQUAD_EPSILON 0.000001f
+
+struct sprite_rect_basis {
+	float scale_x;
+	float scale_y;
+	float shear_x;
+	float shear_y;
+	float tx;
+	float ty;
+};
+
+struct sprite_rect_data {
+	float u;
+	float v;
+	float w;
+	float h;
+	float ox;
+	float oy;
+};
 
 static void
 set_position_homography(const float pos[PQUAD_CORNER_N][2], struct inst_object *inst) {
@@ -106,6 +127,53 @@ perspective_quad_count(lua_State *L, int prim_n) {
 	return prim_n / PQUAD_CORNER_N;
 }
 
+static inline struct sprite_rect_data
+unpack_sprite_rect(const struct sprite_rect *r) {
+	struct sprite_rect_data out;
+	out.u = (float)(r->u >> 16);
+	out.v = (float)(r->v >> 16);
+	out.w = (float)(r->u & PQUAD_PACK_MASK_16);
+	out.h = (float)(r->v & PQUAD_PACK_MASK_16);
+	out.ox = (float)((r->off >> 16) & PQUAD_PACK_MASK_16) - PQUAD_OFF_BIAS;
+	out.oy = (float)(r->off & PQUAD_PACK_MASK_16) - PQUAD_OFF_BIAS;
+	return out;
+}
+
+static inline void
+decode_sprite_rect_basis(struct sprite_rect_basis *basis, uint32_t corner, const struct draw_primitive *p) {
+	float x = (float)p->x * PQUAD_POS_FIX_INV_SCALE;
+	float y = (float)p->y * PQUAD_POS_FIX_INV_SCALE;
+	switch (corner) {
+	case 0:
+		basis->scale_x = x;
+		basis->scale_y = y;
+		break;
+	case 1:
+		basis->shear_x = x;
+		basis->shear_y = y;
+		break;
+	case 2:
+		basis->tx = x;
+		basis->ty = y;
+		break;
+	}
+}
+
+static inline void
+build_quad_from_rect(const struct sprite_rect_basis *basis, const struct sprite_rect_data *rect, float pos[PQUAD_CORNER_N][2]) {
+	float scale_x = basis->scale_x - basis->tx;
+	float scale_y = basis->scale_y - basis->ty;
+	float shear_x = basis->shear_x - basis->tx;
+	float shear_y = basis->shear_y - basis->ty;
+	int corner;
+	for (corner=0; corner<PQUAD_CORNER_N; corner++) {
+		float x = (corner & 1) ? (rect->w - rect->ox) : -rect->ox;
+		float y = (corner >> 1) ? (rect->h - rect->oy) : -rect->oy;
+		pos[corner][0] = x * scale_x + y * shear_x + basis->tx;
+		pos[corner][1] = x * shear_y + y * scale_y + basis->ty;
+	}
+}
+
 static void
 submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 	struct material_perspective_quad *m = (struct material_perspective_quad *)m_;
@@ -118,19 +186,19 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 		int base = i * PQUAD_CORNER_N;
 		int j;
 		int sprite = -1;
+		uint32_t stream_flags = 0;
+		struct sprite_rect_basis sprite_rect_basis = {0};
 		float pos[PQUAD_CORNER_N][2];
 		for (j=0;j<PQUAD_CORNER_N;j++) {
 			struct draw_primitive *p = &prim[(base + j) * 2];
 			assert(p->sprite == -MATERIAL_PERSPECTIVE_QUAD);
 			struct pquad_meta *meta = (struct pquad_meta *)&prim[(base + j) * 2 + 1];
-			uint32_t meta_flags = meta->info & ~PQUAD_INFO_CORNER_MASK;
+			uint32_t flags = meta->info & PQUAD_INFO_USE_SPRITE_RECT;
 			if (j == 0) {
 				sprite = meta->header.sprite;
-				if (meta_flags != 0) {
-					luaL_error(L, "Invalid perspective quad stream flags 0x%x", meta_flags);
-				}
+				stream_flags = flags;
 				inst->color = meta->color;
-			} else if (meta->header.sprite != sprite || meta_flags != 0) {
+			} else if (meta->header.sprite != sprite || flags != stream_flags) {
 				luaL_error(L, "Invalid perspective quad stream");
 			}
 
@@ -138,8 +206,12 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 			if (corner >= PQUAD_CORNER_N)
 				luaL_error(L, "Invalid perspective quad corner %u", corner);
 
-			pos[corner][0] = (float)p->x * PQUAD_POS_FIX_INV_SCALE;
-			pos[corner][1] = (float)p->y * PQUAD_POS_FIX_INV_SCALE;
+			if (stream_flags & PQUAD_INFO_USE_SPRITE_RECT) {
+				decode_sprite_rect_basis(&sprite_rect_basis, corner, p);
+			} else {
+				pos[corner][0] = (float)p->x * PQUAD_POS_FIX_INV_SCALE;
+				pos[corner][1] = (float)p->y * PQUAD_POS_FIX_INV_SCALE;
+			}
 
 			float q = meta->q;
 			if (q <= PQUAD_EPSILON) {
@@ -147,17 +219,17 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 			}
 			inst->q[corner] = q;
 		}
+		struct sprite_rect *r = &rect[sprite];
+		struct sprite_rect_data sprite_rect = unpack_sprite_rect(r);
+		if (stream_flags & PQUAD_INFO_USE_SPRITE_RECT) {
+			build_quad_from_rect(&sprite_rect_basis, &sprite_rect, pos);
+		}
 		set_position_homography(pos, inst);
 
-		struct sprite_rect *r = &rect[sprite];
-		float u = (float)(r->u >> 16);
-		float v = (float)(r->v >> 16);
-		float uw = (float)(r->u & 0xffff);
-		float vh = (float)(r->v & 0xffff);
-		inst->uv_rect[0] = u;
-		inst->uv_rect[1] = v;
-		inst->uv_rect[2] = uw;
-		inst->uv_rect[3] = vh;
+		inst->uv_rect[0] = sprite_rect.u;
+		inst->uv_rect[1] = sprite_rect.v;
+		inst->uv_rect[2] = sprite_rect.w;
+		inst->uv_rect[3] = sprite_rect.h;
 	}
 	sg_append_buffer(m->inst, &(sg_range) { tmp , out_n * sizeof(tmp[0]) });
 }
@@ -264,7 +336,7 @@ get_number_field(lua_State *L, int index, const char *field, float defv) {
 	return v;
 }
 
-static void
+static int
 get_quad(lua_State *L, int index, float quad[8]) {
 	if (lua_getfield(L, index, "quad") == LUA_TTABLE) {
 		int i;
@@ -274,22 +346,10 @@ get_quad(lua_State *L, int index, float quad[8]) {
 			lua_pop(L, 1);
 		}
 		lua_pop(L, 1);
-		return;
+		return 0;
 	}
 	lua_pop(L, 1);
-
-	float w = get_number_field(L, index, "w", 0.0f);
-	float h = get_number_field(L, index, "h", 0.0f);
-	float ox = get_number_field(L, index, "ox", 0.0f);
-	float oy = get_number_field(L, index, "oy", 0.0f);
-	if (w == 0 || h == 0) {
-		luaL_error(L, "Perspective quad sprite needs .quad or .w/.h");
-		return;
-	}
-	quad[0] = -ox; quad[1] = -oy;
-	quad[2] = w - ox; quad[3] = -oy;
-	quad[4] = -ox; quad[5] = h - oy;
-	quad[6] = w - ox; quad[7] = h - oy;
+	return 1;
 }
 
 static void
@@ -332,7 +392,7 @@ lperspective_quad_sprite(lua_State *L) {
 	luaL_checktype(L, 2, LUA_TTABLE);
 
 	float quad[8];
-	get_quad(L, 2, quad);
+	int use_sprite_rect = get_quad(L, 2, quad);
 	float scale_x = get_number_field(L, 2, "scale_x", 1.0f);
 	float scale_y = get_number_field(L, 2, "scale_y", 1.0f);
 	float shear_x = get_number_field(L, 2, "shear_x", 0.0f);
@@ -345,18 +405,38 @@ lperspective_quad_sprite(lua_State *L) {
 	struct corner_primitive prim[PQUAD_CORNER_N];
 	int i;
 	for (i=0;i<PQUAD_CORNER_N;i++) {
-		float x = quad[i * 2];
-		float y = quad[i * 2 + 1];
-		float tx = x * scale_x + y * shear_x;
-		float ty = x * shear_y + y * scale_y;
-
-		prim[i].pos.x = (int32_t)(tx * PQUAD_POS_FIX_SCALE);
-		prim[i].pos.y = (int32_t)(ty * PQUAD_POS_FIX_SCALE);
+		if (use_sprite_rect) {
+			switch (i) {
+			case 0:
+				prim[i].pos.x = (int32_t)(scale_x * PQUAD_POS_FIX_SCALE);
+				prim[i].pos.y = (int32_t)(scale_y * PQUAD_POS_FIX_SCALE);
+				break;
+			case 1:
+				prim[i].pos.x = (int32_t)(shear_x * PQUAD_POS_FIX_SCALE);
+				prim[i].pos.y = (int32_t)(shear_y * PQUAD_POS_FIX_SCALE);
+				break;
+			default:
+				prim[i].pos.x = 0;
+				prim[i].pos.y = 0;
+				break;
+			}
+		} else {
+			float x = quad[i * 2];
+			float y = quad[i * 2 + 1];
+			float tx = x * scale_x + y * shear_x;
+			float ty = x * shear_y + y * scale_y;
+			prim[i].pos.x = (int32_t)(tx * PQUAD_POS_FIX_SCALE);
+			prim[i].pos.y = (int32_t)(ty * PQUAD_POS_FIX_SCALE);
+		}
 		prim[i].pos.sr = 0;
 		prim[i].pos.sprite = -MATERIAL_PERSPECTIVE_QUAD;
 
 		prim[i].u.meta.header.sprite = sprite;
-		prim[i].u.meta.info = (uint32_t)i;
+		uint32_t info = (uint32_t)i;
+		if (use_sprite_rect) {
+			info |= PQUAD_INFO_USE_SPRITE_RECT;
+		}
+		prim[i].u.meta.info = info;
 		prim[i].u.meta.q = q[i];
 		prim[i].u.meta.color = color;
 	}
