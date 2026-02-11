@@ -390,13 +390,12 @@ soluna_current_caret_screen_rect(NSView *view) {
 - (void)insertText:(id)string replacementRange:(NSRange)replacementRange {
     (void)replacementRange;
     NSString *plain = soluna_plain_string(string);
+    bool commit = (plain.length > 0) && g_soluna_macos_composition;
     soluna_store_marked_text(self, nil, NSMakeRange(NSNotFound, 0));
-    if (plain.length > 0) {
+    if (commit) {
         soluna_emit_nsstring(plain);
-        soluna_set_event_consumed(self, true);
-    } else {
-        soluna_set_event_consumed(self, false);
     }
+    soluna_set_event_consumed(self, commit);
     g_soluna_macos_composition = false;
     soluna_macos_hide_ime_label();
 }
