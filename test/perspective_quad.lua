@@ -10,7 +10,7 @@ local file = require "soluna.file"
 soluna.set_window_title "perspective quad regression matrix"
 
 local sprites = soluna.load_sprites "asset/sprites.dl"
-local avatar = assert(sprites.avatar)
+local avatar = assert(sprites.avatar2)
 
 local CARD_W <const> = 160
 local CARD_H <const> = 196
@@ -60,15 +60,6 @@ if fontid then
 	make_label = mattext.block(font.cobj(), fontid, 14, LABEL_TEXT, "CV")
 end
 local label_cache = {}
-
-local function rect_quad(w, h)
-	return {
-		-w * 0.5, -h * 0.5,
-		w * 0.5, -h * 0.5,
-		-w * 0.5, h * 0.5,
-		w * 0.5, h * 0.5,
-	}
-end
 
 local function card_quad(theta)
 	local dist = 460.0
@@ -122,32 +113,31 @@ end
 local args = ...
 local batch = args.batch
 local callback = {}
-local base_quad = rect_quad(CARD_W * 0.58, CARD_H * 0.58)
+local base_scale_x <const> = 0.58
+local base_scale_y <const> = 0.58
 
 local function draw_flip_cases(t)
 	local y = 126
 	draw_tile(batch, 110, y, 130, 160, "base")
-	draw_sprite(batch, 110, y, { quad = base_quad, color = WHITE })
+	draw_sprite(batch, 110, y, { scale_x = base_scale_x, scale_y = base_scale_y, color = WHITE })
 
 	draw_tile(batch, 250, y, 130, 160, "flip_x")
-	draw_sprite(batch, 250, y, { quad = base_quad, scale_x = -1.0, color = WHITE })
+	draw_sprite(batch, 250, y, { scale_x = -base_scale_x, scale_y = base_scale_y, color = WHITE })
 
 	draw_tile(batch, 390, y, 130, 160, "flip_y")
-	draw_sprite(batch, 390, y, { quad = base_quad, scale_y = -1.0, color = WHITE })
+	draw_sprite(batch, 390, y, { scale_x = base_scale_x, scale_y = -base_scale_y, color = WHITE })
 
 	draw_tile(batch, 530, y, 130, 160, "flip_xy")
 	draw_sprite(batch, 530, y, {
-		quad = base_quad,
-		scale_x = -1.0,
-		scale_y = -1.0,
+		scale_x = -base_scale_x,
+		scale_y = -base_scale_y,
 		color = WHITE,
 	})
 
 	draw_tile(batch, 670, y, 130, 160, "affine")
 	draw_sprite(batch, 670, y, {
-		quad = base_quad,
-		scale_x = 1.30,
-		scale_y = 0.74,
+		scale_x = base_scale_x * 1.30,
+		scale_y = base_scale_y * 0.74,
 		shear_x = math.sin(t * 0.8) * 0.40,
 		shear_y = math.cos(t * 0.7) * 0.16,
 		color = WHITE,
