@@ -224,6 +224,9 @@ soluna_linux_filter_event(Display *dpy, XEvent *event) {
         return true;
     }
     if (event->type == KeyPress) {
+        if (!g_soluna_ime_rect.valid) {
+            return false;
+        }
         if (event->xkey.display != soluna_linux_display() || event->xkey.window != soluna_linux_window()) {
             return false;
         }
@@ -245,15 +248,14 @@ soluna_linux_XNextEvent(Display *display, XEvent *event) {
             abort();
         }
     }
-    for (;;) {
-        int r = soluna_linux_real_XNextEvent(display, event);
-        if (r != 0) {
-            return r;
-        }
-        if (!soluna_linux_filter_event(display, event)) {
-            return 0;
-        }
+    int r = soluna_linux_real_XNextEvent(display, event);
+    if (r != 0) {
+        return r;
     }
+    if (soluna_linux_filter_event(display, event)) {
+        event->type = 0;
+    }
+    return 0;
 }
 
 int
