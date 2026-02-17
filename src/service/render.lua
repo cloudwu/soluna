@@ -336,6 +336,7 @@ local function render_init(arg)
 
 			STATE.text_bindings = text_bindings
 		else
+			STATE.text_inst = STATE.inst
 			STATE.text_bindings = STATE.bindings
 		end
 	end
