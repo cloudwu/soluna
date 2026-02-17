@@ -323,8 +323,14 @@ local function render_init(arg)
 		if text_sampler_desc then
 			text_sampler_desc.label = text_sampler_desc.label or "text-sampler"
 			STATE.text_sampler = render.sampler(text_sampler_desc)
+			STATE.text_inst = render.buffer {
+				type = "vertex",
+				usage = "stream",
+				label = "text-instance",
+				size = textmat.instance_size * setting.draw_instance,
+			}
 			local text_bindings = render.bindings()
-			text_bindings:vbuffer(0, STATE.inst)
+			text_bindings:vbuffer(0, STATE.text_inst)
 			text_bindings:view(0, views.storage)
 			text_bindings:sampler(0, STATE.text_sampler)
 
@@ -419,7 +425,7 @@ local function render_init(arg)
 	}
 	
 	STATE.material_text = textmat.normal {
-		inst_buffer = STATE.inst,
+		inst_buffer = STATE.text_inst,
 		bindings = STATE.text_bindings,
 		uniform = STATE.uniform,
 		sr_buffer = STATE.srbuffer_mem,
