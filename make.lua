@@ -130,7 +130,12 @@ end
 lm:import "clibs/soluna/make.lua"
 
 lm:exe "soluna" {
-	deps = deps,
+  deps = deps,
+  emcc = {
+    ldflags = {
+      "-s MAIN_MODULE=1",
+    },
+  },
 }
 
 lm:dll "sample" {

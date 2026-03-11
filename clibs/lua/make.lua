@@ -16,18 +16,10 @@ lm:source_set "lua_src" {
 	},
 	defines = {
 		"MAKE_LIB",
+		"LUA_USE_DLOPEN",
 	},
 	linux = {
 		links = { "dl" },
-		defines = { "LUA_USE_LINUX" },
-	},
-	windows = {
-		defines = {
-			"LUA_USE_WINDOWS",
-		},
-	},
-	macos = {
-		defines = { "LUA_USE_MACOSX" },
 	},
 }
 
@@ -40,18 +32,14 @@ lm:exe "lua" {
 	},
 	defines = {
 		"MAKE_LUA",
-	},
-	macos = {
-		defines = { "LUA_USE_MACOSX" },
+		"LUA_USE_DLOPEN",
 	},
 	linux = {
 		links = { "dl" },
-		defines = { "LUA_USE_LINUX" },
 	},
 	windows = {
 		defines = {
 			"fopen=fopen_utf8",
-			"LUA_USE_WINDOWS",
 		},
 	},
 }
