@@ -33,6 +33,7 @@ int luaopen_layout_yoga(lua_State *L);
 int luaopen_url(lua_State *L);
 int luaopen_skynet_crypt(lua_State *L);
 int luaopen_zip(lua_State *L);
+int luaopen_extlua(lua_State *L);
 
 void soluna_embed(lua_State* L) {
     static const luaL_Reg modules[] = {
@@ -67,7 +68,7 @@ void soluna_embed(lua_State* L) {
 		{ "soluna.url", luaopen_url },
 		{ "soluna.crypt", luaopen_skynet_crypt },
 		{ "soluna.zip", luaopen_zip },
-//		{ "luaforward", luaopen_luaforward },
+		{ "soluna.extlua", luaopen_extlua },
 		{ NULL, NULL },
     };
 

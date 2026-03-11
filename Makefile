@@ -1,4 +1,4 @@
-.PHONY : all clean shader
+.PHONY : all clean shader extlua_sample
 
 BUILD=build
 BIN=bin
@@ -21,6 +21,7 @@ ifeq ($(CC),cl)
  STDCPP=-std:c++20
  SUBSYSTEM=-LINK -SUBSYSTEM:WINDOWS -ENTRY:"mainCRTStartup"
  LDFLAGS=$(SUBSYSTEM) xinput.lib Ws2_32.lib ntdll.lib Imm32.lib
+ SHARED=-LD
 else
  CCPP=g++
  CFLAGS=-Wall -O2
@@ -30,6 +31,7 @@ else
  STDCPP=-std=c++20
  SUBSYSTEM=-Wl,-subsystem,windows
  LDFLAGS=-lkernel32 -luser32 -lshell32 -lgdi32 -ldxgi -ld3d11 -lwinmm -lws2_32 -lntdll -lxinput -limm32 -lstdc++ $(SUBSYSTEM)
+ SHARED=--shared
 endif
 
 all : $(BIN)/$(APPNAME)
@@ -68,6 +70,7 @@ MAIN_C=$(notdir $(MAIN_FULL))
 MAIN_O=$(patsubst %.c,$(BUILD)/soluna_%.o,$(MAIN_C))
 PLATFORM_C=$(notdir $(PLATFORM_FULL))
 PLATFORM_O=$(patsubst %.c,$(BUILD)/platform_%.o,$(PLATFORM_C))
+EXTLUA_O=$(BUILD)/extlua_impl.o
 
 $(MAIN_O) : $(SHADER_O)
 
@@ -145,9 +148,17 @@ $(BUILD)/zlib_%.o : 3rd/zlib/%.c
 
 $(BUILD)/minizip_%.o : 3rd/zlib/contrib/minizip/%.c
 	$(COMPILE_C) $(ZLIBINC)
-
-$(BIN)/$(APPNAME): $(MAIN_O) $(PLATFORM_O) $(LTASK_O) $(LUA_O) $(DATALIST_O) $(BUILD)/yoga.o $(ZLIB_O) $(MINIZIP_O)
-	$(LD) $(OUTPUT_EXE) $@ $^ $(LDFLAGS)
 	
+$(BUILD)/extlua_impl.o : extlua/extlua_impl.c
+	$(COMPILE_C) $(LUAINC)
+
+$(BIN)/$(APPNAME): $(MAIN_O) $(PLATFORM_O) $(EXTLUA_O) $(LTASK_O) $(LUA_O) $(DATALIST_O) $(BUILD)/yoga.o $(ZLIB_O) $(MINIZIP_O)
+	$(LD) $(OUTPUT_EXE) $@ $^ $(LDFLAGS)
+
+$(BIN)/sample.dll : extlua/extlua.c extlua/extlua_sample.c
+	$(CC) $(CFLAGS) $(SHARED) $(OUTPUT_EXE) $@ $^ $(LUAINC)
+
+extlua_sample: $(BIN)/sample.dll
+
 clean :
-	rm -f $(BIN)/*.exe $(BUILD)/*.o $(BUILD)/*.h
+	rm -f $(BIN)/*.exe $(BIN)/*.dll $(BUILD)/*.o $(BUILD)/*.h

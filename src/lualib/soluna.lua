@@ -2,7 +2,7 @@ local ltask = require "ltask"
 local app = require "soluna.app"
 local mqueue = require "ltask.mqueue"
 
-global require, error, string
+global require, error, string, assert, package
 
 local soluna = {
 	platform = app.platform
@@ -97,5 +97,13 @@ local function version()
 end
 
 soluna.version = version()
+
+function soluna.extlib(name)
+	local extlua = require "soluna.extlua"
+	local filename = assert(package.searchpath(name, package.cpath))
+	settings = settings and soluna.settings()
+	local entry = assert(package.loadlib(filename, settings.extlua_entry))
+	return extlua.load(entry)
+end
 
 return soluna

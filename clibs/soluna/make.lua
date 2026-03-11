@@ -30,6 +30,7 @@ compile_shader(objdeps)
 lm:source_set "soluna_src" {
   sources = {
     "src/*.c",
+	"extlua/extlua_impl.c",
   },
   objdeps = objdeps,
   defines = {

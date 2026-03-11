@@ -1,10 +1,5 @@
-bin/*.exe
+bin
 build
-bin/linux
-bin/macos
-bin/mingw
-bin/msvc
-bin/emcc
 web/public
 web/data
 web/static/runtime

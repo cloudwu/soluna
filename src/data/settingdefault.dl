@@ -6,6 +6,7 @@ draw_instance : 65536
 entry : main.lua
 project : soluna
 service_path : "./?.lua"
+extlua_entry : extlua_init
 width : 1024
 height : 768
 high_dpi : false
