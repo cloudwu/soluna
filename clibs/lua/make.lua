@@ -16,10 +16,7 @@ lm:source_set "lua_src" {
 	},
 	defines = {
 		"MAKE_LIB",
-		"LUA_USE_DLOPEN",
-	},
-	linux = {
-		links = { "dl" },
+		lm.os == "windows" and "LUA_DL_DLL" or "LUA_USE_DLOPEN",
 	},
 }
 
@@ -32,10 +29,6 @@ lm:exe "lua" {
 	},
 	defines = {
 		"MAKE_LUA",
-		"LUA_USE_DLOPEN",
-	},
-	linux = {
-		links = { "dl" },
 	},
 	windows = {
 		defines = {

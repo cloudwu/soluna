@@ -1,5 +1,6 @@
 mergeInto(LibraryManager.library, {
   soluna_wasm_open_url__deps: ['$UTF8ToString'],
+  soluna_wasm_open_url__sig: 'vi',
   soluna_wasm_open_url: function (urlPtr) {
     if (!urlPtr) {
       return;

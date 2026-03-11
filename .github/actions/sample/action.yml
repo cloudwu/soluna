@@ -1,0 +1,79 @@
+name: Build Sample WASM
+description: Build sample.wasm side module for Soluna web runtime
+
+inputs:
+  soluna_path:
+    description: "The path to the Soluna repository. Defaults to ."
+    required: false
+    default: "."
+  luamake_version:
+    description: "LuaMake commit SHA used to build."
+    required: false
+    default: "5bedfce66f075a9f68b1475747738b81b3b41c25"
+  emsdk_version:
+    description: "Emscripten SDK version."
+    required: false
+    default: "4.0.17"
+
+outputs:
+  SAMPLE_WASM_PATH:
+    description: "The path to built sample.wasm side module."
+    value: ${{ steps.set-output.outputs.SAMPLE_WASM_PATH }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get the soluna commit
+      id: refs
+      working-directory: ${{ inputs.soluna_path }}
+      shell: bash
+      run: |
+        echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache sample wasm build
+      uses: actions/cache@v4
+      id: cache
+      with:
+        path: |
+          ${{ inputs.soluna_path }}/bin
+          ${{ inputs.soluna_path }}/build
+        key: ${{ runner.os }}-sample-wasm-${{ steps.refs.outputs.commit }}-${{ inputs.luamake_version }}-${{ inputs.emsdk_version }}
+
+    - name: Checkout all submodules
+      if: steps.cache.outputs.cache-hit != 'true'
+      working-directory: ${{ inputs.soluna_path }}
+      shell: bash
+      run: |
+        git submodule update --init --recursive
+
+    - name: Setup LuaMake
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: yuchanns/actions-luamake@v1
+      with:
+        luamake-version: ${{ inputs.luamake_version }}
+
+    - name: Setup Emscripten
+      if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+      uses: mymindstorm/setup-emsdk@v14
+      with:
+        version: ${{ inputs.emsdk_version }}
+        actions-cache-folder: 'emsdk-cache'
+
+    - name: Build sample side module
+      if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ inputs.soluna_path }}
+      run: |
+        luamake -compiler emcc sample
+
+    - name: Set output
+      id: set-output
+      shell: bash
+      working-directory: ${{ inputs.soluna_path }}
+      run: |
+        SAMPLE_WASM_PATH=$(find bin -name "sample.wasm" | head -n 1)
+        if [ -z "$SAMPLE_WASM_PATH" ]; then
+          echo "sample.wasm not found" >&2
+          exit 1
+        fi
+        echo "SAMPLE_WASM_PATH=$SAMPLE_WASM_PATH" >> "$GITHUB_OUTPUT"

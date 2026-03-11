@@ -11,7 +11,7 @@ LUA_API void luaapi_init(lua_State *L);
 
 static int
 lhello(lua_State *L) {
-	lua_pushstring(L, "Hello World");
+	lua_pushstring(L, "Hello World From Sample");
 	return 1;
 }
 

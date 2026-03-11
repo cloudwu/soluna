@@ -85,6 +85,7 @@ lm:conf {
 		flags = {
 			"-Wall",
 			"-pthread",
+			"-fPIC",
 			"--use-port=emdawnwebgpu",
 		},
 		links = {
@@ -130,12 +131,14 @@ end
 lm:import "clibs/soluna/make.lua"
 
 lm:exe "soluna" {
-  deps = deps,
-  emcc = {
-    ldflags = {
-      "-s MAIN_MODULE=1",
-    },
-  },
+	deps = deps,
+	emcc = {
+		ldflags = {
+			"-s MAIN_MODULE=1",
+			"-Wl,-u,emscripten_builtin_memalign",
+			"-Wl,--export=emscripten_builtin_memalign",
+		},
+	},
 }
 
 lm:dll "sample" {
