@@ -1,5 +1,6 @@
 mergeInto(LibraryManager.library, {
   soluna_wasm_setup_ime__deps: ['$withStackSave', '$lengthBytesUTF8', '$stringToUTF8', '$stackAlloc'],
+  soluna_wasm_setup_ime__sig: 'v',
   soluna_wasm_setup_ime: function () {
     if (Module.solunaIme) {
       return;
@@ -499,6 +500,7 @@ mergeInto(LibraryManager.library, {
     Module.solunaIme = state;
   },
 
+  soluna_wasm_dom_show__sig: 'vffff',
   soluna_wasm_dom_show: function (x, y, w, h) {
     var state = Module.solunaIme;
     if (!state || typeof document === 'undefined') {
@@ -543,6 +545,7 @@ mergeInto(LibraryManager.library, {
     }
   },
 
+  soluna_wasm_dom_hide__sig: 'v',
   soluna_wasm_dom_hide: function () {
     var state = Module.solunaIme;
     if (!state || typeof document === 'undefined') {
@@ -566,6 +569,7 @@ mergeInto(LibraryManager.library, {
   },
 
   soluna_wasm_dom_set_font__deps: ['$UTF8ToString'],
+  soluna_wasm_dom_set_font__sig: 'vif',
   soluna_wasm_dom_set_font: function (namePtr, size) {
     var state = Module.solunaIme;
     if (!state) {
@@ -602,6 +606,7 @@ mergeInto(LibraryManager.library, {
     state.positionPreedit();
   },
 
+  soluna_wasm_dom_set_color__sig: 'vi',
   soluna_wasm_dom_set_color: function (color) {
     var state = Module.solunaIme;
     if (!state) {

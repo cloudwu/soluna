@@ -3,9 +3,15 @@
 
 LUA_API void luaapi_init(lua_State *L);
 
+#if defined(_WIN32)
+#define EXTLUA_EXPORT __declspec(dllexport)
+#else
+#define EXTLUA_EXPORT __attribute__((visibility("default")))
+#endif
+
 static int
 lhello(lua_State *L) {
-	lua_pushstring(L, "Hello World");
+	lua_pushstring(L, "Hello World From Sample");
 	return 1;
 }
 
@@ -19,7 +25,7 @@ luaopen_foobar(lua_State *L) {
 	return 1;
 }
 
-__declspec(dllexport) int
+EXTLUA_EXPORT int
 extlua_init(lua_State *L) {
 	luaapi_init(L);
 	luaL_Reg l[] = {
