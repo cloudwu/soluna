@@ -1,0 +1,3 @@
+entry : extlua.lua
+extlua_entry : extlua_init
+extlua_preload : sample

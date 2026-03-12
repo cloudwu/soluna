@@ -98,12 +98,4 @@ end
 
 soluna.version = version()
 
-function soluna.extlib(name)
-	local extlua = require "soluna.extlua"
-	local filename = assert(package.searchpath(name, package.cpath))
-	settings = settings and soluna.settings()
-	local entry = assert(package.loadlib(filename, settings.extlua_entry))
-	return extlua.load(entry)
-end
-
 return soluna

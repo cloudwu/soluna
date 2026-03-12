@@ -1,7 +1,7 @@
 local package = package
 local table = table
 
-global load, require, assert, select, error, tostring, print
+global load, require, assert, select, error, tostring, print, type
 
 local init_func_temp = [=[
 	local name, service_path = ...
@@ -36,6 +36,10 @@ local init_func_temp = [=[
 		end
 	end
 	package.searchers[#package.searchers+1] = embedloader
+	local extlua = require "soluna.extlua"
+	if extlua.searcher() then	-- has preload libs
+		package.searchers[#package.searchers+1] = extlua.searcher
+	end
 	local embedcode = embedsource.service[name]
 	if embedcode then
 		return load(embedcode(),"=("..name..")")
@@ -180,6 +184,22 @@ function api.start(app)
 	}
 end
 
+local function preload_ext(list, entry_name)
+	if list == nil then
+		return
+	end
+	if type(list) == "string" then
+		list = { list }
+	end
+	for i = 1, #list do
+		local name = list[i]
+		local f = package.loadlib(package.searchpath(name, package.cpath), entry_name) or error ("Can't load extlua " .. name)
+		list[i] = f
+	end
+	local extlua = require "soluna.extlua"
+	extlua.preload(list)
+end
+
 function api.init(desc)
 	-- todo : settings
 	local zipfile = args[1] or args.zipfile or "main.zip"
@@ -193,6 +213,7 @@ function api.init(desc)
 	end
 	local initsetting = load(embedsource.lib.initsetting, "@3rd/ltask/lualib/initsetting.lua")()
 	local settings = initsetting.init(args)
+	preload_ext(settings.extlua_preload, settings.extlua_entry)
 	local soluna_app = require "soluna.app"
 	soluna_app.init_desc(desc, settings)
 end
