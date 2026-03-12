@@ -154,6 +154,14 @@ preload_libs(lua_State *L) {
 	lua_pushvalue(L, result_index);
 	lua_call(L, 2, 0);
 
+	for (i=0;i<n;i++) {
+		char *name = strdup(l[i].name);
+		if (name == NULL) {
+			return luaL_error(L, "Out of memory");
+		}
+		l[i].name = name;
+	}
+
 	qsort(l, n, sizeof(luaL_Reg), cmpreg);
 
 	PRELOAD.l = l;
