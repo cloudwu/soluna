@@ -148,7 +148,12 @@ preload_libs(lua_State *L) {
 	}
 	lua_pop(L, 1);
 	int n = count_table(L, result_index);
-	struct luaL_Reg *l = lua_newuserdatauv(L, sizeof(luaL_Reg) * n, 0);
+	struct luaL_Reg *l = lua_newuserdatauv(L, sizeof(luaL_Reg) * n, 1);
+	
+	// ref name strings
+	lua_pushvalue(L, result_index);
+	lua_setiuservalue(L, -2, 1);
+	
 	lua_pushcfunction(L, get_reg);
 	lua_pushvalue(L, -2);	// l
 	lua_pushvalue(L, result_index);
