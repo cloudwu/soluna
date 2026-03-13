@@ -49,6 +49,29 @@ You can build Soluna from source by `make` for Windows and by `luamake` for all 
     echo "Soluna js glue is at ${{ steps.soluna.outputs.SOLUNA_JS_PATH }}"
 
 ```
+## Run CI Locally with Act
+
+You can easily run GitHub workflows locally through `act` via luamake.
+
+Prerequisites:
+
+- Docker (daemon running)
+- [act](https://github.com/nektos/act) in `PATH`
+- Python 3 in `PATH` (used by local preview server for `pages`)
+- `unzip` and `tar` (or equivalent tools available in your environment)
+
+Examples:
+
+```bash
+luamake act pages
+luamake act nightly
+```
+
+Notes:
+
+- `luamake act pages` runs `.github/workflows/pages.yml`, extracts the generated pages artifact, and serves it locally at `http://127.0.0.1:8080/soluna/`.
+- `luamake act nightly` runs `.github/workflows/nightly.yml`.
+- Use `PORT` to change preview port (for example: `PORT=9000 luamake act pages`).
 
 ## Projects made with Soluna
 
