@@ -55,6 +55,9 @@ pack_sprite(struct sprite_bank *b, stbrp_context *ctx, stbrp_node *tmp, stbrp_re
 			// reserve 1 pixel border
 			sr->w = (rect->u + 1) & 0xffff;
 			sr->h = (rect->v + 1) & 0xffff;
+			if (sr->w > b->texture_size || sr->h > b->texture_size) {
+				return -1;
+			}
 		}
 	}
 	if (stbrp_pack_rects(ctx, srect, rect_i)) {
@@ -119,6 +122,9 @@ lbank_pack(lua_State *L) {
 	int reserved = 0;
 	for (;;) {
 		from = pack_sprite(b, &ctx->ctx, ctx->tmp, ctx->rect, from, reserved, &reserved);
+		if (from < 0) {
+			return luaL_error(L, "sprite image is larger than texture");
+		}
 		if (reserved == 0 && from >= b->n) {
 			break;
 		}
