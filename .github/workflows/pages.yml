@@ -16,7 +16,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
     steps:
@@ -72,10 +72,11 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')) &&
+      github.actor != 'nektos/act'
     needs: [build]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       pages: write
       id-token: write

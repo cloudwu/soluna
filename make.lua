@@ -151,4 +151,6 @@ lm:dll "sample" {
 	},
 }
 
+lm:import "script/act_targets.lua"
+
 lm:default "soluna"

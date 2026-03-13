@@ -52,6 +52,30 @@ WebAssembly 的预编译二进制文件。
 
 ```
 
+## 使用 Act 在本地运行 CI
+
+你可以通过 `act` 和 luamake target 在本地执行仓库中的 workflow。
+
+前置要求：
+
+- Docker（daemon 已启动）
+- `PATH` 中可用的 [act](https://github.com/nektos/act)
+- `PATH` 中可用的 Python 3（`pages` 本地预览会用到）
+- `unzip` 与 `tar`（或环境中等价可用工具）
+
+示例：
+
+```bash
+luamake act pages
+luamake act nightly
+```
+
+说明：
+
+- `luamake act pages` 会执行 `.github/workflows/pages.yml`，解包生成的 pages artifact，并在本地 `http://127.0.0.1:8080/soluna/` 提供预览。
+- `luamake act nightly` 会执行 `.github/workflows/nightly.yml`。
+- 可通过 `PORT` 修改预览端口（例如：`PORT=9000 luamake act pages`）。
+
 ## 使用 Soluna 制作的项目
 
 - [Deep Future](https://github.com/cloudwu/deepfuture), 一款桌游 Deep Future 的数字版。
@@ -59,4 +83,3 @@ WebAssembly 的预编译二进制文件。
 ## 许可证
 
 Soluna 使用 MIT 许可证。详情见 [LICENSE](./LICENSE)。
-
