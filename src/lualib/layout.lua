@@ -160,6 +160,9 @@ do
 				x,y,w,h = yoga.node_get(cobj)
 			end
 		end
+		local _,_,w,h = yoga.node_get(doc._root)
+		list.width = w
+		list.height = h
 		return list
 	end
 end
