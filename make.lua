@@ -87,6 +87,7 @@ lm:conf {
 			"-pthread",
 			"-fPIC",
 			"--use-port=emdawnwebgpu",
+			"-s USE_SDL=2",
 		},
 		links = {
 			"idbfs.js",
@@ -99,6 +100,7 @@ lm:conf {
 			"-s FORCE_FILESYSTEM=1",
 			'-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile","IDBFS"]\'',
 			"-s USE_PTHREADS=1",
+			"-s USE_SDL=2",
 			"-s PTHREAD_POOL_SIZE='Math.max(2,navigator.hardwareConcurrency)'",
 			"-s PTHREAD_POOL_SIZE_STRICT=2",
 			lm.mode == "debug" and "-s ASSERTIONS=2",

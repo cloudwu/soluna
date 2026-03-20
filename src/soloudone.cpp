@@ -37,7 +37,15 @@
 
 #endif
 
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
 #include "backend/winmm/soloud_winmm.cpp"
+#elif defined(__APPLE__)
+#include "backend/coreaudio/soloud_coreaudio.cpp"
+#elif defined(__linux__)
+#include "backend/alsa/soloud_alsa.cpp"
+#elif defined(__EMSCRIPTEN__)
+#include "backend/sdl2_static/soloud_sdl2_static.cpp"
+#endif
 
 extern "C" {
 #include "audiosource/wav/stb_vorbis.c"
