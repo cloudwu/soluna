@@ -21,6 +21,7 @@
 #include "util.lua.h"
 #include "coroutine.lua.h"
 #include "packageloader.lua.h"
+#include "audio.lua.h"
 
 #include "lua.h"
 #include "lauxlib.h"
@@ -84,6 +85,7 @@ luaopen_embedsource(lua_State *L) {
 			REG_SOURCE(render)
 			REG_SOURCE(gamepad)
 			REG_SOURCE(settings)
+			REG_SOURCE(audio)
 		lua_setfield(L, -2, "service");
 
 		lua_newtable(L);	// data list
