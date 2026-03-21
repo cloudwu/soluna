@@ -163,8 +163,9 @@ laudio_init(lua_State *L) {
 	if (r != MA_SUCCESS) {
 		return luaL_error(L, "ma_engine_init() error : %s", ma_result_description(r));
 	}
+	lua_pushlightuserdata(L, (void *)e);
 	
-	return 1;
+	return 2;
 }
 
 static int
@@ -192,7 +193,7 @@ laudio_unload(lua_State *L) {
 
 static int
 laudio_play(lua_State *L) {
-	luaL_checktype(L, 1, LUA_TUSERDATA);
+	luaL_checktype(L, 1, LUA_TLIGHTUSERDATA);
 	ma_engine *engine = (ma_engine *)lua_touserdata(L, 1);
 	const char *filename = luaL_checkstring(L, 2);
 	

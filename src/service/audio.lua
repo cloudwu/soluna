@@ -43,9 +43,8 @@ function S.init(filename)
 	assert(DEVICE == nil)
 	DEVICE = false
 	local bank, ret = load_bundle(filename)
-	local d, err = audio.init()
-	if err then
-		print ("Error : ", err)
+	local d = ltask.call(ltask.queryservice "render", "audio_engine")
+	if not d then
 		return {}
 	else
 		-- todo : load file list
@@ -59,11 +58,8 @@ function S.init(filename)
 	end
 end
 
-function S.quit()
-	if DEVICE then
-		audio.deinit(DEVICE)
-		DEVICE = nil
-	end
+function S.deinit()
+	DEVICE = nil
 end
 
 return S
