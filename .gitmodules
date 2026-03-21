@@ -25,3 +25,6 @@
 [submodule "3rd/soloud"]
 	path = 3rd/soloud
 	url = https://github.com/jarikomppa/soloud.git
+[submodule "3rd/miniaudio"]
+	path = 3rd/miniaudio
+	url = https://github.com/mackron/miniaudio.git
