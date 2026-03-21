@@ -754,13 +754,7 @@ try_open(struct zipreader_name *name, const char *filename) {
 		}
 		filename += name->root_size;
 	}
-	struct filename_convert tmp;
-	if (MultiByteToWideChar(CP_UTF8, 0, name->zipfile, -1, tmp.tmp, sizeof(tmp)) == 0) {
-		return NULL;
-	}
-	zlib_filefunc64_def ffunc;
-	fill_win32_filefunc64W(&ffunc);
-	unzFile zf = unzOpen2_64((const char *)tmp.tmp, &ffunc);
+	unzFile zf = unzip_open(NULL, name->zipfile);
 	if (zf == NULL)
 		return NULL;
 	
