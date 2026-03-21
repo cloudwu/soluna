@@ -43,7 +43,7 @@ lm:source_set "soluna_src" {
 		"3rd/lua",
 		"3rd/yoga",
 		"3rd/zlib",
-		"3rd/soloud/include",
+		"3rd/miniaudio",
 	},
 	clang = {
 		sources = lm.os == "macos" and {

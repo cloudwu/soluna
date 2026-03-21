@@ -6,7 +6,6 @@
 #define MA_NO_WIN32_FILEIO
 #define MA_NO_MP3
 #define MA_NO_FLAC
-#define MA_API static inline
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 

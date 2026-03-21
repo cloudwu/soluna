@@ -792,7 +792,7 @@ zipreader_read(zipreader_file zf, void *dst, int bytes) {
 	return unzReadCurrentFile(zf, dst, bytes);
 }
 
-ssize_t
+int64_t
 zipreader_tell(zipreader_file zf) {
 	return unztell64(zf);
 }
@@ -819,7 +819,7 @@ reopen_file(zipreader_file zf) {
 #define TMP_SKIP_BUFFER 4096
 
 static int
-skip_bytes(zipreader_file zf, ssize_t offset) {
+skip_bytes(zipreader_file zf, int64_t offset) {
 	char tmp[TMP_SKIP_BUFFER];
 	while (offset >= TMP_SKIP_BUFFER) {
 		if (unzReadCurrentFile(zf, tmp, TMP_SKIP_BUFFER) != TMP_SKIP_BUFFER)
@@ -832,22 +832,22 @@ skip_bytes(zipreader_file zf, ssize_t offset) {
 }
 
 int
-zipreader_seek(zipreader_file zf, ssize_t offset, int origin) {
+zipreader_seek(zipreader_file zf, int64_t offset, int origin) {
 	if (origin == SEEK_CUR && offset >= 0) {
 		return skip_bytes(zf, offset);
 	}
 	size_t size = zipreader_size(zf);
 	size_t cur_pos = unztell64(zf);
-	ssize_t new_pos;
+	int64_t new_pos;
 	switch (origin) {
 	case SEEK_SET:
 		new_pos = offset;
 		break;
 	case SEEK_CUR:
-		new_pos = (ssize_t)cur_pos + offset;
+		new_pos = (int64_t)cur_pos + offset;
 		break;
 	case SEEK_END:
-		new_pos = (ssize_t)size + offset;
+		new_pos = (int64_t)size + offset;
 		break;
 	default :
 		return -1;
