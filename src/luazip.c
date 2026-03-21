@@ -1,5 +1,6 @@
 #include "lua.h"
 #include "lauxlib.h"
+#include "zipreader.h"
 #include "zlib/zlib.h"
 #include "zlib/contrib/minizip/zip.h"
 #include "zlib/contrib/minizip/unzip.h"
@@ -362,7 +363,7 @@ locate_file(lua_State *L, unzFile zf, lua_Integer pos) {
 	unz_file_pos tmp;
 	int err = unzGoToFilePos(zf, luaint_to_file_pos(pos, &tmp));
 	if (err != UNZ_OK)
-		luaL_error(L, "Error: goto first file");
+		luaL_error(L, "Error: unzGoToFilePos");
 }
 
 static int
@@ -681,6 +682,51 @@ lzip(lua_State *L) {
 	}
 }
 
+static int
+lziplist(lua_State *L) {
+	if (lua_isnoneornil(L, 1)) {
+		return 0;
+	}
+	luaL_checktype(L, 1, LUA_TTABLE);
+	int n = lua_rawlen(L, 1);
+	struct zipreader_name * names = (struct zipreader_name *)lua_newuserdatauv(L, sizeof(struct zipreader_name) * (n + 1), n * 2);
+	int ud_index = lua_gettop(L);
+	names[n].zipfile = NULL;
+	names[n].root = NULL;
+	names[n].root_size = 0;
+	int i;
+	for (i = 0; i < n; i++) {
+		struct zipreader_name * name = &names[i];
+		if (lua_geti(L, 1, n - i) != LUA_TTABLE) {
+			return luaL_error(L, "Invalid ziplist table");
+		}
+		if (lua_getfield(L, -1, "name") != LUA_TSTRING) {
+			return luaL_error(L, "Invalid ziplist table, missing .name");
+		}
+		name->zipfile = lua_tostring(L, -1);
+		lua_setiuservalue(L, ud_index, i * 2 + 1);
+		if (lua_getfield(L, -1, "root") == LUA_TSTRING) {
+			name->root = lua_tolstring(L, -1, &name->root_size);
+			lua_setiuservalue(L, ud_index, i * 2 + 2);
+		} else if (lua_isnil(L, -1)) {
+			name->root = NULL;
+			name->root_size = 0;
+			lua_pop(L, 1);
+		} else {
+			return luaL_error(L, "Invalid ziplist table, .root is not a string");
+		}
+		lua_pop(L, 1);
+	}
+	return 1;
+}
+
+// #define ZIPTEST
+#ifdef ZIPTEST
+
+static int lziptest(lua_State *L);
+
+#endif
+
 int
 luaopen_zip(lua_State *L) {
 	luaL_checkversion(L);
@@ -688,8 +734,163 @@ luaopen_zip(lua_State *L) {
 		{ "compress", lcompress },
 		{ "uncompress", luncompress },
 		{ "open", lzip },
+		{ "list", lziplist },
+#ifdef ZIPTEST		
+		{ "test", lziptest },
+#endif
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);
 	return 1;
 }
+
+// zip reader
+
+static unzFile
+try_open(struct zipreader_name *name, const char *filename) {
+	if (name->root) {
+		if (memcmp(name->root, filename, name->root_size) != 0) {
+			return NULL;
+		}
+		filename += name->root_size;
+	}
+	struct filename_convert tmp;
+	if (MultiByteToWideChar(CP_UTF8, 0, name->zipfile, -1, tmp.tmp, sizeof(tmp)) == 0) {
+		return NULL;
+	}
+	zlib_filefunc64_def ffunc;
+	fill_win32_filefunc64W(&ffunc);
+	unzFile zf = unzOpen2_64((const char *)tmp.tmp, &ffunc);
+	if (zf == NULL)
+		return NULL;
+	
+	if (unzLocateFile(zf, filename, 0) != UNZ_OK || unzOpenCurrentFile(zf) != UNZ_OK) {
+		unzClose(zf);
+		return NULL;
+	}
+	return zf;
+}
+
+zipreader_file
+zipreader_open(struct zipreader_name *names, const char * filename) {
+	int i;
+	for (i=0;names[i].zipfile;i++) {
+		unzFile zf = try_open(&names[i], filename);
+		if (zf)
+			return (zipreader_file)zf;
+	}
+	return NULL;
+}
+
+void
+zipreader_close(zipreader_file zf) {
+	unzClose((unzFile)zf);
+}
+
+int
+zipreader_read(zipreader_file zf, void *dst, int bytes) {
+	return unzReadCurrentFile(zf, dst, bytes);
+}
+
+size_t
+zipreader_tell(zipreader_file zf) {
+	return unztell64(zf);
+}
+
+size_t
+zipreader_size(zipreader_file zf) {
+	unz_file_info64 info;
+	int err = unzGetCurrentFileInfo64(zf, &info, NULL, 0, NULL, 0, NULL, 0);
+	if (err != UNZ_OK) {
+		return 0;
+	}
+	return info.uncompressed_size;
+}
+
+static void
+reopen_file(zipreader_file zf) {
+	unz64_file_pos pos;
+	unzGetFilePos64(zf, &pos);
+	unzCloseCurrentFile(zf);
+	unzGoToFilePos64(zf, &pos);
+	unzOpenCurrentFile(zf);
+}
+
+#define TMP_SKIP_BUFFER 4096
+
+static int
+skip_bytes(zipreader_file zf, ssize_t offset) {
+	char tmp[TMP_SKIP_BUFFER];
+	while (offset >= TMP_SKIP_BUFFER) {
+		if (unzReadCurrentFile(zf, tmp, TMP_SKIP_BUFFER) != TMP_SKIP_BUFFER)
+			return -1;
+		offset -= TMP_SKIP_BUFFER;
+	}
+	if (offset > 0 && unzReadCurrentFile(zf, tmp, offset) != offset)
+		return -1;
+	return 0;
+}
+
+int
+zipreader_seek(zipreader_file zf, ssize_t offset, int origin) {
+	if (origin == SEEK_CUR && offset >= 0) {
+		return skip_bytes(zf, offset);
+	}
+	size_t size = zipreader_size(zf);
+	size_t cur_pos = unztell64(zf);
+	ssize_t new_pos;
+	switch (origin) {
+	case SEEK_SET:
+		new_pos = offset;
+		break;
+	case SEEK_CUR:
+		new_pos = (ssize_t)cur_pos + offset;
+		break;
+	case SEEK_END:
+		new_pos = (ssize_t)size + offset;
+		break;
+	default :
+		return -1;
+	}
+	if (new_pos < 0)
+		new_pos = 0;
+	else if (new_pos > size)
+		new_pos = size;
+	if (new_pos >= cur_pos) {
+		return skip_bytes(zf, new_pos - cur_pos);
+	}
+	reopen_file(zf);
+	return skip_bytes(zf, new_pos);
+}
+
+#ifdef ZIPTEST
+
+static int
+lziptest(lua_State *L) {
+	luaL_checktype(L, 1, LUA_TUSERDATA);
+	struct zipreader_name *names = (struct zipreader_name *)lua_touserdata(L, 1);
+	const char *filename = luaL_checkstring(L, 2);
+	zipreader_file zf = zipreader_open(names, filename);
+	if (zf == NULL)
+		return 0;
+	int sz = zipreader_size(zf);
+	void * buf = lua_newuserdatauv(L, sz, 0);
+	int rd = zipreader_read(zf, buf, sz);
+	
+	if (sz != rd) {
+		zipreader_close(zf);
+		return luaL_error(L, "Read zipfile error");
+	}
+	lua_pushlstring(L, (const char *)buf, rd);
+	
+	zipreader_seek(zf, 10, SEEK_SET);
+	rd = zipreader_read(zf, buf, sz);
+	lua_pushlstring(L, (const char *)buf, rd);
+	
+	zipreader_close(zf);
+	
+	return 2;
+}
+
+#endif
+

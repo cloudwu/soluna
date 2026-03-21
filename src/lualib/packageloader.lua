@@ -30,7 +30,7 @@ local function load_zips(zipnames)
 		else
 --			print("Load patch", name)
 			n = n + 1
-			r[n] = { zip = zf, root = root }
+			r[n] = { zip = zf, root = root, name = name }
 		end
 	end
 	r.n = n
@@ -82,6 +82,7 @@ if zipfile then
 	file.local_load = file.load
 	file.local_exist = file.exist
 	file.load = file_load
+	file.ziplist = function () return zip.list(zipfile) end
 	file.exist = file_exist
 	local function gen_list()
 		local tmp = {}
