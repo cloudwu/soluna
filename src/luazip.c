@@ -792,7 +792,7 @@ zipreader_read(zipreader_file zf, void *dst, int bytes) {
 	return unzReadCurrentFile(zf, dst, bytes);
 }
 
-size_t
+ssize_t
 zipreader_tell(zipreader_file zf) {
 	return unztell64(zf);
 }

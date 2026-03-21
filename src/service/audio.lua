@@ -39,21 +39,6 @@ local function load_bundle(filename)
 	return bank, map
 end
 
-local function load_all()
-	for i, filename in ipairs(BANK) do
-		local content = file.load(filename)
-		local obj = content and audio.load(content)
-		if obj then
-			BANK[i] = obj
-			BANK[obj] = content
-			print("Load", i, filename)
-		else
-			BANK[i] = false
-			print("Can't load " .. filename)
-		end
-	end
-end
-
 function S.init(filename)
 	assert(DEVICE == nil)
 	DEVICE = false
@@ -66,7 +51,6 @@ function S.init(filename)
 		-- todo : load file list
 		BANK = bank
 		DEVICE = d
-		load_all()
 		local inject = ltask.dispatch()
 		for k, v in pairs(api) do
 			inject[k] = v
@@ -76,15 +60,6 @@ function S.init(filename)
 end
 
 function S.quit()
-	if BANK then
-		for i, obj in ipairs(BANK) do
-			if obj then
-				audio.unload(obj)
-				BANK[i] = false
-				BANK[obj] = nil
-			end
-		end
-	end
 	if DEVICE then
 		audio.deinit(DEVICE)
 		DEVICE = nil

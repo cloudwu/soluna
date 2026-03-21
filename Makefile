@@ -38,7 +38,7 @@ all : $(BIN)/$(APPNAME)
 
 3RDINC=-I3rd
 YOGAINC=-I3rd/yoga
-SOLOUDINC=-I3rd/soloud/include -I3rd/soloud/src
+MINIAUDIOINC=-I3rd/miniaudio
 
 LUAINC=-I3rd/lua
 LUASRC:=$(wildcard 3rd/lua/*.c 3rd/lua/*.h)
@@ -126,7 +126,7 @@ $(BUILD)/soluna_entry.o : src/entry.c src/version.h
 	$(COMPILE_C) $(LUAINC) $(3RDINC) -DSOLUNA_HASH_VERSION=\"$(VERSION)\"
 
 $(BUILD)/soluna_%.o : src/%.c
-	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC) $(SOLOUDINC)
+	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC) $(MINIAUDIOINC)
 
 $(BUILD)/platform_%.o : src/platform/windows/%.c
 	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC) -Isrc
@@ -144,11 +144,6 @@ YOGASRC:=$(wildcard 3rd/yoga/yoga/*.cpp $(addsuffix *.cpp,$(wildcard 3rd/yoga/yo
 $(BUILD)/yoga.o : src/yogaone.cpp $(YOGASRC)
 	$(CCPP) $(STDCPP) $(OUTPUT_O) $@ $< $(YOGAINC) $(CFLAGS)
 	
-SOLOUDSRC:=$(wildcard 3rd/soloud/src/core/*.cpp)
-
-$(BUILD)/soloud.o : src/soloudone.cpp $(SOLOUDSRC) src/soloudwavonly.h
-	$(CCPP) $(STDCPP) $(OUTPUT_O) $@ $< $(SOLOUDINC) $(CFLAGS) -DWITH_WINMM=1
-
 $(BUILD)/zlib_%.o : 3rd/zlib/%.c
 	$(COMPILE_C) $(ZLIBINC)
 
@@ -158,7 +153,7 @@ $(BUILD)/minizip_%.o : 3rd/zlib/contrib/minizip/%.c
 $(BUILD)/extlua_impl.o : extlua/extlua_impl.c
 	$(COMPILE_C) $(LUAINC)
 
-$(BIN)/$(APPNAME): $(MAIN_O) $(PLATFORM_O) $(EXTLUA_O) $(LTASK_O) $(LUA_O) $(DATALIST_O) $(BUILD)/yoga.o $(BUILD)/soloud.o $(ZLIB_O) $(MINIZIP_O)
+$(BIN)/$(APPNAME): $(MAIN_O) $(PLATFORM_O) $(EXTLUA_O) $(LTASK_O) $(LUA_O) $(DATALIST_O) $(BUILD)/yoga.o $(ZLIB_O) $(MINIZIP_O)
 	$(LD) $(OUTPUT_EXE) $@ $^ $(LDFLAGS)
 
 $(BIN)/sample.dll : extlua/extlua.c extlua/extlua_sample.c
