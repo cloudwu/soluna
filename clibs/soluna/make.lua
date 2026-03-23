@@ -39,10 +39,11 @@ lm:source_set "soluna_src" {
 	includes = {
 		"build",
 		"src",
-		"3rd/lua",
 		"3rd",
+		"3rd/lua",
 		"3rd/yoga",
 		"3rd/zlib",
+		"3rd/miniaudio",
 	},
 	clang = {
 		sources = lm.os == "macos" and {
@@ -52,6 +53,7 @@ lm:source_set "soluna_src" {
 			"-x objective-c",
 		},
 		frameworks = lm.os == "macos" and {
+			"AudioToolbox",
 			"IOKit",
 			"CoreText",
 			"CoreFoundation",

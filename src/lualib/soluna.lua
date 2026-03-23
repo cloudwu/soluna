@@ -76,6 +76,19 @@ function soluna.load_sprites(filename)
 	return sprites
 end
 
+
+local audio_service, audio_sounds
+
+function soluna.load_sounds(filename)
+	audio_service = audio_service or ltask.uniqueservice "audio"
+	audio_sounds = ltask.call(audio_service, "init", filename)
+	return audio_sounds
+end
+
+function soluna.play_sound(name)
+	ltask.send(audio_service, true, audio_sounds[name])
+end
+
 function soluna.preload(spr)
 	local loader = ltask.uniqueservice "loader"
 	if #spr == 0 then

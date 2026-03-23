@@ -180,6 +180,10 @@ function api.start(app)
 				name = "loader",
 				unique = true,
 			},
+			{
+				name = "audio",
+				unique = true,
+			},
 		},
 	}
 end

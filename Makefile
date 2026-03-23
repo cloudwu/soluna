@@ -38,6 +38,7 @@ all : $(BIN)/$(APPNAME)
 
 3RDINC=-I3rd
 YOGAINC=-I3rd/yoga
+MINIAUDIOINC=-I3rd/miniaudio
 
 LUAINC=-I3rd/lua
 LUASRC:=$(wildcard 3rd/lua/*.c 3rd/lua/*.h)
@@ -125,7 +126,7 @@ $(BUILD)/soluna_entry.o : src/entry.c src/version.h
 	$(COMPILE_C) $(LUAINC) $(3RDINC) -DSOLUNA_HASH_VERSION=\"$(VERSION)\"
 
 $(BUILD)/soluna_%.o : src/%.c
-	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC)
+	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC) $(MINIAUDIOINC)
 
 $(BUILD)/platform_%.o : src/platform/windows/%.c
 	$(COMPILE_C) $(LUAINC) $(3RDINC) $(SHADERINC) $(YOGAINC) $(ZLIBINC) -Isrc
