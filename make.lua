@@ -109,6 +109,7 @@ lm:conf {
 		defines = {
 			"_POSIX_C_SOURCE=200809L",
 			"_GNU_SOURCE",
+			"MA_ENABLE_AUDIO_WORKLETS",
 		},
 	},
 	defines = {
@@ -134,9 +135,10 @@ lm:exe "soluna" {
 	deps = deps,
 	emcc = {
 		ldflags = {
-			"-s MAIN_MODULE=1",
-			"-Wl,-u,emscripten_builtin_memalign",
-			"-Wl,--export=emscripten_builtin_memalign",
+			"-sJSPI",
+			"-sAUDIO_WORKLET=1",
+			"-sWASM_WORKERS=1",
+			"--js-library=src/platform/wasm/soluna_audio_wasm.js",
 		},
 	},
 }
