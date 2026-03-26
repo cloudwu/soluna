@@ -189,7 +189,6 @@ laudio_init_vfs(lua_State *L) {
 
 static int
 laudio_init(lua_State *L) {
-	lua_settop(L, 1);
 	struct custom_engine *e = (struct custom_engine *)lua_newuserdatauv(L, sizeof(*e), 0);
 	
 	ma_default_vfs_init(&e->vfs.base, NULL);
