@@ -9,6 +9,11 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Whether to build in debug mode'
+        required: false
+        default: 'false'
 
 jobs:
   build:
@@ -31,7 +36,7 @@ jobs:
         id: build
         with:
           soluna_path: "."
-          debug: "true"
+          debug: ${{ github.event.inputs.debug }}
 
       # - name: Build WASM side module (sample)
       #   uses: ./.github/actions/sample
@@ -51,7 +56,9 @@ jobs:
             --site web \
             --wasm "${{ steps.build.outputs.SOLUNA_WASM_PATH }}" \
             --js "${{ steps.build.outputs.SOLUNA_JS_PATH }}"
-          cp "${{ steps.build.outputs.SOLUNA_WASM_MAP_PATH }}" web/static/runtime/soluna.wasm.map
+          if [ -f "${{ steps.build.outputs.SOLUNA_WASM_MAP_PATH }}" ]; then
+            cp "${{ steps.build.outputs.SOLUNA_WASM_MAP_PATH }}" web/static/runtime/soluna.wasm.map
+          fi
 
       # - name: Copy WASM side module into runtime
       #   run: |

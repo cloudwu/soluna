@@ -42,7 +42,7 @@ runs:
       id: cache
       with:
         path: ${{ inputs.soluna_path }}/bin
-        key: ${{ runner.os }}-soluna-build-${{ steps.refs.outputs.commit }}
+        key: ${{ runner.os }}-soluna-build-${{ steps.refs.outputs.commit }}-${{ inputs.debug }}
     - name: Checkout all submodules
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ${{ inputs.soluna_path }}
