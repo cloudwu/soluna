@@ -9,6 +9,11 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Whether to build in debug mode'
+        required: false
+        default: 'false'
 
 jobs:
   build:
@@ -31,12 +36,13 @@ jobs:
         id: build
         with:
           soluna_path: "."
+          debug: ${{ github.event.inputs.debug }}
 
-      - name: Build WASM side module (sample)
-        uses: ./.github/actions/sample
-        id: sample
-        with:
-          soluna_path: "."
+      # - name: Build WASM side module (sample)
+      #   uses: ./.github/actions/sample
+      #   id: sample
+      #   with:
+      #     soluna_path: "."
 
       - name: Install web build tools
         run: |
@@ -50,10 +56,13 @@ jobs:
             --site web \
             --wasm "${{ steps.build.outputs.SOLUNA_WASM_PATH }}" \
             --js "${{ steps.build.outputs.SOLUNA_JS_PATH }}"
+          if [ -f "${{ steps.build.outputs.SOLUNA_WASM_MAP_PATH }}" ]; then
+            cp "${{ steps.build.outputs.SOLUNA_WASM_MAP_PATH }}" web/static/runtime/soluna.wasm.map
+          fi
 
-      - name: Copy WASM side module into runtime
-        run: |
-          cp "${{ steps.sample.outputs.SAMPLE_WASM_PATH }}" web/static/runtime/sample.wasm
+      # - name: Copy WASM side module into runtime
+      #   run: |
+      #     cp "${{ steps.sample.outputs.SAMPLE_WASM_PATH }}" web/static/runtime/sample.wasm
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3

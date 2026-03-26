@@ -6,6 +6,10 @@ inputs:
     description: 'The path to the Soluna repository. Defaults to .'
     required: false
     default: '.'
+  debug:
+    description: 'Whether to build Soluna in debug mode. Defaults to false.'
+    required: false
+    default: 'false'
 
 outputs:
   SOLUNA_BINARY:
@@ -20,6 +24,9 @@ outputs:
   SOLUNA_JS_PATH:
     description: 'The path to the Soluna JavaScript glue code for WebAssembly.'
     value: ${{ steps.set-output.outputs.SOLUNA_JS_PATH }}
+  SOLUNA_WASM_MAP_PATH:
+    description: 'The path to the built Soluna WebAssembly map if debug is true.'
+    value: ${{ steps.set-output.outputs.SOLUNA_WASM_MAP_PATH }}
 
 runs:
   using: "composite"
@@ -35,7 +42,7 @@ runs:
       id: cache
       with:
         path: ${{ inputs.soluna_path }}/bin
-        key: ${{ runner.os }}-soluna-build-${{ steps.refs.outputs.commit }}
+        key: ${{ runner.os }}-soluna-build-${{ steps.refs.outputs.commit }}-${{ inputs.debug }}
     - name: Checkout all submodules
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ${{ inputs.soluna_path }}
@@ -60,13 +67,23 @@ runs:
       shell: powershell
       working-directory: ${{ inputs.soluna_path }}
       run: |
-        luamake soluna
+        if (${{ inputs.debug }} -eq 'true') {
+          $env:LUAMAKE_BUILD_TYPE = 'debug'
+        } else {
+          $env:LUAMAKE_BUILD_TYPE = 'release'
+        }
+        luamake -mode $env:LUAMAKE_BUILD_TYPE soluna
     - name: Build (Unix)
       if: runner.os != 'Windows' && steps.cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ inputs.soluna_path }}
       run: |
-        luamake soluna
+        if [ "${{ inputs.debug }}" == "true" ]; then
+          export LUAMAKE_BUILD_TYPE=debug
+        else
+          export LUAMAKE_BUILD_TYPE=release
+        fi
+        luamake -mode $LUAMAKE_BUILD_TYPE soluna
     - uses: mymindstorm/setup-emsdk@v14
       if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
       with:
@@ -77,7 +94,12 @@ runs:
       working-directory: ${{ inputs.soluna_path }}
       shell: bash
       run: |
-        luamake -compiler emcc
+        if [ "${{ inputs.debug }}" == "true" ]; then
+          export LUAMAKE_BUILD_TYPE=debug
+        else
+          export LUAMAKE_BUILD_TYPE=release
+        fi
+        luamake -mode $LUAMAKE_BUILD_TYPE -compiler emcc
         SOLUNA_JS="soluna.js"
         SOLUNA_JS_PATH=$(find bin -name $SOLUNA_JS | head -n 1)
         sed -i 's/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32),dynamicOffsetsPtr>>2,dynamicOffsetCount)/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32).subarray(dynamicOffsetsPtr>>2,(dynamicOffsetsPtr>>2)+dynamicOffsetCount))/g' "$SOLUNA_JS_PATH"
@@ -104,5 +126,9 @@ runs:
           SOLUNA_JS_PATH=$(find $bin_dir -name "soluna.js" | head -n 1)
           echo "SOLUNA_WASM_PATH=$SOLUNA_WASM_PATH" >> $GITHUB_OUTPUT
           echo "SOLUNA_JS_PATH=$SOLUNA_JS_PATH" >> $GITHUB_OUTPUT
+          if [ "${{ inputs.debug }}" == "true" ]; then
+            SOLUNA_WASM_MAP_PATH=$(find $bin_dir -name "soluna.wasm.map" | head -n 1)
+            echo "SOLUNA_WASM_MAP_PATH=$SOLUNA_WASM_MAP_PATH" >> $GITHUB_OUTPUT
+          fi
         fi
       shell: bash
