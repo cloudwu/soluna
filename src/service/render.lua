@@ -228,21 +228,6 @@ end
 S.register_batch = assert(batch.register)
 S.submit_batch = assert(batch.submit)
 
-local audio_engine
-
-function S.audio_engine()
-	if audio_engine then
-		local from =  ltask.current_session().from
-		function audio_engine.quit()
-			local audio = require "soluna.audio"
-			ltask.call(from, "deinit")
-			audio.deinit(audio_engine.engine)
-			audio_engine = nil
-		end
-		return audio_engine.ptr
-	end
-end
-
 function S.quit()
 	local workers = {}
 	for _, v in ipairs(batch) do
@@ -262,9 +247,6 @@ function S.quit()
 		ltask.call(addr, "quit")
 	end
 	font.shutdown()
-	if audio_engine and audio_engine.quit then
-		audio_engine.quit()
-	end
 end
 
 function S.load_sprites(name)
@@ -286,13 +268,6 @@ function S.load_sprites(name)
 end
 
 local function render_init(arg)
-	local audio = require "soluna.audio"
-	local engine, ptr = audio.init()
-	audio_engine = {
-		engine = engine,
-		ptr = ptr,
-	}
-	
 	font.init()
 
 	local texture_size = setting.texture_size

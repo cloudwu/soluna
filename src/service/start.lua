@@ -87,6 +87,10 @@ local function init(arg)
 	if setting.service_path then
 		ltask.servicepath(setting.service_path)
 	end
+	
+	local audio = ltask.uniqueservice "audio"
+	ltask.call(audio, "init_device", arg.app.audio_device)
+	
 	local loader = ltask.uniqueservice "loader"
 	
 	arg.app.bank_ptr = ltask.call(loader, "init", {

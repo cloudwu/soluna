@@ -5,7 +5,7 @@ local datalist = require "soluna.datalist"
 
 global print, assert, setmetatable, tostring, error, ipairs
 
-local DEVICE, BANK
+local DEVICE, BANK, MAP
 
 local api = {}
 
@@ -39,26 +39,34 @@ local function load_bundle(filename)
 	return bank, map
 end
 
+local ziplist
+
+function S.init_device(device)
+	ziplist = file.ziplist and file.ziplist()
+	if ziplist then
+		audio.init_vfs(device, ziplist)
+	end
+	DEVICE = device
+end
+
 function S.init(filename)
-	assert(DEVICE == nil)
-	DEVICE = false
-	local bank, ret = load_bundle(filename)
-	local d = ltask.call(ltask.queryservice "render", "audio_engine")
-	if not d then
-		return {}
-	else
-		-- todo : load file list
-		BANK = bank
-		DEVICE = d
-		local inject = ltask.dispatch()
-		for k, v in pairs(api) do
-			inject[k] = v
-		end
-		return ret
+	assert(BANK == nil)
+	BANK, MAP = load_bundle(filename)
+	-- todo : preload file list
+	local inject = ltask.dispatch()
+	for k, v in pairs(api) do
+		inject[k] = v
 	end
 end
 
-function S.deinit()
+function S.fetch()
+	return MAP or "Init audio file list first"
+end
+
+function S.quit()
+	if DEVICE then
+		audio.deinit(DEVICE)
+	end
 	DEVICE = nil
 end
 

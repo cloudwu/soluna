@@ -2,7 +2,7 @@ local ltask = require "ltask"
 local app = require "soluna.app"
 local mqueue = require "ltask.mqueue"
 
-global require, error, string, assert, package
+global require, error, string, assert, package, setmetatable
 
 local soluna = {
 	platform = app.platform
@@ -77,16 +77,25 @@ function soluna.load_sprites(filename)
 end
 
 
-local audio_service, audio_sounds
+local audio_service
+local audio_sounds = {}
+
+local function fetch_audio_list(_, name)
+	audio_service = audio_service or ltask.uniqueservice "audio"
+	audio_sounds = ltask.call(audio_service, "fetch")
+	return audio_sounds[name]
+end
+
+setmetatable(audio_sounds, { __index = fetch_audio_list })
 
 function soluna.load_sounds(filename)
 	audio_service = audio_service or ltask.uniqueservice "audio"
-	audio_sounds = ltask.call(audio_service, "init", filename)
-	return audio_sounds
+	ltask.call(audio_service, "init", filename)
 end
 
 function soluna.play_sound(name)
-	ltask.send(audio_service, true, audio_sounds[name])
+	local id = audio_sounds[name]
+	ltask.send(audio_service, true, id)
 end
 
 function soluna.preload(spr)

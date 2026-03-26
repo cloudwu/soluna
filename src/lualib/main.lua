@@ -159,8 +159,10 @@ if args.cpath then
 end
 
 local api = {}
+local audio_device
 
 function api.start(app)
+	app.audio_device = audio_device
 	args.app = app
 	return start {
 		args = args,
@@ -220,6 +222,8 @@ function api.init(desc)
 	preload_ext(settings.extlua_preload, settings.extlua_entry)
 	local soluna_app = require "soluna.app"
 	soluna_app.init_desc(desc, settings)
+	local audio = require "soluna.audio"
+	audio.device, audio_device = audio.init()
 end
 
 return api

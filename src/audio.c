@@ -127,28 +127,30 @@ zr_info(ma_vfs* pVFS, ma_vfs_file file, ma_file_info* pInfo) {
 }
 
 static int
+laudio_init_vfs(lua_State *L) {
+	struct custom_engine *e = (struct custom_engine *)lua_touserdata(L, 1);
+	luaL_checktype(L, 2, LUA_TUSERDATA);
+	e->vfs.zipnames = lua_touserdata(L, 2);
+	e->vfs.base.cb.onOpen = zr_open;
+	e->vfs.base.cb.onOpenW = NULL;
+	e->vfs.base.cb.onClose = zr_close;
+	e->vfs.base.cb.onRead = zr_read;
+	e->vfs.base.cb.onWrite = NULL;
+	e->vfs.base.cb.onSeek = zr_seek;
+	e->vfs.base.cb.onTell = zr_tell;
+	e->vfs.base.cb.onInfo = zr_info;
+	return 0;
+}
+
+static int
 laudio_init(lua_State *L) {
 	lua_settop(L, 1);
-	struct custom_engine *e = (struct custom_engine *)lua_newuserdatauv(L, sizeof(*e), 1);
+	struct custom_engine *e = (struct custom_engine *)lua_newuserdatauv(L, sizeof(*e), 0);
 	
 	ma_default_vfs_init(&e->vfs.base, NULL);
 	e->vfs.base.cb.onOpen = vfs_open_local;
 	e->vfs.zipnames = NULL;
-	
-	if (lua_isuserdata(L, 1)) {
-		e->vfs.zipnames = lua_touserdata(L, 1);
-		e->vfs.base.cb.onOpen = zr_open;
-		e->vfs.base.cb.onOpenW = NULL;
-		e->vfs.base.cb.onClose = zr_close;
-		e->vfs.base.cb.onRead = zr_read;
-		e->vfs.base.cb.onWrite = NULL;
-		e->vfs.base.cb.onSeek = zr_seek;
-		e->vfs.base.cb.onTell = zr_tell;
-		e->vfs.base.cb.onInfo = zr_info;
-		lua_pushvalue(L, 1);
-		lua_setiuservalue(L, -2, 1);
-	}
-	
+
     ma_resource_manager_config config = ma_resource_manager_config_init();
 	config.pVFS = &e->vfs;
 	
@@ -170,7 +172,7 @@ laudio_init(lua_State *L) {
 
 static int
 laudio_deinit(lua_State *L) {
-	luaL_checktype(L, 1, LUA_TUSERDATA);
+	luaL_checktype(L, 1, LUA_TLIGHTUSERDATA);
 	ma_engine *engine = (ma_engine *)lua_touserdata(L, 1);
 	ma_engine_uninit(engine);
 
@@ -206,6 +208,7 @@ luaopen_soluna_audio(lua_State *L) {
 	luaL_checkversion(L);
 	luaL_Reg l[] = {
 		{ "init", laudio_init },
+		{ "init_vfs", laudio_init_vfs },
 		{ "deinit", laudio_deinit },
 		{ "play", laudio_play },
 		{ NULL, NULL },
