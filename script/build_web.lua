@@ -13,13 +13,6 @@ local function run(cmd)
   end
 end
 
-local function read_file(path)
-  local f = assert(io.open(path, "rb"))
-  local data = f:read("*a")
-  f:close()
-  return data
-end
-
 local function write_file(path, data)
   local f = assert(io.open(path, "wb"))
   f:write(data)
@@ -114,13 +107,6 @@ end
 
 local function shortcode_quote(value)
   return value:gsub("\\", "\\\\"):gsub("\"", "\\\"")
-end
-
-local function html_escape(value)
-  return value
-    :gsub("&", "&amp;")
-    :gsub("<", "&lt;")
-    :gsub(">", "&gt;")
 end
 
 local function write_front_matter(lines, fields)
@@ -324,7 +310,7 @@ local example_paths = exec_lines("find " .. shell_quote(soluna_dir .. "/test") .
 table.sort(example_paths)
 for _, path in ipairs(example_paths) do
   local name = path:match("([^/]+)%.lua$")
-  if name then
+  if name and name ~= "extlua" then
     examples[#examples + 1] = {
       id = name,
       title = titleize(name),

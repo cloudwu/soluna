@@ -261,14 +261,14 @@
       return;
     }
 
-    let sampleWasmBuffer = null;
-    try {
-      sampleWasmBuffer = await loadBuffer(`${base}/runtime/sample.wasm`);
-    } catch (err) {
-      setStatus("Failed to load external module sample.wasm.");
-      setNote(err.message);
-      return;
-    }
+    // let sampleWasmBuffer = null;
+    // try {
+    //   sampleWasmBuffer = await loadBuffer(`${base}/runtime/sample.wasm`);
+    // } catch (err) {
+    //   setStatus("Failed to load external module sample.wasm.");
+    //   setNote(err.message);
+    //   return;
+    // }
 
     setStatus("Preparing fonts...");
     let fontZip;
@@ -280,7 +280,7 @@
       return;
     }
 
-    const mainGame = "entry : main.lua\nhigh_dpi : true\ntext_sampler :\n  min_filter : linear\n  mag_filter : linear\nextlua_entry : extlua_init\nextlua_preload : sample\n";
+    const mainGame = "entry : main.lua\nhigh_dpi : true\ntext_sampler :\n  min_filter : linear\n  mag_filter : linear\n";
     const mainLuaBytes = new TextEncoder().encode(sourceText);
     const mainGameBytes = new TextEncoder().encode(mainGame);
     const mainZip = createZip([
@@ -295,6 +295,7 @@
         "zipfile=/data/main.zip:/data/asset.zip:/data/font.zip",
         "cpath=/data/?.wasm",
       ],
+      mainScriptUrlOrBlob: `${base}/runtime/soluna.js`,
       canvas,
       print(text) {
         appendConsole(String(text || ""), false);
@@ -303,10 +304,7 @@
         appendConsole(String(text || ""), true);
       },
       locateFile(path) {
-        if (path === "soluna.wasm") {
-          return `${base}/runtime/soluna.wasm`;
-        }
-        if (path.endsWith(".wasm")) {
+        if (path.endsWith(".wasm") || path.endsWith(".js")) {
           return `${base}/runtime/${path}`;
         }
         return path;
@@ -317,15 +315,15 @@
           Module.addRunDependency("asset-zip");
           Module.addRunDependency("main-zip");
           Module.addRunDependency("font-zip");
-          Module.addRunDependency("sample-wasm");
+          // Module.addRunDependency("sample-wasm");
           Module.FS.writeFile("/data/asset.zip", new Uint8Array(assetBuffer), { canOwn: true });
           Module.FS.writeFile("/data/main.zip", mainZip, { canOwn: true });
           Module.FS.writeFile("/data/font.zip", fontZip, { canOwn: true });
-          Module.FS.writeFile("/data/sample.wasm", new Uint8Array(sampleWasmBuffer), { canOwn: true });
+          // Module.FS.writeFile("/data/sample.wasm", new Uint8Array(sampleWasmBuffer), { canOwn: true });
           Module.removeRunDependency("asset-zip");
           Module.removeRunDependency("main-zip");
           Module.removeRunDependency("font-zip");
-          Module.removeRunDependency("sample-wasm");
+          // Module.removeRunDependency("sample-wasm");
         },
       ],
       onAbort(reason) {
