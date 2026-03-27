@@ -2,6 +2,7 @@ local ltask = require "ltask"
 local audio = require "soluna.audio"
 local file = require "soluna.file"
 local datalist = require "soluna.datalist"
+local soluna = require "soluna"
 
 global print, assert, setmetatable, tostring, error, ipairs
 
@@ -25,8 +26,6 @@ for k in pairs(api) do
 		error "Init audio first"
 	end
 end
-
-local M = {}
 
 local function load_bundle(filename)
 	local b = datalist.parse(file.load(filename))
