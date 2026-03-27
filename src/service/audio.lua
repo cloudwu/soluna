@@ -26,8 +26,6 @@ for k in pairs(api) do
 	end
 end
 
-local M = {}
-
 local function load_bundle(filename)
 	local b = datalist.parse(file.load(filename))
 	local bank = {}

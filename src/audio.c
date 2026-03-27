@@ -58,47 +58,6 @@ struct custom_engine {
 	struct custom_vfs vfs;
 };
 
-#if defined(__EMSCRIPTEN__)
-EM_JS(void, soluna_webaudio_resume_on_gesture, (int audio_context), {
-	if (typeof document === "undefined") return;
-	try {
-		const ctx = emscriptenGetAudioObject(audio_context);
-		if (!ctx || typeof ctx.resume !== "function") return;
-		const resume = () => {
-			if (ctx.state === "running") return;
-			const p = ctx.resume();
-			if (p && typeof p.catch === "function") {
-				p.catch((err) => console.error("Failed to resume AudioContext", err));
-			}
-		};
-		["pointerdown", "touchstart", "touchend", "keydown", "click"].forEach((event_type) => {
-			document.addEventListener(event_type, resume, { once: true, capture: true });
-		});
-	} catch (err) {
-		console.error("Failed to install WebAudio resume handler", err);
-	}
-});
-
-static void
-inject_webaudio_resume(struct ma_engine *engine) {
-	ma_device *device;
-	if (engine == NULL) {
-		return;
-	}
-	device = ma_engine_get_device(engine);
-	if (device == NULL || device->pContext == NULL) {
-		return;
-	}
-	if (device->pContext->backend != ma_backend_webaudio) {
-		return;
-	}
-	if (device->webaudio.audioContext == 0) {
-		return;
-	}
-	soluna_webaudio_resume_on_gesture(device->webaudio.audioContext);
-}
-#endif
-
 static ma_result
 zr_open(ma_vfs* pVFS, const char* pFilePath, ma_uint32 openMode, ma_vfs_file* pFile) {
 	struct custom_vfs *vfs = (struct custom_vfs *)pVFS;
@@ -209,9 +168,6 @@ laudio_init(lua_State *L) {
 	if (r != MA_SUCCESS) {
 		return luaL_error(L, "ma_engine_init() error : %s", ma_result_description(r));
 	}
-#if defined(__EMSCRIPTEN__)
-	inject_webaudio_resume(&e->engine);
-#endif
 	lua_pushlightuserdata(L, (void *)e);
 	
 	return 2;
