@@ -2,7 +2,6 @@ local ltask = require "ltask"
 local audio = require "soluna.audio"
 local file = require "soluna.file"
 local datalist = require "soluna.datalist"
-local soluna = require "soluna"
 
 global print, assert, setmetatable, tostring, error, ipairs
 
