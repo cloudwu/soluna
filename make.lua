@@ -101,6 +101,7 @@ lm:conf {
 			"-s USE_PTHREADS=1",
 			"-s PTHREAD_POOL_SIZE='Math.max(2,navigator.hardwareConcurrency)'",
 			"-s PTHREAD_POOL_SIZE_STRICT=2",
+			"-s MALLOC=mimalloc",
 			"-s AUDIO_WORKLET=1",
 			"-s WASM_WORKERS=1",
 			"-s ASYNCIFY=1",
