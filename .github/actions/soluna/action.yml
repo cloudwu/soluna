@@ -103,6 +103,14 @@ runs:
         SOLUNA_JS="soluna.js"
         SOLUNA_JS_PATH=$(find bin -name $SOLUNA_JS | head -n 1)
         sed -i 's/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32),dynamicOffsetsPtr>>2,dynamicOffsetCount)/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32).subarray(dynamicOffsetsPtr>>2,(dynamicOffsetsPtr>>2)+dynamicOffsetCount))/g' "$SOLUNA_JS_PATH"
+        sed -i 's/setBindGroup(groupIndex, group, (growMemViews(), HEAPU32), ((dynamicOffsetsPtr) >> 2), dynamicOffsetCount)/setBindGroup(groupIndex, group, (growMemViews(), HEAPU32).subarray(((dynamicOffsetsPtr) >> 2), ((dynamicOffsetsPtr) >> 2) + dynamicOffsetCount))/g' "$SOLUNA_JS_PATH"
+        perl -0pi -e 's/var group=WebGPU\.getJsObject\(groupPtr\);if\(dynamicOffsetCount==0\)\{pass\.setBindGroup\(groupIndex,group\)\}else\{pass\.setBindGroup\(groupIndex,group,\(growMemViews\(\),HEAPU32\)\.subarray\(dynamicOffsetsPtr>>2,\(dynamicOffsetsPtr>>2\)\+dynamicOffsetCount\)\)\}/var group=WebGPU.getJsObject(groupPtr);if(!group){return}if(dynamicOffsetCount==0){pass.setBindGroup(groupIndex,group)}else{pass.setBindGroup(groupIndex,group,(growMemViews(),HEAPU32).subarray(dynamicOffsetsPtr>>2,(dynamicOffsetsPtr>>2)+dynamicOffsetCount))}/g' "$SOLUNA_JS_PATH"
+        perl -0pi -e 's/var group = WebGPU\.getJsObject\(groupPtr\);\n  if \(dynamicOffsetCount == 0\) \{\n    pass\.setBindGroup\(groupIndex, group\);\n  \} else \{\n    pass\.setBindGroup\(groupIndex, group, \(growMemViews\(\), HEAPU32\)\.subarray\(\(\(dynamicOffsetsPtr\) >> 2\), \(\(dynamicOffsetsPtr\) >> 2\) \+ dynamicOffsetCount\)\);\n  \}/var group = WebGPU.getJsObject(groupPtr);\n  if (!group) {\n    return;\n  }\n  if (dynamicOffsetCount == 0) {\n    pass.setBindGroup(groupIndex, group);\n  } else {\n    pass.setBindGroup(groupIndex, group, (growMemViews(), HEAPU32).subarray(((dynamicOffsetsPtr) >> 2), ((dynamicOffsetsPtr) >> 2) + dynamicOffsetCount));\n  }/g' "$SOLUNA_JS_PATH"
+        if grep -Fq 'setBindGroup(groupIndex,group,(growMemViews(),HEAPU32),dynamicOffsetsPtr>>2,dynamicOffsetCount)' "$SOLUNA_JS_PATH" || \
+           grep -Fq 'setBindGroup(groupIndex, group, (growMemViews(), HEAPU32), ((dynamicOffsetsPtr) >> 2), dynamicOffsetCount)' "$SOLUNA_JS_PATH"; then
+          echo "Unpatched WebGPU setBindGroup glue remains in $SOLUNA_JS_PATH" >&2
+          exit 1
+        fi
     - name: Set Output Build Path
       id: set-output
       run: |
