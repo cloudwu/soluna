@@ -86,7 +86,7 @@ lm:conf {
 			"-Wall",
 			"-pthread",
 			"--use-port=emdawnwebgpu",
-			lm.mode == "debug" and "-fwasm-exceptions",
+			"-fwasm-exceptions",
 		},
 		links = {
 			"idbfs.js",
@@ -101,10 +101,7 @@ lm:conf {
 			"-s USE_PTHREADS=1",
 			"-s PTHREAD_POOL_SIZE='Math.max(2,navigator.hardwareConcurrency)'",
 			"-s PTHREAD_POOL_SIZE_STRICT=2",
-			"-s AUDIO_WORKLET=1",
-			"-s WASM_WORKERS=1",
-			"-s ASYNCIFY=1",
-			lm.mode == "debug" and "-fwasm-exceptions",
+			"-fwasm-exceptions",
 			lm.mode == "debug" and "-gsource-map",
 			lm.mode == "debug" and "-s EXCEPTION_STACK_TRACES=1",
 			lm.mode == "debug" and "-s ASSERTIONS=2",
@@ -115,7 +112,6 @@ lm:conf {
 		defines = {
 			"_POSIX_C_SOURCE=200809L",
 			"_GNU_SOURCE",
-			"MA_ENABLE_AUDIO_WORKLETS",
 		},
 	},
 	defines = {
