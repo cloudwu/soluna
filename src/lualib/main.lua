@@ -51,6 +51,8 @@ local init_func_temp = [=[
 	return load(file.load(filename), "@"..filename)
 ]=]
 
+local api = {}
+
 local function start(config)
 	local boot = require "ltask.bootstrap"
 	local mqueue = require "ltask.mqueue"
@@ -124,6 +126,7 @@ local function start(config)
 		send_log_ud = logger_ud,
 		mqueue = appmsg_queue,
 		cleanup = function()
+			api.deinit()
 			while not send_message "cleanup" do end
 			bootstrap.wait(ctx)
 			mqueue.delete(appmsg_queue)
@@ -158,7 +161,6 @@ if args.cpath then
 	package.cpath = args.cpath
 end
 
-local api = {}
 local audio_device
 
 function api.start(app)
@@ -226,5 +228,12 @@ function api.init(desc)
 	audio.device, audio_device = audio.init()
 end
 
-return api
+function api.deinit()
+	if audio_device then
+		local audio = require "soluna.audio"
+		audio.deinit(audio_device)
+		audio_device = nil
+	end
+end
 
+return api

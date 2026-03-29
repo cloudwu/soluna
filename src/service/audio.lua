@@ -62,9 +62,6 @@ function S.fetch()
 end
 
 function S.quit()
-	if DEVICE then
-		audio.deinit(DEVICE)
-	end
 	DEVICE = nil
 end
 
