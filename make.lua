@@ -85,6 +85,7 @@ lm:conf {
 		flags = {
 			"-Wall",
 			"-pthread",
+			"-fPIC",
 			"--use-port=emdawnwebgpu",
 			"-fwasm-exceptions",
 		},
@@ -102,6 +103,7 @@ lm:conf {
 			"-s PTHREAD_POOL_SIZE='Math.max(2,navigator.hardwareConcurrency)'",
 			"-s PTHREAD_POOL_SIZE_STRICT=2",
 			"-fwasm-exceptions",
+
 			lm.mode == "debug" and "-gsource-map",
 			lm.mode == "debug" and "-s EXCEPTION_STACK_TRACES=1",
 			lm.mode == "debug" and "-s ASSERTIONS=2",
@@ -135,6 +137,13 @@ lm:import "clibs/soluna/make.lua"
 
 lm:exe "soluna" {
 	deps = deps,
+	emcc = {
+		ldflags = {
+			"-s MAIN_MODULE=2",
+			"-Wl,-u,emscripten_builtin_memalign",
+			"-Wl,--export=emscripten_builtin_memalign",
+		},
+	},
 }
 
 lm:dll "sample" {

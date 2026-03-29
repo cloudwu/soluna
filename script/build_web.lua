@@ -310,7 +310,7 @@ local example_paths = exec_lines("find " .. shell_quote(soluna_dir .. "/test") .
 table.sort(example_paths)
 for _, path in ipairs(example_paths) do
   local name = path:match("([^/]+)%.lua$")
-  if name and name ~= "extlua" then
+  if name then
     examples[#examples + 1] = {
       id = name,
       title = titleize(name),
