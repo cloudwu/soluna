@@ -59,6 +59,23 @@ mergeInto(LibraryManager.library, {
     };
     Module.solunaSetComposing = callSetComposing;
 
+    var makeLatestTaskScheduler = function (run) {
+      var token = 0;
+      var schedule = function () {
+        var current = ++token;
+        setTimeout(function () {
+          if (current !== token) {
+            return;
+          }
+          run();
+        }, 0);
+      };
+      schedule.cancel = function () {
+        ++token;
+      };
+      return schedule;
+    };
+
     var state = {
       node: ta,
       preedit: label,
@@ -75,6 +92,35 @@ mergeInto(LibraryManager.library, {
       metricCanvas: null,
       metricContext: null,
     };
+
+    state.focusNode = function () {
+      var el = state.node;
+      if (!el) {
+        return;
+      }
+      try {
+        el.focus({ preventScroll: true });
+      } catch (err) {
+        el.focus();
+      }
+    };
+
+    state.queueFocus = makeLatestTaskScheduler(function () {
+      var el = state.node;
+      if (!el || !state.active) {
+        return;
+      }
+      el.style.display = 'block';
+      state.focusNode();
+    });
+
+    state.queueBlur = makeLatestTaskScheduler(function () {
+      var el = state.node;
+      if (!el) {
+        return;
+      }
+      el.blur();
+    });
 
     state.resolveCanvas = function () {
       if (Module.canvas) {
@@ -457,11 +503,7 @@ mergeInto(LibraryManager.library, {
         return;
       }
       el.style.display = 'block';
-      try {
-        el.focus({ preventScroll: true });
-      } catch (err) {
-        el.focus();
-      }
+      state.focusNode();
     };
 
     var clearFocusOnTouchEnd = function () {
@@ -478,7 +520,15 @@ mergeInto(LibraryManager.library, {
 
     globalScope.addEventListener('keydown', updateMods, true);
     globalScope.addEventListener('keyup', updateMods, true);
+    globalScope.addEventListener('focus', function () {
+      state.queueBlur.cancel();
+      if (state.active) {
+        state.queueFocus();
+      }
+    }, true);
     globalScope.addEventListener('blur', function () {
+      state.queueBlur.cancel();
+      state.queueFocus.cancel();
       state.mods = 0;
       state.composing = false;
       state.expectNextInput = false;
@@ -538,11 +588,7 @@ mergeInto(LibraryManager.library, {
     state.active = true;
     state.syncStylesFromCanvas(canvas, height);
     state.positionPreedit();
-    try {
-      el.focus({ preventScroll: true });
-    } catch (err) {
-      el.focus();
-    }
+    state.queueFocus();
   },
 
   soluna_wasm_dom_hide__sig: 'v',
@@ -555,6 +601,8 @@ mergeInto(LibraryManager.library, {
       return;
     }
     state.active = false;
+    state.queueFocus.cancel();
+    state.queueBlur.cancel();
     state.composing = false;
     state.expectNextInput = false;
     state.suppressNextInput = false;
@@ -562,7 +610,7 @@ mergeInto(LibraryManager.library, {
     el.value = '';
     el.style.display = 'none';
     state.hidePreedit();
-    el.blur();
+    state.queueBlur();
     if (Module.solunaSetComposing) {
       Module.solunaSetComposing(0);
     }
