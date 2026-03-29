@@ -1,4 +1,0 @@
----
-title: "Playframe"
-type: "playframe"
----

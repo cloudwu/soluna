@@ -33,6 +33,13 @@ local function read_lines(path)
   return lines
 end
 
+local function read_file(path)
+  local f = assert(io.open(path, "rb"))
+  local data = f:read("*a")
+  f:close()
+  return data
+end
+
 local function exec_lines(cmd)
   local p = assert(io.popen(cmd, "r"))
   local lines = {}

@@ -93,15 +93,10 @@ lm:conf {
 			"idbfs.js",
 		},
 		ldflags = {
-			"--js-library=src/platform/wasm/soluna_ime.js",
-			"--js-library=src/platform/wasm/soluna_openurl.js",
 			"--use-port=emdawnwebgpu",
 			"-s ALLOW_MEMORY_GROWTH",
 			"-s FORCE_FILESYSTEM=1",
-			'-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile","IDBFS"]\'',
 			"-s USE_PTHREADS=1",
-			"-s PTHREAD_POOL_SIZE='Math.max(2,navigator.hardwareConcurrency)'",
-			"-s PTHREAD_POOL_SIZE_STRICT=2",
 			"-fwasm-exceptions",
 
 			lm.mode == "debug" and "-gsource-map",
@@ -139,6 +134,15 @@ lm:exe "soluna" {
 	deps = deps,
 	emcc = {
 		ldflags = {
+			"--js-library=src/platform/wasm/soluna_ime.js",
+			"--js-library=src/platform/wasm/soluna_openurl.js",
+			"-s MODULARIZE=1",
+			"-s EXPORT_ES6=1",
+			"-s EXPORT_NAME=createApp",
+			'-s EXPORTED_FUNCTIONS=\'["_main"]\'',
+			'-s EXPORTED_RUNTIME_METHODS=\'["FS","FS_createPath","FS_createDataFile","IDBFS"]\'',
+			"-s PTHREAD_POOL_SIZE='Math.max(2,navigator.hardwareConcurrency)'",
+			"-s PTHREAD_POOL_SIZE_STRICT=2",
 			"-s MAIN_MODULE=2",
 			"-Wl,-u,emscripten_builtin_memalign",
 			"-Wl,--export=emscripten_builtin_memalign",

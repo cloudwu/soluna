@@ -352,11 +352,10 @@ main {
   display: block;
 }
 
-.play-stage .play-frame {
+#soluna-stage-host {
   width: 100%;
   height: 100%;
   display: block;
-  border: none;
 }
 
 .console-panel,
