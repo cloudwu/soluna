@@ -168,6 +168,8 @@ laudio_init(lua_State *L) {
 	if (r != MA_SUCCESS) {
 		return luaL_error(L, "ma_engine_init() error : %s", ma_result_description(r));
 	}
+	e->rm.config.decodedFormat = ma_format_f32;
+	e->rm.config.decodedSampleRate = ma_engine_get_sample_rate(&e->engine);
 	lua_pushlightuserdata(L, (void *)e);
 	
 	return 2;
