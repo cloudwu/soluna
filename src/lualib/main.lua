@@ -126,9 +126,9 @@ local function start(config)
 		send_log_ud = logger_ud,
 		mqueue = appmsg_queue,
 		cleanup = function()
-			api.deinit()
 			while not send_message "cleanup" do end
 			bootstrap.wait(ctx)
+			api.deinit()
 			mqueue.delete(appmsg_queue)
 			appmsg_queue = nil
 		end,
