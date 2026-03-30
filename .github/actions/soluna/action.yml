@@ -114,7 +114,14 @@ runs:
     - name: Set Output Build Path
       id: set-output
       run: |
-        bin_dir=${{inputs.soluna_path}}/bin
+        soluna_root=$(cd "${{ inputs.soluna_path }}" && pwd -P)
+        if [ "${{ runner.os }}" == "Windows" ]; then
+          soluna_root_output=$(cd "${{ inputs.soluna_path }}" && pwd -W | sed 's#\\#/#g')
+        else
+          soluna_root_output="$soluna_root"
+        fi
+        bin_dir="$soluna_root/bin"
+        bin_dir_output="$soluna_root_output/bin"
         if [ "${{ runner.os }}" == "Windows" ]; then
           SOLUNA_BINARY="soluna.exe"
           RENAME_BINARY="soluna-windows-amd64.exe"
@@ -125,17 +132,17 @@ runs:
           SOLUNA_BINARY="soluna"
           RENAME_BINARY="soluna-linux-amd64"
         fi
-        SOLUNA_PATH=$(find $bin_dir -name "$SOLUNA_BINARY" | head -n 1)
+        SOLUNA_PATH=$(find "$bin_dir" -name "$SOLUNA_BINARY" | head -n 1)
         cp "$SOLUNA_PATH" "$bin_dir/$RENAME_BINARY"
-        echo "SOLUNA_PATH=$bin_dir/$RENAME_BINARY" >> $GITHUB_OUTPUT
+        echo "SOLUNA_PATH=$bin_dir_output/$RENAME_BINARY" >> $GITHUB_OUTPUT
         echo "SOLUNA_BINARY=$RENAME_BINARY" >> $GITHUB_OUTPUT
         if [ "${{ runner.os }}" == "Linux" ]; then
-          SOLUNA_WASM_PATH=$(find $bin_dir -name "soluna.wasm" | head -n 1)
-          SOLUNA_JS_PATH=$(find $bin_dir -name "soluna.js" | head -n 1)
+          SOLUNA_WASM_PATH=$(find "$bin_dir" -name "soluna.wasm" | head -n 1)
+          SOLUNA_JS_PATH=$(find "$bin_dir" -name "soluna.js" | head -n 1)
           echo "SOLUNA_WASM_PATH=$SOLUNA_WASM_PATH" >> $GITHUB_OUTPUT
           echo "SOLUNA_JS_PATH=$SOLUNA_JS_PATH" >> $GITHUB_OUTPUT
           if [ "${{ inputs.debug }}" == "true" ]; then
-            SOLUNA_WASM_MAP_PATH=$(find $bin_dir -name "soluna.wasm.map" | head -n 1)
+            SOLUNA_WASM_MAP_PATH=$(find "$bin_dir" -name "soluna.wasm.map" | head -n 1)
             echo "SOLUNA_WASM_MAP_PATH=$SOLUNA_WASM_MAP_PATH" >> $GITHUB_OUTPUT
           fi
         fi

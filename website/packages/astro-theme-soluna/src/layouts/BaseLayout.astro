@@ -1,0 +1,32 @@
+---
+import Footer from '../components/Footer.astro'
+import Nav from '../components/Nav.astro'
+import '../styles/theme.css'
+
+interface Props {
+  title: string
+  description?: string
+}
+
+const { title, description = '' } = Astro.props
+const pageTitle = title === 'Soluna' ? 'Soluna' : `${title} | Soluna`
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+    <div class="page">
+      <Nav />
+      <main>
+        <slot />
+      </main>
+      <Footer />
+    </div>
+  </body>
+</html>

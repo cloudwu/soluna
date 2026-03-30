@@ -1,3 +1,0 @@
-{{- $inner := .Inner | markdownify -}}
-{{- $inner = replaceRE "<ul>" "<ul class=\"plain-list\">" $inner -}}
-{{- $inner | safeHTML -}}

@@ -183,14 +183,27 @@ lmessage_unpack(lua_State *L) {
 	return 4;
 }
 
-static int
-lquit_signal(lua_State *L) {
+static void
+request_app_quit(void) {
 	if (CTX) {
 		CTX->quitL = CTX->L;
 		CTX->L = NULL;
 	}
+}
+
+static int
+lquit_signal(lua_State *L) {
+	request_app_quit();
 	return 0;
 }
+
+#if defined(__EMSCRIPTEN__)
+EMSCRIPTEN_KEEPALIVE
+void
+soluna_runtime_quit(void) {
+	request_app_quit();
+}
+#endif
 
 static int
 levent_unpack(lua_State *L) {
@@ -726,7 +739,6 @@ app_init() {
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
 	soluna_win32_install_wndproc();
 #endif
-	
 	sg_setup(&(sg_desc) {
         .environment = sglue_environment(),
         .logger.func = log_func,			

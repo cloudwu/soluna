@@ -1,0 +1,11 @@
+---
+import DocsPage from 'astro-theme-soluna/components/docs/DocsPage.astro'
+import BaseLayout from 'astro-theme-soluna/layouts/BaseLayout.astro'
+import { getCollection } from 'astro:content'
+
+const modules = (await getCollection('docs')).map(entry => entry.data)
+---
+
+<BaseLayout title="Docs" description="Soluna API reference.">
+  <DocsPage modules={modules} />
+</BaseLayout>

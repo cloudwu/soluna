@@ -71,7 +71,8 @@ runs:
       shell: bash
       working-directory: ${{ inputs.soluna_path }}
       run: |
-        SAMPLE_WASM_PATH=$(find bin -name "sample.wasm" | head -n 1)
+        soluna_root=$(pwd -P)
+        SAMPLE_WASM_PATH=$(find "$soluna_root/bin" -name "sample.wasm" | head -n 1)
         if [ -z "$SAMPLE_WASM_PATH" ]; then
           echo "sample.wasm not found" >&2
           exit 1

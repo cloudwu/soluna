@@ -1,0 +1,27 @@
+{
+  "name": "website",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "prepare:runtime": "node scripts/prepare-runtime.mjs",
+    "prepare:runtime:debug": "SOLUNA_MODE=debug node scripts/prepare-runtime.mjs",
+    "dev": "pnpm run prepare:runtime && astro dev",
+    "build": "pnpm run prepare:runtime && astro build",
+    "build:pages": "SITE_BASE=/soluna/ pnpm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "eslint . --fix",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "^5.16.8",
+    "astro-theme-soluna": "workspace:*",
+    "marked": "^15.0.12"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^4.19.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-astro": "^1.6.0"
+  }
+}

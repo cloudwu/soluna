@@ -1,0 +1,72 @@
+---
+import Menubar from '../Menubar.astro'
+
+interface ExampleItem {
+  id: string
+  title: string
+  entry: string
+  source: string
+}
+
+interface Props {
+  example: ExampleItem
+  examples: ExampleItem[]
+}
+
+const { example, examples } = Astro.props
+const basePath = import.meta.env.BASE_URL
+const sourceJson = JSON.stringify(example.source).replace(/</g, '\\u003c')
+---
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <h1 class="section-title">{example.title}</h1>
+      <p class="section-subtitle">Entry: {example.entry}</p>
+    </div>
+  </div>
+</section>
+
+<Menubar>
+  <a href={`${basePath}examples/`}>gallery</a>
+</Menubar>
+
+<div class="play-shell">
+  <div class="play-tabs">
+    {examples.map(item => (
+      <a class:list={['play-tab', item.id === example.id && 'active']} href={`${basePath}examples/${item.id}/`}>{item.title}</a>
+    ))}
+  </div>
+  <div class="play-stage">
+    <div id="soluna-stage-host"></div>
+    <div class="overlay" id="play-overlay">
+      <div class="overlay-card">
+        <div class="overlay-title">Preparing Runtime</div>
+        <p class="overlay-status" id="play-status">Loading assets...</p>
+        <div class="note" id="play-note"></div>
+      </div>
+    </div>
+  </div>
+  <div class="console-panel">
+    <div class="console-header">
+      <div class="console-title">Console</div>
+    </div>
+    <pre class="console-body" id="console-output"></pre>
+  </div>
+  <div class="code-panel">
+    <div class="code-header">
+      <div class="code-title">Example Source</div>
+    </div>
+    <pre class="code-block"><code id="code-content">{example.source}</code></pre>
+  </div>
+</div>
+
+<script type="application/json" id="soluna-example-source" set:html={sourceJson}></script>
+<script>
+import initPlay from 'astro-theme-soluna/client/play'
+
+const sourceNode = document.querySelector('#soluna-example-source')
+const exampleSource = sourceNode ? JSON.parse(sourceNode.textContent ?? '""') : ''
+
+initPlay({ exampleSource })
+</script>

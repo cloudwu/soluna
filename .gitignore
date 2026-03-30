@@ -1,8 +1,10 @@
 bin
 build
-web/public
-web/data
-web/static/runtime
-web/static/data
-web/content/examples/*.md
-!web/content/examples/_index.md
+node_modules
+.pnpm-store
+pnpm-debug.log*
+website/node_modules
+website/packages/*/node_modules
+website/dist
+website/.astro
+website/public/runtime/

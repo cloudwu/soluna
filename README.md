@@ -14,13 +14,14 @@ A framework you can use to make 2D games in Lua with multithreading, living on W
 
 It is built on top of [sokol](https://github.com/floooh/sokol) and leverages the power of ltask for multithreading.
 
-[![Nightly](/../../actions/workflows/nightly.yml/badge.svg)](/../../actions/workflows/nightyly.yml)
+[![Nightly](/../../actions/workflows/nightly.yml/badge.svg)](/../../actions/workflows/nightly.yml)
 
 ## Documentation
 
 - [API Reference](./docs)
 - [Examples](./test)
 - [Wiki](https://github.com/cloudwu/soluna/wiki)
+- [Website](./website/README.md)
 
 ## Precompiled Binaries
 
@@ -33,7 +34,7 @@ You can build Soluna from source by `make` for Windows and by `luamake` for all 
 ### Integration with the Actions of your projects
 
 ```yaml
-- uses: actions/checkout@v5
+- uses: actions/checkout@v6
   with:
     repository: cloudwu/soluna
     ref: <a fixed commit hash to avoid breaking changes>
