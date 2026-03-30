@@ -1,0 +1,31 @@
+---
+import ExamplePlayPage from 'astro-theme-soluna/components/examples/ExamplePlayPage.astro'
+import BaseLayout from 'astro-theme-soluna/layouts/BaseLayout.astro'
+import { getCollection } from 'astro:content'
+
+const examples = (await getCollection('examples'))
+  .map(entry => ({
+    id: entry.id,
+    ...entry.data,
+  }))
+  .sort((left, right) => left.id.localeCompare(right.id))
+
+export async function getStaticPaths() {
+  const entries = await getCollection('examples')
+  return entries.map(entry => ({
+    params: { id: entry.id },
+    props: {
+      example: {
+        id: entry.id,
+        ...entry.data,
+      },
+    },
+  }))
+}
+
+const { example } = Astro.props
+---
+
+<BaseLayout title={example.title} description={`Soluna example: ${example.entry}`}>
+  <ExamplePlayPage example={example} examples={examples} />
+</BaseLayout>

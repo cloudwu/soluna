@@ -1,0 +1,15 @@
+---
+interface Props {
+  title: string
+  subtitle?: string
+  subtitleHtml?: string
+}
+
+const { title, subtitle, subtitleHtml } = Astro.props
+---
+
+<section class="section">
+  <h2 class="section-title">{title}</h2>
+  {subtitleHtml ? <p class="section-subtitle" set:html={subtitleHtml}></p> : subtitle ? <p class="section-subtitle">{subtitle}</p> : null}
+  <slot />
+</section>

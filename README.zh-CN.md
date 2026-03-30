@@ -14,13 +14,14 @@ Sokol + Lua = Soluna
 
 Soluna 可以运行在 Windows、Linux、macOS 和现代浏览器（通过 WebAssembly）上。
 
-[![Nightly](/../../actions/workflows/nightly.yml/badge.svg)](/../../actions/workflows/nightyly.yml)
+[![Nightly](/../../actions/workflows/nightly.yml/badge.svg)](/../../actions/workflows/nightly.yml)
 
 ## 文档
 
 - [API 参考](./docs)
 - [示例](./test)
 - [Wiki](https://github.com/cloudwu/soluna/wiki)
+- [演示网站说明](./website/README.zh-CN.md)
 
 ## 预编译二进制文件
 
@@ -35,7 +36,7 @@ WebAssembly 的预编译二进制文件。
 ### 在你的项目的 Actions 中集成
 
 ```yaml
-- uses: actions/checkout@v5
+- uses: actions/checkout@v6
   with:
     repository: cloudwu/soluna
     ref: <a fixed commit hash to avoid breaking changes>

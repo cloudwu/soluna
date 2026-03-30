@@ -1,3 +1,0 @@
-{{- $inner := .Inner | markdownify -}}
-{{- $inner = replaceRE "^<p>(.*)</p>\\s*$" "$1" $inner -}}
-<div class="menubar">{{ $inner | safeHTML }}</div>

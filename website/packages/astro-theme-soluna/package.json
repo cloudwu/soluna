@@ -1,0 +1,24 @@
+{
+  "name": "astro-theme-soluna",
+  "type": "module",
+  "version": "0.1.0",
+  "exports": {
+    "./layouts/BaseLayout.astro": "./src/layouts/BaseLayout.astro",
+    "./components/Footer.astro": "./src/components/Footer.astro",
+    "./components/Hero.astro": "./src/components/Hero.astro",
+    "./components/Menubar.astro": "./src/components/Menubar.astro",
+    "./components/Nav.astro": "./src/components/Nav.astro",
+    "./components/PlainList.astro": "./src/components/PlainList.astro",
+    "./components/Section.astro": "./src/components/Section.astro",
+    "./components/docs/DocsPage.astro": "./src/components/docs/DocsPage.astro",
+    "./components/examples/ExampleListPage.astro": "./src/components/examples/ExampleListPage.astro",
+    "./components/examples/ExamplePlayPage.astro": "./src/components/examples/ExamplePlayPage.astro",
+    "./client/play": "./src/client/play.ts"
+  },
+  "peerDependencies": {
+    "astro": "^5.16.8"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  }
+}

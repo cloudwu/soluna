@@ -1,0 +1,139 @@
+---
+import Menubar from '../Menubar.astro'
+
+interface DocBlock {
+  signature: string | null
+  docs: string[]
+  annos: string[]
+}
+
+interface DocModule {
+  module: string
+  title: string
+  blocks: DocBlock[]
+}
+
+interface Props {
+  modules: DocModule[]
+}
+
+const { modules } = Astro.props
+const basePath = import.meta.env.BASE_URL
+
+function buildSegments(lines: string[]) {
+  const segments: Array<{ type: 'paragraph' | 'list', lines: string[] }> = []
+  let paragraph: string[] = []
+  let list: string[] = []
+
+  const flushParagraph = () => {
+    if (paragraph.length > 0) {
+      segments.push({ type: 'paragraph', lines: [paragraph.join(' ')] })
+      paragraph = []
+    }
+  }
+
+  const flushList = () => {
+    if (list.length > 0) {
+      segments.push({ type: 'list', lines: list })
+      list = []
+    }
+  }
+
+  for (const line of lines) {
+    if (line.startsWith('- ')) {
+      flushParagraph()
+      list.push(line.slice(2))
+    }
+ else {
+      flushList()
+      paragraph.push(line)
+    }
+  }
+
+  flushParagraph()
+  flushList()
+  return segments
+}
+---
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <h1 class="section-title">Docs</h1>
+      <p class="section-subtitle">Soluna API reference.</p>
+    </div>
+  </div>
+</section>
+
+<Menubar>
+  <a href={basePath}>home</a> · <a href="#contents">contents</a> · <a href="#index">index</a>
+</Menubar>
+
+<section>
+  <h1 id="contents"><a href="#contents">Contents</a></h1>
+  <ul class="plain-list">
+    {modules.map(module => (
+      <li><a href={`#${module.module}`}>{module.title}</a></li>
+    ))}
+  </ul>
+</section>
+
+<section>
+  <h1 id="index"><a href="#index">Index</a></h1>
+  <ul class="plain-list">
+    {modules.map(module =>
+      module.blocks.map((block, index) => (
+        <li>
+          <a href={`#${module.module}-${index + 1}`}>{block.signature ?? '@block'}</a>
+        </li>
+      )),
+    )}
+  </ul>
+</section>
+
+<div class="docs-layout">
+  <aside class="docs-nav">
+    <div class="docs-nav-title">Modules</div>
+    <div class="docs-nav-list">
+      {modules.map(module => (
+        <a href={`#${module.module}`}>{module.title}</a>
+      ))}
+    </div>
+  </aside>
+
+  <div>
+    {modules.map(module => (
+      <section>
+        <h1 id={module.module}><a href={`#${module.module}`}>{module.title}</a></h1>
+        {module.module.toLowerCase() !== module.title.toLowerCase() ? <p><small>{module.module}</small></p> : null}
+        {module.blocks.map((block, index) => {
+          const blockId = `${module.module}-${index + 1}`
+          const segments = buildSegments(block.docs)
+          return (
+            <div class="docs-block">
+              <h3 id={blockId}>
+                <a href={`#${blockId}`}><code>{block.signature ?? '@block'}</code></a>
+              </h3>
+              {segments.map(segment =>
+                segment.type === 'paragraph'
+? (
+                  segment.lines.map(line => <p>{line}</p>)
+                )
+: (
+                  <ul class="plain-list">
+                    {segment.lines.map(line => <li>{line}</li>)}
+                  </ul>
+                ),
+              )}
+              {block.annos.length > 0
+? (
+                <pre class="docs-anno"><code>{block.annos.map(anno => `@${anno}`).join('\n')}</code></pre>
+              )
+: null}
+            </div>
+          )
+        })}
+      </section>
+    ))}
+  </div>
+</div>

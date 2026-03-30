@@ -24,59 +24,44 @@ jobs:
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Build Soluna (WASM)
+      - name: Build Soluna
         uses: ./.github/actions/soluna
         id: build
         with:
           soluna_path: "."
           debug: ${{ github.event.inputs.debug }}
 
-      - name: Build WASM side module (sample)
+      - name: Build Sample
         uses: ./.github/actions/sample
         id: sample
         with:
           soluna_path: "."
 
-      - name: Install web build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y lua5.4 zip
-
-      - name: Prepare web assets
-        run: |
-          lua5.4 script/build_web.lua \
-            --soluna . \
-            --site web \
-            --wasm "${{ steps.build.outputs.SOLUNA_WASM_PATH }}" \
-            --js "${{ steps.build.outputs.SOLUNA_JS_PATH }}"
-          if [ -f "${{ steps.build.outputs.SOLUNA_WASM_MAP_PATH }}" ]; then
-            cp "${{ steps.build.outputs.SOLUNA_WASM_MAP_PATH }}" web/static/runtime/soluna.wasm.map
-          fi
-
-      - name: Copy WASM side module into runtime
-        run: |
-          cp "${{ steps.sample.outputs.SAMPLE_WASM_PATH }}" web/static/runtime/sample.wasm
-
-      - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v3
+      - name: Build Astro
+        uses: withastro/action@v6
+        env:
+          SITE_BASE: /soluna/
+          SOLUNA_JS_PATH: ${{ steps.build.outputs.SOLUNA_JS_PATH }}
+          SOLUNA_WASM_PATH: ${{ steps.build.outputs.SOLUNA_WASM_PATH }}
+          SOLUNA_WASM_MAP_PATH: ${{ steps.build.outputs.SOLUNA_WASM_MAP_PATH }}
+          SAMPLE_WASM_PATH: ${{ steps.sample.outputs.SAMPLE_WASM_PATH }}
         with:
-          hugo-version: "0.154.5"
-
-      - name: Build
-        run: hugo --source web --minify
-
-      - name: Upload static files as artifact
-        id: deployment
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: web/public
+          path: website
+          node-version: 24
+          package-manager: pnpm@10.28.2
+          build-cmd: pnpm run build
+          out-dir: dist
 
   deploy:
     name: Deploy to GitHub Pages

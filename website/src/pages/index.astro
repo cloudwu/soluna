@@ -1,0 +1,10 @@
+---
+import BaseLayout from 'astro-theme-soluna/layouts/BaseLayout.astro'
+import { renderReadme } from '../lib/readme'
+
+const html = await renderReadme(import.meta.env.BASE_URL)
+---
+
+<BaseLayout title="Soluna" description="Live docs and examples for the Soluna engine.">
+  <article class="readme-content" set:html={html}></article>
+</BaseLayout>

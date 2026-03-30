@@ -1,0 +1,16 @@
+---
+import ExampleListPage from 'astro-theme-soluna/components/examples/ExampleListPage.astro'
+import BaseLayout from 'astro-theme-soluna/layouts/BaseLayout.astro'
+import { getCollection } from 'astro:content'
+
+const examples = (await getCollection('examples'))
+  .map(entry => ({
+    id: entry.id,
+    ...entry.data,
+  }))
+  .sort((left, right) => left.id.localeCompare(right.id))
+---
+
+<BaseLayout title="Examples" description="Gallery of Soluna test entries.">
+  <ExampleListPage examples={examples} />
+</BaseLayout>

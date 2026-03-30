@@ -1,0 +1,17 @@
+---
+const basePath = import.meta.env.BASE_URL
+---
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href={basePath}>
+      <span class="brand-mark"></span>
+      <span>Soluna Web Lab</span>
+    </a>
+    <nav class="nav-links">
+      <a href={`${basePath}docs/`}>Docs</a>
+      <a href={`${basePath}examples/`}>Gallery</a>
+      <a href="https://github.com/cloudwu/soluna" rel="noreferrer">GitHub</a>
+    </nav>
+  </div>
+</header>
