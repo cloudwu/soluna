@@ -162,4 +162,19 @@ lm:dll "sample" {
 
 lm:import "script/act_targets.lua"
 
+lm:runlua "cc" {
+	script = "script/compile_commands.lua",
+	args = {
+		"build/build.ninja",
+		"compile_commands.json",
+	},
+	inputs = {
+		"build/build.ninja",
+		"script/compile_commands.lua",
+	},
+	outputs = {
+		"compile_commands.json",
+	},
+}
+
 lm:default "soluna"
