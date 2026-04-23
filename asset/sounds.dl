@@ -1,3 +1,12 @@
 --
 name : bloop
 filename : asset/sounds/bloop_x.wav
+
+--
+name : bloop_loop
+filename : asset/sounds/bloop_x.wav
+group : music
+volume : 0.6
+pitch : 0.8
+loop : true
+stream : true

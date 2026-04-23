@@ -58,6 +58,66 @@ struct custom_engine {
 	struct custom_vfs vfs;
 };
 
+struct audio_group {
+	ma_sound_group group;
+	int alive;
+};
+
+struct audio_sound {
+	ma_sound sound;
+	int alive;
+};
+
+#define AUDIO_GROUP_METATABLE "SOLUNA_AUDIO_GROUP"
+#define AUDIO_SOUND_METATABLE "SOLUNA_AUDIO_SOUND"
+
+static struct custom_engine *
+check_engine(lua_State *L, int index) {
+	luaL_checktype(L, index, LUA_TLIGHTUSERDATA);
+	return (struct custom_engine *)lua_touserdata(L, index);
+}
+
+static struct audio_group *
+check_group(lua_State *L, int index) {
+	struct audio_group *group = (struct audio_group *)luaL_checkudata(L, index, AUDIO_GROUP_METATABLE);
+	luaL_argcheck(L, group->alive, index, "closed audio group");
+	return group;
+}
+
+static struct audio_sound *
+check_sound(lua_State *L, int index) {
+	struct audio_sound *sound = (struct audio_sound *)luaL_checkudata(L, index, AUDIO_SOUND_METATABLE);
+	luaL_argcheck(L, sound->alive, index, "closed audio sound");
+	return sound;
+}
+
+static int
+push_error(lua_State *L, ma_result r) {
+	lua_pushnil(L);
+	lua_pushstring(L, ma_result_description(r));
+	return 2;
+}
+
+static int
+laudio_group_uninit(lua_State *L) {
+	struct audio_group *group = (struct audio_group *)luaL_checkudata(L, 1, AUDIO_GROUP_METATABLE);
+	if (group->alive) {
+		ma_sound_group_uninit(&group->group);
+		group->alive = 0;
+	}
+	return 0;
+}
+
+static int
+laudio_sound_uninit(lua_State *L) {
+	struct audio_sound *sound = (struct audio_sound *)luaL_checkudata(L, 1, AUDIO_SOUND_METATABLE);
+	if (sound->alive) {
+		ma_sound_uninit(&sound->sound);
+		sound->alive = 0;
+	}
+	return 0;
+}
+
 static ma_result
 zr_open(ma_vfs* pVFS, const char* pFilePath, ma_uint32 openMode, ma_vfs_file* pFile) {
 	struct custom_vfs *vfs = (struct custom_vfs *)pVFS;
@@ -177,45 +237,184 @@ laudio_init(lua_State *L) {
 
 static int
 laudio_deinit(lua_State *L) {
-	luaL_checktype(L, 1, LUA_TLIGHTUSERDATA);
-	ma_engine *engine = (ma_engine *)lua_touserdata(L, 1);
-	ma_engine_uninit(engine);
+	struct custom_engine *e = check_engine(L, 1);
+	ma_engine_uninit(&e->engine);
+	ma_resource_manager_uninit(&e->rm);
 
 	return 0;
 }
 
-/*
-// todo : call ma_sound_init_from_file()
+static int
+laudio_group_init(lua_State *L) {
+	struct custom_engine *e = check_engine(L, 1);
+	struct audio_group *group = (struct audio_group *)lua_newuserdatauv(L, sizeof(*group), 0);
+	group->alive = 0;
+	ma_result r = ma_sound_group_init(&e->engine, 0, NULL, &group->group);
+	if (r != MA_SUCCESS) {
+		lua_pop(L, 1);
+		return push_error(L, r);
+	}
+	group->alive = 1;
+	luaL_setmetatable(L, AUDIO_GROUP_METATABLE);
+	return 1;
+}
 
 static int
-laudio_load(lua_State *L) {
+laudio_group_set_volume(lua_State *L) {
+	struct audio_group *group = check_group(L, 1);
+	float volume = (float)luaL_checknumber(L, 2);
+	ma_sound_group_set_volume(&group->group, volume);
 	return 0;
 }
 
 static int
-laudio_unload(lua_State *L) {
-	return 0;
-}
-*/
-
-static int
-laudio_play(lua_State *L) {
-	luaL_checktype(L, 1, LUA_TLIGHTUSERDATA);
-	ma_engine *engine = (ma_engine *)lua_touserdata(L, 1);
+laudio_sound_init(lua_State *L) {
+	struct custom_engine *e = check_engine(L, 1);
 	const char *filename = luaL_checkstring(L, 2);
-	
-	ma_engine_play_sound(engine, filename, NULL);
+	ma_uint32 flags = (ma_uint32)luaL_optinteger(L, 3, 0);
+	struct audio_group *group = NULL;
+	if (!lua_isnoneornil(L, 4)) {
+		group = check_group(L, 4);
+	}
+
+	struct audio_sound *sound = (struct audio_sound *)lua_newuserdatauv(L, sizeof(*sound), 0);
+	sound->alive = 0;
+	ma_result r = ma_sound_init_from_file(&e->engine, filename, flags, group ? &group->group : NULL, NULL, &sound->sound);
+	if (r != MA_SUCCESS) {
+		lua_pop(L, 1);
+		return push_error(L, r);
+	}
+	sound->alive = 1;
+	luaL_setmetatable(L, AUDIO_SOUND_METATABLE);
+	return 1;
+}
+
+static int
+laudio_sound_start(lua_State *L) {
+	struct audio_sound *sound = check_sound(L, 1);
+	ma_result r = ma_sound_start(&sound->sound);
+	if (r != MA_SUCCESS) {
+		return push_error(L, r);
+	}
+	lua_pushboolean(L, 1);
+	return 1;
+}
+
+static int
+laudio_sound_stop(lua_State *L) {
+	struct audio_sound *sound = check_sound(L, 1);
+	ma_result r;
+	if (lua_isnoneornil(L, 2)) {
+		r = ma_sound_stop(&sound->sound);
+	} else {
+		ma_uint64 fade_ms = (ma_uint64)luaL_checkinteger(L, 2);
+		if (fade_ms == 0) {
+			r = ma_sound_stop(&sound->sound);
+		} else {
+			r = ma_sound_stop_with_fade_in_milliseconds(&sound->sound, fade_ms);
+		}
+	}
+	if (r != MA_SUCCESS) {
+		return push_error(L, r);
+	}
+	lua_pushboolean(L, 1);
+	return 1;
+}
+
+static int
+laudio_sound_playing(lua_State *L) {
+	struct audio_sound *sound = check_sound(L, 1);
+	lua_pushboolean(L, ma_sound_is_playing(&sound->sound));
+	return 1;
+}
+
+static int
+laudio_sound_set_volume(lua_State *L) {
+	struct audio_sound *sound = check_sound(L, 1);
+	float volume = (float)luaL_checknumber(L, 2);
+	ma_sound_set_volume(&sound->sound, volume);
 	return 0;
+}
+
+static int
+laudio_sound_set_pan(lua_State *L) {
+	struct audio_sound *sound = check_sound(L, 1);
+	float pan = (float)luaL_checknumber(L, 2);
+	ma_sound_set_pan(&sound->sound, pan);
+	return 0;
+}
+
+static int
+laudio_sound_set_pitch(lua_State *L) {
+	struct audio_sound *sound = check_sound(L, 1);
+	float pitch = (float)luaL_checknumber(L, 2);
+	ma_sound_set_pitch(&sound->sound, pitch);
+	return 0;
+}
+
+static int
+laudio_sound_set_looping(lua_State *L) {
+	struct audio_sound *sound = check_sound(L, 1);
+	int looping = lua_toboolean(L, 2);
+	ma_sound_set_looping(&sound->sound, looping);
+	return 0;
+}
+
+static int
+laudio_sound_seek(lua_State *L) {
+	struct audio_sound *sound = check_sound(L, 1);
+	float seconds = (float)luaL_checknumber(L, 2);
+	ma_result r = ma_sound_seek_to_second(&sound->sound, seconds);
+	if (r != MA_SUCCESS) {
+		return push_error(L, r);
+	}
+	lua_pushboolean(L, 1);
+	return 1;
+}
+
+static int
+laudio_sound_tell(lua_State *L) {
+	struct audio_sound *sound = check_sound(L, 1);
+	float seconds = 0.0f;
+	ma_result r = ma_sound_get_cursor_in_seconds(&sound->sound, &seconds);
+	if (r != MA_SUCCESS) {
+		return push_error(L, r);
+	}
+	lua_pushnumber(L, seconds);
+	return 1;
 }
 
 int
 luaopen_soluna_audio(lua_State *L) {
 	luaL_checkversion(L);
+	if (luaL_newmetatable(L, AUDIO_GROUP_METATABLE)) {
+		lua_pushcfunction(L, laudio_group_uninit);
+		lua_setfield(L, -2, "__gc");
+	}
+	lua_pop(L, 1);
+	if (luaL_newmetatable(L, AUDIO_SOUND_METATABLE)) {
+		lua_pushcfunction(L, laudio_sound_uninit);
+		lua_setfield(L, -2, "__gc");
+	}
+	lua_pop(L, 1);
 	luaL_Reg l[] = {
 		{ "init", laudio_init },
 		{ "init_vfs", laudio_init_vfs },
 		{ "deinit", laudio_deinit },
-		{ "play", laudio_play },
+		{ "group_init", laudio_group_init },
+		{ "group_uninit", laudio_group_uninit },
+		{ "group_set_volume", laudio_group_set_volume },
+		{ "sound_init", laudio_sound_init },
+		{ "sound_uninit", laudio_sound_uninit },
+		{ "sound_start", laudio_sound_start },
+		{ "sound_stop", laudio_sound_stop },
+		{ "sound_playing", laudio_sound_playing },
+		{ "sound_set_volume", laudio_sound_set_volume },
+		{ "sound_set_pan", laudio_sound_set_pan },
+		{ "sound_set_pitch", laudio_sound_set_pitch },
+		{ "sound_set_looping", laudio_sound_set_looping },
+		{ "sound_seek", laudio_sound_seek },
+		{ "sound_tell", laudio_sound_tell },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);

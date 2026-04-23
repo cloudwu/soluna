@@ -2,7 +2,7 @@ local ltask = require "ltask"
 local app = require "soluna.app"
 local mqueue = require "ltask.mqueue"
 
-global require, error, string, assert, package, setmetatable
+global require, error, string, assert, package, setmetatable, tostring
 
 local soluna = {
 	platform = app.platform
@@ -14,13 +14,13 @@ function soluna.gamepad_init()
 	soluna.gamepad = state
 	local gs = ltask.uniqueservice "gamepad"
 	local S = ltask.dispatch()
-	
+
 	function S._gamepad_update()
 		gamepad.update(state)
 	end
 
 	ltask.call(gs, "register", ltask.self(), "_gamepad_update")
-	
+
 	return state
 end
 
@@ -61,13 +61,13 @@ function soluna.gamedir(name)
 		path = "My Games/"
 	elseif soluna.platform == "macos" or soluna.platform == "linux" then
 		path = ".local/share/"
-  elseif soluna.platform == "wasm" then
-    path = "persistent/games/"
+	elseif soluna.platform == "wasm" then
+		path = "persistent/games/"
 	else
 		error "TODO: support none windows"
 	end
 	path = path .. name
-	return recursion_mkdir(lfs.personaldir() , path)
+	return recursion_mkdir(lfs.personaldir(), path)
 end
 
 function soluna.load_sprites(filename)
@@ -76,26 +76,68 @@ function soluna.load_sprites(filename)
 	return sprites
 end
 
-
 local audio_service
-local audio_sounds = {}
 
-local function fetch_audio_list(_, name)
-	audio_service = audio_service or ltask.uniqueservice "audio"
-	audio_sounds = ltask.call(audio_service, "fetch")
-	return audio_sounds[name]
+local voice_index = {}
+local voice_mt = { __index = voice_index }
+
+function voice_index:stop(fade_seconds)
+	return ltask.call(audio_service, "voice_stop", self.id, fade_seconds)
 end
 
-setmetatable(audio_sounds, { __index = fetch_audio_list })
+function voice_index:playing()
+	return ltask.call(audio_service, "voice_playing", self.id)
+end
+
+function voice_index:set_volume(volume)
+	return ltask.call(audio_service, "voice_set_volume", self.id, volume)
+end
+
+function voice_index:set_pan(pan)
+	return ltask.call(audio_service, "voice_set_pan", self.id, pan)
+end
+
+function voice_index:set_pitch(pitch)
+	return ltask.call(audio_service, "voice_set_pitch", self.id, pitch)
+end
+
+function voice_index:set_loop(loop)
+	return ltask.call(audio_service, "voice_set_loop", self.id, loop)
+end
+
+function voice_index:seek(seconds)
+	return ltask.call(audio_service, "voice_seek", self.id, seconds)
+end
+
+function voice_index:tell()
+	return ltask.call(audio_service, "voice_tell", self.id)
+end
+
+local bus_index = {}
+local bus_mt = { __index = bus_index }
+
+function bus_index:set_volume(volume)
+	return ltask.call(audio_service, "bus_set_volume", self.name, volume)
+end
 
 function soluna.load_sounds(filename)
 	audio_service = audio_service or ltask.uniqueservice "audio"
 	ltask.call(audio_service, "init", filename)
 end
 
-function soluna.play_sound(name)
-	local id = audio_sounds[name]
-	ltask.send(audio_service, true, id)
+function soluna.play_sound(name, opts)
+	local id, err = ltask.call(audio_service, "play_sound", name, opts)
+	if not id then
+		return nil, err
+	end
+	return setmetatable({ id = id }, voice_mt)
+end
+
+function soluna.audio_bus(name)
+	if not ltask.call(audio_service, "has_bus", name) then
+		return nil, "Unknown audio bus " .. tostring(name)
+	end
+	return setmetatable({ name = name }, bus_mt)
 end
 
 function soluna.preload(spr)
