@@ -8,8 +8,13 @@ interface Props {
   description?: string
 }
 
-const { title, description = '' } = Astro.props
+const {
+  title,
+  description = 'Live documentation and browser-run examples for the Soluna 2D game engine.',
+} = Astro.props
 const pageTitle = title === 'Soluna' ? 'Soluna' : `${title} | Soluna`
+const siteUrl = Astro.site ?? new URL('https://cloudwu.github.io')
+const canonicalUrl = new URL(Astro.url.pathname, siteUrl)
 ---
 
 <!doctype html>
@@ -19,6 +24,18 @@ const pageTitle = title === 'Soluna' ? 'Soluna' : `${title} | Soluna`
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl.href} />
+    <meta name="theme-color" content="#ffffff" />
+    <meta property="og:site_name" content="Soluna" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl.href} />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="zh_CN" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
   </head>
   <body>
     <div class="page">

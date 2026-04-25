@@ -32,32 +32,48 @@ const sourceJson = JSON.stringify(example.source).replace(/</g, '\\u003c')
 </Menubar>
 
 <div class="play-shell">
-  <div class="play-tabs">
+  <nav class="play-tabs" aria-label="Example list">
     {examples.map(item => (
       <a class:list={['play-tab', item.id === example.id && 'active']} href={`${basePath}examples/${item.id}/`}>{item.title}</a>
     ))}
-  </div>
-  <div class="play-stage">
-    <div id="soluna-stage-host"></div>
-    <div class="overlay" id="play-overlay">
-      <div class="overlay-card">
-        <div class="overlay-title">Preparing Runtime</div>
-        <p class="overlay-status" id="play-status">Loading assets...</p>
-        <div class="note" id="play-note"></div>
+  </nav>
+
+  <section class="runtime-panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Runtime Viewport</div>
+        <div class="panel-meta">{example.entry}</div>
       </div>
     </div>
-  </div>
-  <div class="console-panel">
-    <div class="console-header">
-      <div class="console-title">Console</div>
+    <div class="play-stage">
+      <div id="soluna-stage-host"></div>
+      <div class="overlay" id="play-overlay">
+        <div class="overlay-card">
+          <div class="overlay-title">Preparing Runtime</div>
+          <p class="overlay-status" id="play-status">Loading assets...</p>
+          <div class="note" id="play-note"></div>
+        </div>
+      </div>
     </div>
-    <pre class="console-body" id="console-output"></pre>
-  </div>
-  <div class="code-panel">
-    <div class="code-header">
-      <div class="code-title">Example Source</div>
-    </div>
-    <pre class="code-block"><code id="code-content">{example.source}</code></pre>
+  </section>
+
+  <div class="inspector-grid">
+    <section class="console-panel inspector-panel">
+      <div class="panel-header">
+        <div class="panel-title">Console</div>
+      </div>
+      <pre class="console-body" id="console-output"></pre>
+    </section>
+
+    <section class="code-panel inspector-panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Example Source</div>
+          <div class="panel-meta">main.lua</div>
+        </div>
+      </div>
+      <pre class="code-block"><code id="code-content">{example.source}</code></pre>
+    </section>
   </div>
 </div>
 
