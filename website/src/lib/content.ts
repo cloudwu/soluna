@@ -86,11 +86,16 @@ function parseDocFile(content: string): DocBlock[] {
   let annos: string[] = []
 
   const flush = (signature: string | null) => {
+    if (docLines.length === 0 && annos.every(anno => anno === 'meta' || anno.startsWith('meta '))) {
+      docLines = []
+      annos = []
+      return
+    }
     if (docLines.length === 0 && annos.length === 0) {
       return
     }
     blocks.push({
-      signature,
+      signature: signature ?? annotationSignature(annos),
       docs: docLines,
       annos,
     })
@@ -109,11 +114,25 @@ function parseDocFile(content: string): DocBlock[] {
     }
 
     const trimmed = trim(line)
-    if (trimmed !== '' && (docLines.length > 0 || annos.length > 0)) {
+    if (docLines.length > 0 || annos.length > 0) {
+      if (trimmed === '') {
+        flush(null)
+        continue
+      }
       flush(trimmed)
     }
   }
 
   flush(null)
   return blocks
+}
+
+function annotationSignature(annos: string[]): string | null {
+  const anno = annos.find(anno =>
+    anno.startsWith('alias ')
+    || anno.startsWith('class ')
+    || anno.startsWith('type ')
+    || anno.startsWith('field '),
+  )
+  return anno ? `@${anno}` : null
 }

@@ -1,28 +1,22 @@
 ---@meta soluna.crypt
 
----
---- Soluna crypt module
----
-
+---密码辅助模块
+---Cryptography helper module.
 ---@class soluna.crypt
 local crypt = {}
 
----
---- Encodes binary data to hexadecimal string
----
---- Converts binary data to a hexadecimal string representation (lowercase).
----
----@param data string Binary data to encode
----@return string hex Hexadecimal string (lowercase)
-function crypt.hexencode(data) end
+---编码为小写十六进制字符串
+---Encodes binary data as lower-case hex.
+---@param data string 二进制数据 / Binary data
+---@return string hex 十六进制字符串 / Hex string
+function crypt.hexencode(data)
+end
 
----
---- Computes SHA-1 hash of input data
----
---- Returns the SHA-1 hash as binary data (20 bytes).
----
----@param data string Input data to hash
----@return string hash Binary SHA-1 hash (20 bytes)
-function crypt.sha1(data) end
+---计算 SHA-1 摘要
+---Calculates SHA-1 digest.
+---@param data string 输入数据 / Input data
+---@return string hash 20 字节摘要 / 20-byte digest
+function crypt.sha1(data)
+end
 
 return crypt
