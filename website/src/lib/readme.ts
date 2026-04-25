@@ -32,9 +32,6 @@ function resolveReadmeHref(href: string, basePath: string): string {
   }
 
   const normalized = normalizeGithubPath(href)
-  if (normalized === 'README.zh-CN.md') {
-    return `${repoUrl}/blob/master/README.zh-CN.md`
-  }
   if (normalized === 'LICENSE') {
     return `${repoUrl}/blob/master/LICENSE`
   }

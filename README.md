@@ -6,32 +6,33 @@ Sokol + Lua = Soluna
 
 # Soluna
 
-[中文](./README.zh-CN.md)
+[Live Examples / 在线示例](https://cloudwu.github.io/soluna/)
 
-[Live Examples](https://cloudwu.github.io/soluna/)
+Soluna is a 2D game framework for Lua. It is built on top of [sokol](https://github.com/floooh/sokol), integrates ltask for multithreading, and runs on Windows, Linux, macOS, and modern browsers through WebAssembly.
 
-A framework you can use to make 2D games in Lua with multithreading, living on Windows, Linux, macOS and modern Browsers (via WebAssembly).
-
-It is built on top of [sokol](https://github.com/floooh/sokol) and leverages the power of ltask for multithreading.
+Soluna 是一个 Lua 2D 游戏框架。它基于 [sokol](https://github.com/floooh/sokol)，整合 ltask 作为多线程框架，可运行在 Windows、Linux、macOS 以及通过 WebAssembly 支持的现代浏览器中。
 
 [![Nightly](/../../actions/workflows/nightly.yml/badge.svg)](/../../actions/workflows/nightly.yml)
 
-## Documentation
+## Documentation / 文档
 
-- [API Reference](./docs)
-- [Examples](./test)
+- [API Reference / API 参考](./docs)
+- [Examples / 示例](./test)
 - [Wiki](https://github.com/cloudwu/soluna/wiki)
-- [Website](./website/README.md)
 
-## Precompiled Binaries
+## Precompiled Binaries / 预编译二进制文件
 
-You can download precompiled binaries for Windows, Linux, macOS and WebAssembly from the [Nightly Releases](/../../releases/tag/nightly) page.
+Precompiled binaries for Windows, Linux, macOS, and WebAssembly are available from [Nightly Releases](/../../releases/tag/nightly).
 
-## Building from Source
+Windows、Linux、macOS 和 WebAssembly 的预编译二进制文件可从 [Nightly Releases](/../../releases/tag/nightly) 下载。
 
-You can build Soluna from source by `make` for Windows and by `luamake` for all platforms. See [actions](./.github/actions/soluna) for details.
+## Building from Source / 从源码构建
 
-### Integration with the Actions of your projects
+Soluna can be built with `make` on Windows and with `luamake` on all supported platforms. The GitHub Action in [`.github/actions/soluna`](./.github/actions/soluna) shows the exact CI build flow.
+
+Soluna 可在 Windows 上通过 `make` 构建，也可在所有支持平台上通过 `luamake` 构建。[`.github/actions/soluna`](./.github/actions/soluna) 展示了 CI 使用的完整构建流程。
+
+### GitHub Actions Integration / GitHub Actions 集成
 
 ```yaml
 - uses: actions/checkout@v6
@@ -48,36 +49,39 @@ You can build Soluna from source by `make` for Windows and by `luamake` for all 
     echo "Soluna binary is at ${{ steps.soluna.outputs.SOLUNA_PATH }}"
     echo "Soluna WASM binary is at ${{ steps.soluna.outputs.SOLUNA_WASM_PATH }}"
     echo "Soluna js glue is at ${{ steps.soluna.outputs.SOLUNA_JS_PATH }}"
-
 ```
-## Run CI Locally with Act
 
-You can easily run GitHub workflows locally through `act` via luamake.
+## Local Website Build / 本地构建与运行网站
 
-Prerequisites:
+The website is an Astro app in `website/`. It renders the homepage from this README, generates API pages from `docs/`, and builds live example pages from `test/`.
 
-- Docker (daemon running)
-- [act](https://github.com/nektos/act) in `PATH`
-- Python 3 in `PATH` (used by local preview server for `pages`)
-- `unzip` and `tar` (or equivalent tools available in your environment)
+网站是位于 `website/` 目录的 Astro 应用。它使用本 README 生成首页，从 `docs/` 生成 API 页面，并从 `test/` 生成在线示例页面。
 
-Examples:
+Build the WebAssembly runtime from the repository root first:
+
+先在仓库根目录构建 WebAssembly runtime：
 
 ```bash
-luamake act pages
-luamake act nightly
+luamake -compiler emcc
+luamake -compiler emcc sample
 ```
 
-Notes:
+Then install dependencies and start the local dev server:
 
-- `luamake act pages` runs `.github/workflows/pages.yml`, extracts the generated pages artifact, and serves it locally at `http://127.0.0.1:8080/soluna/`.
-- `luamake act nightly` runs `.github/workflows/nightly.yml`.
-- Use `PORT` to change preview port (for example: `PORT=9000 luamake act pages`).
+然后安装依赖并启动本地开发服务器：
 
-## Projects made with Soluna
+```bash
+cd website
+pnpm install
+pnpm run dev
+```
 
-- [Deep Future](https://github.com/cloudwu/deepfuture), a digital version of boardgame Deep Future.
+## Projects Made with Soluna / 使用 Soluna 制作的项目
 
-## License
+- [Deep Future](https://github.com/cloudwu/deepfuture), a digital version of the board game Deep Future. / 电子版桌游《深远未来》。
+
+## License / 许可证
 
 Soluna is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+
+Soluna 使用 MIT 许可证。详情见 [LICENSE](./LICENSE)。
