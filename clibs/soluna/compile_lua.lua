@@ -30,6 +30,7 @@ local lua_code_src = {
 	"3rd/ltask/lualib",
 	"src/service",
 	"src/lualib",
+	"src/material",
 }
 
 return function(objdeps)

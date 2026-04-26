@@ -82,7 +82,7 @@ LTASK_O=$(patsubst %.c,$(BUILD)/ltask_%.o,$(LTASK_C))
 LTASK_LUASRC=\
   3rd/ltask/service/root.lua\
   3rd/ltask/service/timer.lua\
-  $(wildcard 3rd/ltask/lualib/*.lua src/lualib/*.lua src/service/*.lua)
+  $(wildcard 3rd/ltask/lualib/*.lua src/lualib/*.lua src/service/*.lua src/material/*.lua)
 
 LTASK_LUACODE=$(patsubst %.lua, $(BUILD)/%.lua.h, $(notdir $(LTASK_LUASRC)))
 
@@ -114,6 +114,9 @@ $(BUILD)/%.lua.h : src/lualib/%.lua
 	$(COMPILE_LUA)
 
 $(BUILD)/%.lua.h : src/service/%.lua
+	$(COMPILE_LUA)
+
+$(BUILD)/%.lua.h : src/material/%.lua
 	$(COMPILE_LUA)
 
 $(BUILD)/%.dl.h : src/data/%.dl

@@ -22,6 +22,11 @@
 #include "coroutine.lua.h"
 #include "packageloader.lua.h"
 #include "audio.lua.h"
+#include "matdefault.lua.h"
+#include "mattext.lua.h"
+#include "matquad.lua.h"
+#include "matmask.lua.h"
+#include "matpquad.lua.h"
 
 #include "lua.h"
 #include "lauxlib.h"
@@ -31,6 +36,11 @@
 	lua_pushinteger(L, sizeof(luasrc_##name) - 1);	\
 	lua_pushcclosure(L, get_string, 2);	\
 	lua_setfield(L, -2, #name);
+
+#define REG_MATERIAL(name) \
+	lua_pushstring(L, #name);	\
+	lua_rawseti(L, -2, luaL_len(L, -2) + 1);	\
+	REG_SOURCE(name)
 
 #define REG_DATALIST(name) \
 	lua_pushlightuserdata(L, (void *)dl_##name);	\
@@ -87,6 +97,14 @@ luaopen_embedsource(lua_State *L) {
 			REG_SOURCE(settings)
 			REG_SOURCE(audio)
 		lua_setfield(L, -2, "service");
+
+		lua_newtable(L);	// material
+			REG_MATERIAL(matdefault)
+			REG_MATERIAL(mattext)
+			REG_MATERIAL(matquad)
+			REG_MATERIAL(matmask)
+			REG_MATERIAL(matpquad)
+		lua_setfield(L, -2, "material");
 
 		lua_newtable(L);	// data list
 			REG_DATALIST(settingdefault)

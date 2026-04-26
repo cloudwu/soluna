@@ -3,24 +3,104 @@ local render = require "soluna.render"
 local image = require "soluna.image"
 local embedsource = require "soluna.embedsource"
 local drawmgr = require "soluna.drawmgr"
-local defmat = require "soluna.material.default"
-local textmat = require "soluna.material.text"
-local quadmat = require "soluna.material.quad"
-local maskmat = require "soluna.material.mask"
-local pqmat = require "soluna.material.perspective_quad"
-local soluna_app = require "soluna.app"
+local file = require "soluna.file"
 
-global require, assert, pairs, pcall, ipairs, print
+global require, assert, pairs, pcall, ipairs, print, load, type, table
 
 local setting = require "soluna".settings()
 
-local DEFAULT_MAT <const> = 0
-local TEXT_MAT <const> = 1
-local QUAD_MAT <const> = 2
-local MASK_MAT <const> = 3
-local PERSPECTIVE_QUAD_MAT <const> = 4
+local reset_materials
 
-local font = {} ;  do
+local font = {}
+
+local function create_materials(ctx)
+	local function load_materials()
+		local registry = {}
+
+		function reset_materials(materials)
+			for _, desc in ipairs(registry) do
+				local obj = materials[desc.id]
+				if obj.reset then
+					obj.reset()
+				end
+			end
+		end
+
+		local function join_path(path, name)
+			if path:match "/$" then
+				return path .. name
+			else
+				return path .. "/" .. name
+			end
+		end
+
+		local function append(desc, id)
+			assert(type(desc.name) == "string")
+			assert(type(desc.create) == "function")
+			desc.id = id
+			registry[#registry + 1] = desc
+			return id
+		end
+
+		local function run_source(source, chunkname, register)
+			local chunk = assert(load(source, chunkname))
+			local callback = assert(chunk())
+			assert(type(callback) == "function")
+			callback(register)
+		end
+		local MATERIAL_EXTLUA_BASE <const> = 256
+		do
+			local next_id = 0
+			local function register(desc)
+				local id = next_id
+				assert(id < MATERIAL_EXTLUA_BASE)
+				next_id = id + 1
+				return append(desc, id)
+			end
+			local function load_material(name)
+				local loader = assert(embedsource.material[name])
+				run_source(loader(), "@src/material/" .. name .. ".lua", register)
+			end
+			for _, name in ipairs(embedsource.material) do
+				load_material(name)
+			end
+		end
+		if setting.extlua_material_path and setting.extlua_material_path ~= "" then
+			local path = setting.extlua_material_path
+			if file.attributes(path, "mode") ~= "directory" then
+				return registry
+			end
+			local files = {}
+			for name in file.dir(path) do
+				if name ~= "." and name ~= ".." and name:match "%.lua$" then
+					files[#files + 1] = name
+				end
+			end
+			table.sort(files)
+			local next_id = MATERIAL_EXTLUA_BASE
+			local function register(desc)
+				local id = next_id
+				next_id = id + 1
+				return append(desc, id)
+			end
+			for _, name in ipairs(files) do
+				local fullname = join_path(path, name)
+				run_source(assert(file.load(fullname)), "@" .. fullname, register)
+			end
+		end
+		return registry
+	end
+	local materials = {}
+	for _, desc in ipairs(load_materials()) do
+		local obj = assert(desc.create(ctx))
+		assert(type(obj.submit) == "function")
+		assert(type(obj.draw) == "function")
+		materials[desc.id] = obj
+	end
+	return materials
+end
+
+do
 	local mgr = require "soluna.font.manager"
 	local fontapi = require "soluna.font"
 	local texture_ptr
@@ -31,11 +111,11 @@ local font = {} ;  do
 		font.cobj = fontapi.cobj()
 		texture_ptr = fontapi.texture()
 	end
-	
+
 	function font.shutdown()
 		mgr.shutdown()
 	end
-	
+
 	function font.submit(img)
 		if fontapi.submit() then
 			img:update(texture_ptr)
@@ -43,7 +123,7 @@ local font = {} ;  do
 	end
 end
 
-local batch = {} ; do
+local batch = {}; do
 	local thread
 	local submit_n = 0
 	function batch.register(addr)
@@ -53,6 +133,7 @@ local batch = {} ; do
 		}
 		return n
 	end
+
 	function batch.wait()
 		if submit_n ~= #batch then
 			thread = ltask.current_token()
@@ -60,10 +141,11 @@ local batch = {} ; do
 		end
 		submit_n = 0
 	end
+
 	function batch.submit(id, ptr, size)
 		local q = batch[id]
 		local token = ltask.current_token()
-		local function func ()
+		local function func()
 			return ptr, size, token
 		end
 		if q[1] == nil then
@@ -74,16 +156,17 @@ local batch = {} ; do
 			end
 			q[1] = func
 		else
-			q[#q+1] = func
+			q[#q + 1] = func
 		end
 		ltask.wait()
 	end
+
 	function batch.consume(id)
 		local q = batch[id]
 		local r = assert(q[1])
 		local n = #q
 		for i = 1, n - 1 do
-			q[i] = q[i+1]
+			q[i] = q[i + 1]
 		end
 		q[n] = nil
 		return r()
@@ -91,54 +174,6 @@ local batch = {} ; do
 end
 
 local STATE
-
-local materials = {
-	[DEFAULT_MAT] = {
-		submit = function(ptr, n)
-			STATE.material:submit(ptr, n)
-		end,
-		draw = function(ptr, n, tex)
-			STATE.bindings:view(1, STATE.views[tex+1])
-			STATE.material:draw(ptr, n, tex)
-		end,
-	},
-	[TEXT_MAT] = {
-		submit = function(ptr, n)
-			STATE.material_text:submit(ptr, n)
-		end,
-		draw = function(ptr, n)
-			STATE.text_bindings:view(1, STATE.views.font)
-			STATE.material_text:draw(ptr, n)
-		end,
-	},
-	[QUAD_MAT] = {
-		submit = function(ptr, n)
-			STATE.material_quad:submit(ptr, n)
-		end,
-		draw = function(ptr, n)
-			STATE.material_quad:draw(ptr, n)
-		end,
-	},
-	[MASK_MAT] = {
-		submit = function(ptr, n)
-			STATE.material_mask:submit(ptr, n)
-		end,
-		draw = function(ptr, n, tex)
-			STATE.mask_bindings:view(1, STATE.views[tex+1])
-			STATE.material_mask:draw(ptr, n, tex)
-		end,
-	},
-	[PERSPECTIVE_QUAD_MAT] = {
-		submit = function(ptr, n)
-			STATE.material_perspective_quad:submit(ptr, n)
-		end,
-		draw = function(ptr, n, tex)
-			STATE.perspective_quad_bindings:view(1, STATE.views[tex+1])
-			STATE.material_perspective_quad:draw(ptr, n, tex)
-		end,
-	},
-}
-
 
 local S = {}
 
@@ -183,11 +218,7 @@ local function frame(count)
 	local batch_n = #batch
 	if update_image then update_image() end
 	STATE.drawmgr:reset()
-	STATE.bindings:base(0)
-	STATE.text_bindings:base(0)
-	STATE.quad_bindings:base(0)
-	STATE.mask_bindings:base(0)
-	STATE.perspective_quad_bindings:base(0)
+	reset_materials(STATE.materials)
 	for i = 1, batch_n do
 		local ptr, size = batch[i][1]()
 		if ptr then
@@ -197,24 +228,24 @@ local function frame(count)
 	local draw_n = #STATE.drawmgr
 	for i = 1, draw_n do
 		local mat, ptr, n, tex = STATE.drawmgr(i)
-		local obj = materials[mat]
+		local obj = assert(STATE.materials[mat])
 		obj.submit(ptr, n)
 	end
 	STATE.srbuffer:update(STATE.srbuffer_mem:ptr())
 	STATE.pass:begin()
-		font.submit(STATE.font_texture)
-		for i = 1, draw_n do
-			local mat, ptr, n, tex = STATE.drawmgr(i)
-			local obj = materials[mat]
-			obj.draw(ptr, n, tex)
-		end
+	font.submit(STATE.font_texture)
+	for i = 1, draw_n do
+		local mat, ptr, n, tex = STATE.drawmgr(i)
+		local obj = assert(STATE.materials[mat])
+		obj.draw(ptr, n, tex)
+	end
 	STATE.pass:finish()
 	render.submit()
 end
 
 function S.frame(count)
 	batch.wait()
-	local ok , err = pcall(ltask.mainthread_run, frame, count)
+	local ok, err = pcall(ltask.mainthread_run, frame, count)
 	if not ok then
 		print("RENDER ERR", err)
 	end
@@ -233,12 +264,12 @@ function S.quit()
 	for _, v in ipairs(batch) do
 		workers[v.source] = true
 	end
-	
-	S.submit_batch = function() end	-- prevent submit
+
+	S.submit_batch = function() end -- prevent submit
 
 	for _, v in ipairs(batch) do
 		for _, resp in ipairs(v) do
-			local _,_, token = resp()
+			local _, _, token = resp()
 			ltask.wakeup(token)
 		end
 	end
@@ -271,13 +302,6 @@ local function render_init(arg)
 	font.init()
 
 	local texture_size = setting.texture_size
-
-	local inst_buffer = render.buffer {
-		type = "vertex",
-		usage = "stream",
-		label = "texquad-instance",
-		size = defmat.instance_size * setting.draw_instance,	-- textmat.instance_size is the same
-	}
 	local sr_buffer = render.buffer {
 		type = "storage",
 		usage = "dynamic",
@@ -307,91 +331,13 @@ local function render_init(arg)
 		font_texture = font_texture,
 		views = views,
 	}
-	local bindings = render.bindings()
-	bindings:vbuffer(0, inst_buffer)
-	bindings:view(0, views.storage)
-	bindings:sampler(0, STATE.default_sampler)
-	
-	STATE.inst = assert(inst_buffer)
 	STATE.srbuffer = assert(sr_buffer)
-
 	STATE.srbuffer_mem = render.srbuffer(setting.srbuffer_size)
-	STATE.bindings = bindings
 
-	do
-		local text_sampler_desc = setting.text_sampler
-		if text_sampler_desc then
-			text_sampler_desc.label = text_sampler_desc.label or "text-sampler"
-			STATE.text_sampler = render.sampler(text_sampler_desc)
-			STATE.text_inst = render.buffer {
-				type = "vertex",
-				usage = "stream",
-				label = "text-instance",
-				size = textmat.instance_size * setting.draw_instance,
-			}
-			local text_bindings = render.bindings()
-			text_bindings:vbuffer(0, STATE.text_inst)
-			text_bindings:view(0, views.storage)
-			text_bindings:sampler(0, STATE.text_sampler)
-
-			STATE.text_bindings = text_bindings
-		else
-			STATE.text_inst = STATE.inst
-			STATE.text_bindings = STATE.bindings
-		end
-	end
-
-	do
-		STATE.quad_inst = render.buffer {
-			type = "vertex",
-			usage = "stream",
-			label = "quad-instance",
-			size = quadmat.instance_size * setting.draw_instance,
-		}
-
-		local quadbind = render.bindings()
-		quadbind:vbuffer(0, STATE.quad_inst)
-		quadbind:view(0, views.storage)
-
-		STATE.quad_bindings = quadbind
-	end
-	
-	do
-		STATE.mask_inst = render.buffer {
-			type = "vertex",
-			usage = "stream",
-			label = "mask-instance",
-			size = maskmat.instance_size * setting.draw_instance,
-		}
-
-		local maskbind = render.bindings()
-
-		maskbind:vbuffer(0, STATE.mask_inst)
-		maskbind:view(0, views.storage)
-		maskbind:sampler(0, STATE.default_sampler)
-		 		
-		STATE.mask_bindings = maskbind
-	end
-
-	do
-		STATE.perspective_quad_inst = render.buffer {
-			type = "vertex",
-			usage = "stream",
-			label = "perspective-quad-instance",
-			size = pqmat.instance_size * setting.draw_instance,
-		}
-
-		local pqbind = render.bindings()
-		pqbind:vbuffer(0, STATE.perspective_quad_inst)
-		pqbind:sampler(0, STATE.default_sampler)
-
-		STATE.perspective_quad_bindings = pqbind
-	end
-	
 	STATE.drawmgr = drawmgr.new(arg.bank_ptr, setting.draw_instance)
-	
+
 	STATE.uniform = render.uniform {
-		12,	-- size
+		12, -- size
 		framesize = {
 			offset = 0,
 			type = "float",
@@ -402,52 +348,17 @@ local function render_init(arg)
 			type = "float",
 		},
 	}
-	STATE.uniform.framesize = { 2/arg.width, -2/arg.height }
-	STATE.uniform.tex_size = 1/texture_size
-	
+	STATE.uniform.framesize = { 2 / arg.width, -2 / arg.height }
+	STATE.uniform.tex_size = 1 / texture_size
+
 	local tmp_buffer = render.tmp_buffer(setting.tmpbuffer_size)
-
-	STATE.material = defmat.new {
-		inst_buffer = STATE.inst,
-		bindings = STATE.bindings,
-		uniform = STATE.uniform,
-		sr_buffer = STATE.srbuffer_mem,
-		sprite_bank = arg.bank_ptr,
+	STATE.materials = create_materials {
+		state = STATE,
+		arg = arg,
 		tmp_buffer = tmp_buffer,
-	}
-
-	STATE.material_mask = maskmat.new {
-		inst_buffer = STATE.mask_inst,
-		bindings = STATE.mask_bindings,
-		uniform = STATE.uniform,
-		sr_buffer = STATE.srbuffer_mem,
-		sprite_bank = arg.bank_ptr,
-		tmp_buffer = tmp_buffer,
-	}
-	
-	STATE.material_text = textmat.normal {
-		inst_buffer = STATE.text_inst,
-		bindings = STATE.text_bindings,
-		uniform = STATE.uniform,
-		sr_buffer = STATE.srbuffer_mem,
-		font_manager = font.cobj,
-		tmp_buffer = tmp_buffer,
-	}
-
-	STATE.material_quad = quadmat.new {
-		inst_buffer = STATE.quad_inst,
-		bindings = STATE.quad_bindings,
-		uniform = STATE.uniform,
-		sr_buffer = STATE.srbuffer_mem,
-		tmp_buffer = tmp_buffer,
-	}
-
-	STATE.material_perspective_quad = pqmat.new {
-		inst_buffer = STATE.perspective_quad_inst,
-		bindings = STATE.perspective_quad_bindings,
-		uniform = STATE.uniform,
-		sprite_bank = arg.bank_ptr,
-		tmp_buffer = tmp_buffer,
+		settings = setting,
+		font = font,
+		render = render,
 	}
 end
 
@@ -456,7 +367,7 @@ function S.init(arg)
 end
 
 function S.resize(w, h)
-	STATE.uniform.framesize = { 2/w, -2/h }
+	STATE.uniform.framesize = { 2 / w, -2 / h }
 end
 
 return S
