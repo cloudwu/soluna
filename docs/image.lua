@@ -1,35 +1,30 @@
 ---@meta soluna.image
 
----
---- Soluna image module
----
-
+---图片模块
+---Image module.
 ---@class soluna.image
 local image = {}
 
----
---- Loads an image from binary data
----
----@param data string Image file data (PNG, JPG, etc.)
----@return userdata? imagedata Image data, or nil on error
----@return integer|string width_or_error Image width, or error message on failure
----@return integer? height Image height
-function image.load(data) end
+---从 PNG 数据加载 RGBA 图片
+---Loads RGBA image data from PNG bytes.
+---@param data string PNG 数据 / PNG bytes
+---@return string? data RGBA 像素数据，失败时为 nil / RGBA pixels, nil on failure
+---@return integer|string width_or_error 成功时为宽度，失败时为错误信息 / Width on success, error message on failure
+---@return integer? height 高度 / Height
+function image.load(data)
+end
 
----
---- Resizes an image by scale factors
----
---- The image data can be either RGBA (4 channels) or grayscale (1 channel).
---- Size is validated: for RGBA data must be width*height*4, for grayscale must be width*height.
----
----@param data userdata Image data (external string from image.load)
----@param width integer Source image width
----@param height integer Source image height
----@param scale_x number Horizontal scale factor (e.g., 0.5 for half width)
----@param scale_y? number Vertical scale factor (default: same as scale_x)
----@return userdata imagedata Resized image data
----@return integer width New width (width * scale_x, rounded)
----@return integer height New height (height * scale_y, rounded)
-function image.resize(data, width, height, scale_x, scale_y) end
+---按比例缩放 RGBA 或灰度图片
+---Resizes RGBA or grayscale image data by scale factors.
+---@param data string RGBA 或灰度像素数据 / RGBA or grayscale pixels
+---@param width integer 原始宽度 / Source width
+---@param height integer 原始高度 / Source height
+---@param scale_x number X 缩放倍率 / X scale factor
+---@param scale_y? number Y 缩放倍率，默认等于 `scale_x` / Y scale factor, default is `scale_x`
+---@return string data 缩放后的像素数据 / Resized pixels
+---@return integer width 新宽度 / New width
+---@return integer height 新高度 / New height
+function image.resize(data, width, height, scale_x, scale_y)
+end
 
 return image

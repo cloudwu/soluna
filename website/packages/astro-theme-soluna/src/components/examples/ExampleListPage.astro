@@ -28,11 +28,11 @@ const basePath = import.meta.env.BASE_URL
   <a href={basePath}>home</a>
 </Menubar>
 
-<ul class="plain-list">
+<ul class="example-index">
   {examples.map(example => (
     <li>
       <a href={`${basePath}examples/${example.id}/`}>{example.title}</a>
-      <small>Entry: {example.entry}</small>
+      <code>{example.entry}</code>
     </li>
   ))}
 </ul>

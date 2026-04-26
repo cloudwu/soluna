@@ -204,7 +204,7 @@ function appendConsole(text: string, isError: boolean): void {
   const line = document.createElement('div')
   line.textContent = text
   if (isError) {
-    line.style.color = '#8a0000'
+    line.className = 'console-error'
   }
   consoleTarget.appendChild(line)
   consoleTarget.scrollTop = consoleTarget.scrollHeight

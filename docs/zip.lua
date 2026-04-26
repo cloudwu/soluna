@@ -1,21 +1,16 @@
 ---@meta soluna.zip
 
----
---- Soluna zip module
----
-
+---ZIP 模块
+---ZIP module.
 ---@class soluna.zip
 local zip = {}
 
----
---- Opens a ZIP file for reading or writing
----
---- Opens a ZIP archive. Mode "r" opens for reading, "w" creates a new archive.
---- Returns a file handle or nil on error.
----
----@param filename string Path to ZIP file
----@param mode "r"|"w" Open mode: "r" for read, "w" for write
----@return userdata? zipfile ZIP file handle or nil on error
-function zip.open(filename, mode) end
+---打开 ZIP 文件
+---Opens a ZIP archive.
+---@param filename string ZIP 文件路径 / ZIP file path
+---@param mode "r"|"w"|"a" 打开模式：读、写、追加 / Open mode: read, write, append
+---@return userdata? zipfile ZIP 句柄；失败时为 nil / ZIP handle, nil on failure
+function zip.open(filename, mode)
+end
 
 return zip

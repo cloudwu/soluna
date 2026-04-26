@@ -1,17 +1,15 @@
 ---@meta soluna.font.system
 
----
---- Soluna font system module
----
-
+---系统字体模块
+---System font module.
 ---@class soluna.font.system
 local font_system = {}
 
----
---- Loads system font data by name
----
----@param name string Font name (e.g., "Arial", "微软雅黑")
----@return string? data TTF font data or nil if not found
-function font_system.ttfdata(name) end
+---按字体族名读取系统 TTF/TTC 数据
+---Reads system TTF/TTC data by family name.
+---@param name string 字体族名 / Font family name
+---@return string? data 字体数据；wasm 或失败时可能为 nil / Font data, nil on wasm or failure
+function font_system.ttfdata(name)
+end
 
 return font_system

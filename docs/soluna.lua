@@ -1,203 +1,181 @@
 ---@meta
 
----
---- Soluna Game Engine API Reference
----
---- This file documents the Soluna API using Lua meta annotations.
----
-
---- Sprite ID type for single sprites or animation frames
+---单个 sprite id 或动画帧 id 列表
+---Single sprite id or animation frame id list.
 ---@alias Sprite integer|integer[]
 
---- Sprite bundle mapping sprite names to IDs
+---sprite bundle 名称到 id 的映射
+---Sprite bundle name-to-id mapping.
 ---@alias SpriteBundle table<string, Sprite?>
 
---- Audio playback options
----
---- Values provided here override defaults from `sounds.dl`.
---- `stream = true` is intended for long-running audio such as background music.
----
----@class soluna.AudioPlayOptions
----@field group? string Audio bus name
----@field volume? number Linear volume multiplier
----@field pan? number Stereo pan in range `[-1.0, 1.0]`
----@field pitch? number Pitch multiplier
----@field loop? boolean Whether playback should loop
----@field stream? boolean Whether to stream instead of fully decoding up front
+---窗口图标图片描述
+---Window icon image descriptor.
+---@class soluna.IconImage
+---@field data string|userdata|lightuserdata RGBA 像素数据 / RGBA pixel buffer
+---@field w? integer 宽度；也可使用 `width` / Width; `width` is also accepted
+---@field h? integer 高度；也可使用 `height` / Height; `height` is also accepted
+---@field width? integer 宽度；`w` 的别名 / Width alias for `w`
+---@field height? integer 高度；`h` 的别名 / Height alias for `h`
+---@field stride? integer 每行字节数，默认 `width * 4` / Row stride in bytes, default `width * 4`
+---@field size? integer `lightuserdata` 数据大小 / Buffer size for `lightuserdata`
 
---- Audio voice handle returned by `soluna.play_sound()`
----
---- Represents one active playback instance.
---- When a voice finishes naturally, `:playing()` returns `false`.
---- Mutating methods return `false` when the voice is no longer valid.
----
+---运行时预加载 sprite 图片
+---Runtime preloaded sprite image.
+---@class soluna.PreloadSprite
+---@field filename string 虚拟文件名 / Virtual filename
+---@field content string RGBA 像素数据 / RGBA pixel data
+---@field w integer 宽度 / Width
+---@field h integer 高度 / Height
+
+---音频播放选项
+---Audio playback options.
+---@class soluna.AudioPlayOptions
+---@field group? string audio bus 名称 / Audio bus name
+---@field volume? number 线性音量倍率 / Linear volume multiplier
+---@field pan? number 声像，范围通常为 `[-1.0, 1.0]` / Stereo pan, usually in `[-1.0, 1.0]`
+---@field pitch? number pitch 倍率 / Pitch multiplier
+---@field loop? boolean 是否循环播放 / Whether playback loops
+---@field stream? boolean 是否流式播放 / Whether to stream instead of preloading
+
+---音频播放实例
+---Audio playback instance.
 ---@class soluna.AudioVoice
 local AudioVoice = {}
 
----
---- Stops playback
----
----@param fade_seconds? number Optional fade-out duration in seconds
----@return boolean ok False when the voice is no longer valid
-function AudioVoice:stop(fade_seconds) end
+---停止播放
+---Stops playback.
+---@param fade_seconds? number fade out 秒数 / Fade-out seconds
+---@return boolean ok voice 有效且请求成功时为 true / true when the voice is valid and the request succeeds
+function AudioVoice:stop(fade_seconds)
+end
 
----
---- Checks whether the voice is still playing
----
----@return boolean playing
-function AudioVoice:playing() end
+---返回是否仍在播放
+---Returns whether the voice is still playing.
+---@return boolean playing 是否播放中 / Whether it is playing
+function AudioVoice:playing()
+end
 
----
---- Sets voice volume
----
----@param volume number Linear volume multiplier
----@return boolean ok False when the voice is no longer valid
-function AudioVoice:set_volume(volume) end
+---设置 voice 音量
+---Sets voice volume.
+---@param volume number 线性音量倍率 / Linear volume multiplier
+---@return boolean ok voice 有效时为 true / true when the voice is valid
+function AudioVoice:set_volume(volume)
+end
 
----
---- Sets voice pan
----
----@param pan number Stereo pan in range `[-1.0, 1.0]`
----@return boolean ok False when the voice is no longer valid
-function AudioVoice:set_pan(pan) end
+---设置 voice 声像
+---Sets voice pan.
+---@param pan number 声像 / Stereo pan
+---@return boolean ok voice 有效时为 true / true when the voice is valid
+function AudioVoice:set_pan(pan)
+end
 
----
---- Sets voice pitch
----
----@param pitch number Pitch multiplier
----@return boolean ok False when the voice is no longer valid
-function AudioVoice:set_pitch(pitch) end
+---设置 voice pitch
+---Sets voice pitch.
+---@param pitch number pitch 倍率 / Pitch multiplier
+---@return boolean ok voice 有效时为 true / true when the voice is valid
+function AudioVoice:set_pitch(pitch)
+end
 
----
---- Enables or disables looping
----
----@param loop boolean
----@return boolean ok False when the voice is no longer valid
-function AudioVoice:set_loop(loop) end
+---设置 voice 是否循环
+---Sets whether the voice loops.
+---@param loop boolean 是否循环 / Whether to loop
+---@return boolean ok voice 有效时为 true / true when the voice is valid
+function AudioVoice:set_loop(loop)
+end
 
----
---- Seeks to a playback position in seconds
----
----@param seconds number Target playback time in seconds
----@return boolean ok False when the voice is no longer valid
-function AudioVoice:seek(seconds) end
+---跳转播放位置
+---Seeks to a playback position.
+---@param seconds number 目标秒数 / Target seconds
+---@return boolean ok voice 有效且 seek 成功时为 true / true when valid and seek succeeds
+function AudioVoice:seek(seconds)
+end
 
----
---- Returns the current playback position in seconds
----
----@return number? seconds Current playback time
----@return string? err Error message when the voice is no longer valid
-function AudioVoice:tell() end
+---返回当前播放位置
+---Returns the current playback position.
+---@return number? seconds 当前秒数 / Current seconds
+---@return string? err 错误信息 / Error message
+function AudioVoice:tell()
+end
 
---- Audio bus handle returned by `soluna.audio_bus()`
----
+---音频 bus 句柄
+---Audio bus handle.
 ---@class soluna.AudioBus
 local AudioBus = {}
 
----
---- Sets bus volume
----
----@param volume number Linear volume multiplier
----@return boolean ok False when the bus name is invalid
-function AudioBus:set_volume(volume) end
+---设置 bus 音量
+---Sets bus volume.
+---@param volume number 线性音量倍率 / Linear volume multiplier
+---@return boolean ok bus 存在时为 true / true when the bus exists
+function AudioBus:set_volume(volume)
+end
 
+---Soluna 主模块
+---Soluna root module.
 ---@class soluna
+---@field platform "windows"|"macos"|"linux"|"wasm" 当前平台 / Current platform
+---@field version string 运行时版本字符串 / Runtime version string
+---@field version_api integer API 版本号 / API version number
 local soluna = {}
 
----
---- Current platform identifier
----
----@type "windows"|"macos"|"linux"|"wasm"
-soluna.platform = "windows"
+---返回 `.game` 设置表
+---Returns the `.game` settings table.
+---@return table settings 游戏设置 / Game settings
+function soluna.settings()
+end
 
----
---- Version string
----
----@type string
-soluna.version = ""
+---设置窗口标题
+---Sets the window title.
+---@param text string 标题文字 / Window title
+function soluna.set_window_title(text)
+end
 
----
---- API version number
----
----@type number
-soluna.version_api = 0
+---设置窗口图标
+---Sets one icon image or an icon image list.
+---@param data soluna.IconImage|soluna.IconImage[] 图标数据 / Icon data
+function soluna.set_icon(data)
+end
 
----
---- Returns the game settings table
----
----@return table settings Game configuration from .game file
-function soluna.settings() end
+---返回并创建游戏数据目录
+---Returns and creates the game data directory.
+---@param name? string 项目名，默认来自 `settings.project` / Project name, default from `settings.project`
+---@return string path 绝对路径，结尾带 `/` / Absolute path ending with `/`
+function soluna.gamedir(name)
+end
 
----
---- Sets the window title
----
----@param text string The window title text
-function soluna.set_window_title(text) end
+---加载 sprite bundle
+---Loads a sprite bundle.
+---@param filename string|table `.dl` 文件路径或已解析 bundle 表 / `.dl` path or parsed bundle table
+---@return SpriteBundle sprites sprite 名称映射 / Sprite name mapping
+function soluna.load_sprites(filename)
+end
 
----
---- Sets the window icon
----
----@param data table Array of icon data tables with {data=..., width=..., height=...}
-function soluna.set_icon(data) end
+---预加载运行时生成的 RGBA sprite 图片
+---Preloads runtime-generated RGBA sprite images.
+---@param sprites soluna.PreloadSprite|soluna.PreloadSprite[] 单个 sprite 或列表 / One sprite or a list
+function soluna.preload(sprites)
+end
 
----
---- Returns the game data directory path
----
----@param name? string Project name (defaults to settings.project)
----@return string path Absolute path to game data directory
-function soluna.gamedir(name) end
+---加载音频定义 bundle
+---Loads an audio definition bundle.
+---@param filename string `sounds.dl` 文件路径 / `sounds.dl` path
+function soluna.load_sounds(filename)
+end
 
----
---- Loads a sprite bundle from a file
----
----@param filename string Path to sprite definition file (.dl format)
----@return SpriteBundle sprites Sprite bundle mapping sprite names to IDs
-function soluna.load_sprites(filename) end
+---播放音频并返回 voice
+---Plays a sound and returns a voice handle.
+---@param name string `sounds.dl` 中的音频名 / Sound name from `sounds.dl`
+---@param opts? soluna.AudioPlayOptions 播放选项覆盖 / Playback option overrides
+---@return soluna.AudioVoice? voice voice 句柄 / Voice handle
+---@return string? err 错误信息 / Error message
+function soluna.play_sound(name, opts)
+end
 
----
---- Loads audio definitions from a datalist file
----
---- Each entry in `sounds.dl` must define:
---- - `name`
---- - `filename`
----
---- Optional entry fields:
---- - `group` (defaults to `"sound"`)
---- - `volume`
---- - `pan`
---- - `pitch`
---- - `loop`
---- - `stream`
----
---- `load_sounds()` may be called multiple times. Each bundle registers more sound definitions.
---- Re-loading the same bundle is ignored. Sound names must stay unique across loaded bundles.
---- Audio buses are created from the `group` field of loaded sound entries and reused by name.
----
----@param filename string Path to audio definition file (.dl format)
-function soluna.load_sounds(filename) end
-
----
---- Plays a sound and returns a voice handle
----
---- The returned handle represents the active playback instance, not the sound definition.
---- Background music uses the same API; a typical music entry sets `group = "music"`,
---- `loop = true`, and `stream = true` in `sounds.dl`.
----
----@param name string Sound definition name from `sounds.dl`
----@param opts? soluna.AudioPlayOptions Per-playback option overrides
----@return soluna.AudioVoice? voice Active playback handle
----@return string? err Error message on failure
-function soluna.play_sound(name, opts) end
-
----
---- Returns an audio bus handle
----
---- Buses are created from the `group` field in loaded `sounds.dl` entries.
---- When a sound entry omits `group`, it uses the default bus name `"sound"`.
----
----@param name string Audio bus name
----@return soluna.AudioBus? bus Bus handle
----@return string? err Error message when the bus does not exist
-function soluna.audio_bus(name) end
+---返回 audio bus 句柄
+---Returns an audio bus handle.
+---@param name string bus 名称 / Bus name
+---@return soluna.AudioBus? bus bus 句柄 / Bus handle
+---@return string? err 错误信息 / Error message
+function soluna.audio_bus(name)
+end
 
 return soluna
