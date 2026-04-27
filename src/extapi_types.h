@@ -5,8 +5,6 @@
 
 #include <stddef.h>
 
-#include <lua.h>
-
 #include "sokol/sokol_gfx.h"
 
 #define SOLUNA_EXT_API_VERSION 1
@@ -34,7 +32,13 @@ struct soluna_material_stream_data {
 	int sprite;
 };
 
-typedef void (*soluna_material_submit_func)(lua_State *L, void *ud, const void *stream, int n);
+struct soluna_material_stream {
+	char *data;
+	size_t size;
+};
+
+typedef const char *soluna_material_error;
+typedef void (*soluna_material_submit_func)(void *ud, void *ctx, int n);
 typedef void (*soluna_material_stream_write_func)(void *ud, int index, struct soluna_material_stream_item *item);
 
 

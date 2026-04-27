@@ -2,10 +2,12 @@
 
 local apis = {
 	{
-		ret = "void",
+		ret = "soluna_material_error",
 		name = "soluna_material_submit",
 		params = {
-			{ type = "lua_State *", name = "L" },
+			{ type = "const void *", name = "stream" },
+			{ type = "int ", name = "prim_n" },
+			{ type = "int ", name = "material_id" },
 			{ type = "int ", name = "batch_n" },
 			{ type = "void *", name = "ud" },
 			{ type = "soluna_material_submit_func ", name = "submit" },
@@ -15,7 +17,6 @@ local apis = {
 		ret = "int",
 		name = "soluna_material_sprite_rect",
 		params = {
-			{ type = "lua_State *", name = "L" },
 			{ type = "void *", name = "bank" },
 			{ type = "int ", name = "sprite" },
 			{ type = "struct soluna_sprite_rect *", name = "out" },
@@ -25,33 +26,52 @@ local apis = {
 		ret = "sg_bindings",
 		name = "soluna_material_bindings",
 		params = {
-			{ type = "lua_State *", name = "L" },
 			{ type = "void *", name = "bindings" },
 		},
 	},
 	{
-		ret = "void",
+		ret = "soluna_material_error",
 		name = "soluna_material_push_stream",
 		params = {
-			{ type = "lua_State *", name = "L" },
 			{ type = "int ", name = "material_id" },
 			{ type = "int ", name = "count" },
 			{ type = "size_t ", name = "payload_size" },
 			{ type = "soluna_material_stream_write_func ", name = "write" },
 			{ type = "void *", name = "ud" },
+			{ type = "struct soluna_material_stream *", name = "out" },
 		},
 	},
 	{
 		ret = "void",
+		name = "soluna_material_stream_free",
+		params = {
+			{ type = "void *", name = "ptr" },
+		},
+	},
+	{
+		ret = "int",
 		name = "soluna_material_stream_read",
 		params = {
-			{ type = "lua_State *", name = "L" },
-			{ type = "const void *", name = "stream" },
+			{ type = "void *", name = "ctx" },
 			{ type = "int ", name = "index" },
-			{ type = "int ", name = "material_id" },
 			{ type = "size_t ", name = "payload_size" },
 			{ type = "void *", name = "payload" },
 			{ type = "struct soluna_material_stream_data *", name = "out" },
+		},
+	},
+	{
+		ret = "void",
+		name = "soluna_material_stream_error",
+		params = {
+			{ type = "void *", name = "ctx" },
+			{ type = "const char *", name = "error" },
+		},
+	},
+	{
+		ret = "int",
+		name = "soluna_material_stream_failed",
+		params = {
+			{ type = "void *", name = "ctx" },
 		},
 	},
 }
@@ -82,14 +102,18 @@ struct soluna_material_stream_data {
 	int sprite;
 };
 
-typedef void (*soluna_material_submit_func)(lua_State *L, void *ud, const void *stream, int n);
+struct soluna_material_stream {
+	char *data;
+	size_t size;
+};
+
+typedef const char *soluna_material_error;
+typedef void (*soluna_material_submit_func)(void *ud, void *ctx, int n);
 typedef void (*soluna_material_stream_write_func)(void *ud, int index, struct soluna_material_stream_item *item);
 ]]
 
 local host_type_decl = [[
 #include <stddef.h>
-
-#include <lua.h>
 
 #include "sokol/sokol_gfx.h"
 

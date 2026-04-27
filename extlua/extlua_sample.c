@@ -62,6 +62,16 @@ struct sprite_rect_basis {
 
 static int material_id = 0;
 
+static void *
+free_material_stream(void *ud, void *ptr, size_t osize, size_t nsize) {
+	(void)ud;
+	(void)osize;
+	if (nsize == 0) {
+		soluna_material_stream_free(ptr);
+	}
+	return NULL;
+}
+
 static sg_pipeline
 make_pipeline(sg_pipeline_desc *desc) {
 	sg_shader shd = sg_make_shader(perspective_quad_shader_desc(sg_query_backend()));
@@ -116,13 +126,13 @@ set_position_homography(const float pos[PQUAD_CORNER_N][2], struct pquad_inst *i
 	inst->pos_h2[2] = 1.0f;
 }
 
-static inline int
-perspective_quad_count(lua_State *L, int prim_n) {
+static inline soluna_material_error
+perspective_quad_count(int prim_n, int *out) {
 	if (prim_n % PQUAD_CORNER_N != 0) {
-		luaL_error(L, "Invalid perspective quad primitive count %d", prim_n);
-		return 0;
+		return "Invalid perspective quad primitive count";
 	}
-	return prim_n / PQUAD_CORNER_N;
+	*out = prim_n / PQUAD_CORNER_N;
+	return NULL;
 }
 
 static inline void
@@ -161,10 +171,15 @@ build_quad_from_rect(const struct sprite_rect_basis *basis, const struct soluna_
 }
 
 static void
-submit(lua_State *L, void *m_, const void *stream, int n) {
+submit(void *m_, void *ctx, int n) {
 	struct material_perspective_quad *m = (struct material_perspective_quad *)m_;
 	struct pquad_inst *tmp = (struct pquad_inst *)m->tmp_ptr;
-	int out_n = perspective_quad_count(L, n);
+	int out_n;
+	soluna_material_error err = perspective_quad_count(n, &out_n);
+	if (err != NULL) {
+		soluna_material_stream_error(ctx, err);
+		return;
+	}
 	int i;
 	for (i=0; i<out_n; i++) {
 		struct pquad_inst *inst = &tmp[i];
@@ -177,18 +192,22 @@ submit(lua_State *L, void *m_, const void *stream, int n) {
 		for (j=0; j<PQUAD_CORNER_N; j++) {
 			struct soluna_material_stream_data item;
 			struct pquad_payload payload;
-			soluna_material_stream_read(L, stream, base + j, material_id, sizeof(payload), &payload, &item);
+			if (!soluna_material_stream_read(ctx, base + j, sizeof(payload), &payload, &item)) {
+				return;
+			}
 			uint32_t flags = payload.info & PQUAD_INFO_USE_SPRITE_RECT;
 			if (j == 0) {
 				sprite = item.sprite;
 				stream_flags = flags;
 				inst->color = payload.color;
 			} else if (item.sprite != sprite || flags != stream_flags) {
-				luaL_error(L, "Invalid perspective quad stream");
+				soluna_material_stream_error(ctx, "Invalid perspective quad stream");
+				return;
 			}
 			uint32_t corner = payload.info & PQUAD_INFO_CORNER_MASK;
 			if (corner >= PQUAD_CORNER_N) {
-				luaL_error(L, "Invalid perspective quad corner %u", corner);
+				soluna_material_stream_error(ctx, "Invalid perspective quad corner");
+				return;
 			}
 			if (stream_flags & PQUAD_INFO_USE_SPRITE_RECT) {
 				decode_sprite_rect_basis(&sprite_rect_basis, corner, &item);
@@ -203,8 +222,9 @@ submit(lua_State *L, void *m_, const void *stream, int n) {
 			inst->q[corner] = q;
 		}
 		struct soluna_sprite_rect sprite_rect;
-		if (!soluna_material_sprite_rect(L, m->bank, sprite, &sprite_rect)) {
-			luaL_error(L, "Invalid perspective quad sprite %d", sprite);
+		if (!soluna_material_sprite_rect(m->bank, sprite, &sprite_rect)) {
+			soluna_material_stream_error(ctx, "Invalid perspective quad sprite");
+			return;
 		}
 		if (stream_flags & PQUAD_INFO_USE_SPRITE_RECT) {
 			build_quad_from_rect(&sprite_rect_basis, &sprite_rect, pos);
@@ -225,7 +245,12 @@ lmaterial_perspective_quad_submit(lua_State *L) {
 	if (inst_batch_n < 1) {
 		return luaL_error(L, "Perspective quad tmp buffer is too small");
 	}
-	soluna_material_submit(L, inst_batch_n * PQUAD_CORNER_N, m, submit);
+	const void *stream = lua_touserdata(L, 2);
+	int prim_n = luaL_checkinteger(L, 3);
+	soluna_material_error err = soluna_material_submit(stream, prim_n, material_id, inst_batch_n * PQUAD_CORNER_N, m, submit);
+	if (err != NULL) {
+		return luaL_error(L, "%s", err);
+	}
 	return 0;
 }
 
@@ -236,10 +261,14 @@ lmaterial_perspective_quad_draw(lua_State *L) {
 	if (prim_n <= 0) {
 		return 0;
 	}
-	int quad_n = perspective_quad_count(L, prim_n);
+	int quad_n;
+	soluna_material_error err = perspective_quad_count(prim_n, &quad_n);
+	if (err != NULL) {
+		return luaL_error(L, "%s", err);
+	}
 	sg_apply_pipeline(m->pip);
 	sg_apply_uniforms(UB_vs_params, &(sg_range) { m->uniform, sizeof(vs_params_t) });
-	sg_bindings bindings = soluna_material_bindings(L, m->bind);
+	sg_bindings bindings = soluna_material_bindings(m->bind);
 	bindings.vertex_buffer_offsets[0] += (size_t)m->base * sizeof(struct pquad_inst);
 	sg_apply_bindings(&bindings);
 	sg_draw(0, 4, quad_n);
@@ -468,7 +497,12 @@ lperspective_quad_sprite(lua_State *L) {
 	ctx.shear_y = get_number_field(L, 2, "shear_y", 0.0f);
 	get_q(L, 2, ctx.q);
 	ctx.color = get_color(L, 2);
-	soluna_material_push_stream(L, material_id, PQUAD_CORNER_N, sizeof(struct pquad_payload), write_perspective_quad_stream, &ctx);
+	struct soluna_material_stream stream;
+	soluna_material_error err = soluna_material_push_stream(material_id, PQUAD_CORNER_N, sizeof(struct pquad_payload), write_perspective_quad_stream, &ctx, &stream);
+	if (err != NULL) {
+		return luaL_error(L, "%s", err);
+	}
+	lua_pushexternalstring(L, stream.data, stream.size, free_material_stream, NULL);
 	return 1;
 }
 

@@ -7,38 +7,56 @@
 struct soluna_api {
 	int version;
 
-	void (*material_submit) (lua_State *L, int batch_n, void *ud, soluna_material_submit_func submit);
-	int (*material_sprite_rect) (lua_State *L, void *bank, int sprite, struct soluna_sprite_rect *out);
-	sg_bindings (*material_bindings) (lua_State *L, void *bindings);
-	void (*material_push_stream) (lua_State *L, int material_id, int count, size_t payload_size, soluna_material_stream_write_func write, void *ud);
-	void (*material_stream_read) (lua_State *L, const void *stream, int index, int material_id, size_t payload_size, void *payload, struct soluna_material_stream_data *out);
+	soluna_material_error (*material_submit) (const void *stream, int prim_n, int material_id, int batch_n, void *ud, soluna_material_submit_func submit);
+	int (*material_sprite_rect) (void *bank, int sprite, struct soluna_sprite_rect *out);
+	sg_bindings (*material_bindings) (void *bindings);
+	soluna_material_error (*material_push_stream) (int material_id, int count, size_t payload_size, soluna_material_stream_write_func write, void *ud, struct soluna_material_stream *out);
+	void (*material_stream_free) (void *ptr);
+	int (*material_stream_read) (void *ctx, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out);
+	void (*material_stream_error) (void *ctx, const char *error);
+	int (*material_stream_failed) (void *ctx);
 };
 
 static struct soluna_api API;
 
-void
-soluna_material_submit(lua_State *L, int batch_n, void *ud, soluna_material_submit_func submit) {
-	API.material_submit(L, batch_n, ud, submit);
+soluna_material_error
+soluna_material_submit(const void *stream, int prim_n, int material_id, int batch_n, void *ud, soluna_material_submit_func submit) {
+	return API.material_submit(stream, prim_n, material_id, batch_n, ud, submit);
 }
 
 int
-soluna_material_sprite_rect(lua_State *L, void *bank, int sprite, struct soluna_sprite_rect *out) {
-	return API.material_sprite_rect(L, bank, sprite, out);
+soluna_material_sprite_rect(void *bank, int sprite, struct soluna_sprite_rect *out) {
+	return API.material_sprite_rect(bank, sprite, out);
 }
 
 sg_bindings
-soluna_material_bindings(lua_State *L, void *bindings) {
-	return API.material_bindings(L, bindings);
+soluna_material_bindings(void *bindings) {
+	return API.material_bindings(bindings);
+}
+
+soluna_material_error
+soluna_material_push_stream(int material_id, int count, size_t payload_size, soluna_material_stream_write_func write, void *ud, struct soluna_material_stream *out) {
+	return API.material_push_stream(material_id, count, payload_size, write, ud, out);
 }
 
 void
-soluna_material_push_stream(lua_State *L, int material_id, int count, size_t payload_size, soluna_material_stream_write_func write, void *ud) {
-	API.material_push_stream(L, material_id, count, payload_size, write, ud);
+soluna_material_stream_free(void *ptr) {
+	API.material_stream_free(ptr);
+}
+
+int
+soluna_material_stream_read(void *ctx, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out) {
+	return API.material_stream_read(ctx, index, payload_size, payload, out);
 }
 
 void
-soluna_material_stream_read(lua_State *L, const void *stream, int index, int material_id, size_t payload_size, void *payload, struct soluna_material_stream_data *out) {
-	API.material_stream_read(L, stream, index, material_id, payload_size, payload, out);
+soluna_material_stream_error(void *ctx, const char *error) {
+	API.material_stream_error(ctx, error);
+}
+
+int
+soluna_material_stream_failed(void *ctx) {
+	return API.material_stream_failed(ctx);
 }
 
 
