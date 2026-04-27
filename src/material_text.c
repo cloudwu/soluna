@@ -36,13 +36,15 @@ struct inst_object {
 struct material_text {
 	sg_pipeline pip;
 	sg_buffer inst;
-	struct soluna_render_bindings *bind;
+	struct render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct font_manager *font;
 	fs_params_t fs_uniform;
 	struct tmp_buffer tmp;
 };
+
+static int material_id = 0;
 
 static void
 submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
@@ -52,7 +54,7 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 	int count = 0;
 	for (i=0;i<n;i++) {
 		struct draw_primitive *p = &prim[i*2];
-		assert(p->sprite == -MATERIAL_TEXT_NORMAL);
+		assert(p->sprite == -material_id);
 		
 		struct text * t = (struct text *)&prim[i*2+1];
 		struct font_glyph g, og;
@@ -210,6 +212,9 @@ lnew_material_text_normal(lua_State *L) {
 
 static int
 lchar_for_batch(lua_State *L) {
+	if (material_id <= 0) {
+		return luaL_error(L, "Text material is not registered");
+	}
 	struct text * t = (struct text *)lua_touserdata(L, lua_upvalueindex(1));
 	t->header.sprite = -1;
 	t->codepoint = luaL_checkinteger(L, 1);
@@ -220,6 +225,20 @@ lchar_for_batch(lua_State *L) {
 		t->color |= 0xff000000;
 	lua_pushvalue(L, lua_upvalueindex(1));
 	return 1;
+}
+
+static int
+lset_material_id(lua_State *L) {
+	int id = luaL_checkinteger(L, 1);
+	if (id <= 0) {
+		return luaL_error(L, "Invalid text material id %d", id);
+	}
+	material_id = id;
+	lua_pushvalue(L, lua_upvalueindex(1));
+	lua_pushinteger(L, id);
+	lua_setiuservalue(L, -2, 1);
+	lua_pop(L, 1);
+	return 0;
 }
 
 struct text_primitive {
@@ -537,7 +556,7 @@ ltext_(lua_State *L, struct position *pos) {
 				prim[n].pos.x = ctx.x * 256;
 				prim[n].pos.y = ctx.y * 256 + dy;
 				prim[n].pos.sr = 0;
-				prim[n].pos.sprite = -MATERIAL_TEXT_NORMAL;
+				prim[n].pos.sprite = -material_id;
 			}
 			
 			struct font_glyph g, og;
@@ -672,6 +691,9 @@ parse_alignment(lua_State *L, int index) {
 
 static int
 ltext_block(lua_State *L) {
+	if (material_id <= 0) {
+		return luaL_error(L, "Text material is not registered");
+	}
 	luaL_checktype(L, 1, LUA_TLIGHTUSERDATA);
 	void * font_mgr = lua_touserdata(L, 1);
 	int fontid = luaL_checkinteger(L, 2);
@@ -703,6 +725,7 @@ luaopen_material_text(lua_State *L) {
 	luaL_checkversion(L);
 	luaL_Reg l[] = {
 		{ "char", NULL },
+		{ "set_material_id", NULL },
 		{ "block", ltext_block },
 		{ "normal", lnew_material_text_normal },
 		{ "instance_size", NULL },
@@ -713,8 +736,9 @@ luaopen_material_text(lua_State *L) {
 	// char()
 	struct text * t = lua_newuserdatauv(L, sizeof(*t), 1);
 	memset(t, 0, sizeof(*t));
-	lua_pushinteger(L, MATERIAL_TEXT_NORMAL);
-	lua_setiuservalue(L, -2, 1);
+	lua_pushvalue(L, -1);
+	lua_pushcclosure(L, lset_material_id, 1);
+	lua_setfield(L, -3, "set_material_id");
 	lua_pushcclosure(L, lchar_for_batch, 1);
 	lua_setfield(L, -2, "char");
 	

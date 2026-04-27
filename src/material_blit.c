@@ -8,7 +8,7 @@
 
 struct material_blit {
 	sg_pipeline pip;
-	struct soluna_render_bindings *bind;
+	struct render_bindings *bind;
 };
 
 static int

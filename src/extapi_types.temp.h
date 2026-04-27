@@ -1,0 +1,6 @@
+#ifndef SOLUNA_EXTAPI_TYPES_H
+#define SOLUNA_EXTAPI_TYPES_H
+
+$HOST_TYPE_DECL$
+
+#endif

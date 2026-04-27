@@ -31,6 +31,8 @@ lm:source_set "soluna_src" {
 	sources = {
 		"src/*.c",
 		"extlua/extlua_impl.c",
+		"extlua/sokolapi_impl.c",
+		"extlua/solunaapi_impl.c",
 	},
 	objdeps = objdeps,
 	defines = {

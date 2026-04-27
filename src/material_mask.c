@@ -33,12 +33,14 @@ struct mask {
 struct material_mask {
 	sg_pipeline pip;
 	sg_buffer inst;
-	struct soluna_render_bindings *bind;
+	struct render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct sprite_bank *bank;
 	struct tmp_buffer tmp;
 };
+
+static int material_id = 0;
 
 static void
 submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
@@ -48,7 +50,7 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 	int i;
 	for (i=0;i<n;i++) {
 		struct draw_primitive *p = &prim[i*2];
-		assert(p->sprite == -MATERIAL_MASK);
+		assert(p->sprite == -material_id);
 		
 		struct mask * mask = (struct mask *)&prim[i*2+1];
 
@@ -117,6 +119,16 @@ lmaterial_mask_draw_ex(lua_State *L) {
 	return lmaterial_mask_draw_(L, 1);
 }
 
+static int
+lset_material_id(lua_State *L) {
+	int id = luaL_checkinteger(L, 1);
+	if (id <= 0) {
+		return luaL_error(L, "Invalid mask material id %d", id);
+	}
+	material_id = id;
+	return 0;
+}
+
 static void
 init_pipeline(struct material_mask *p) {
 	sg_pipeline_desc desc = {
@@ -173,11 +185,14 @@ struct mask_primitive {
 
 static int
 lmask(lua_State *L) {
+	if (material_id <= 0) {
+		return luaL_error(L, "Mask material is not registered");
+	}
 	struct mask_primitive prim;
 	prim.pos.x = 0;
 	prim.pos.y = 0;
 	prim.pos.sr = 0;
-	prim.pos.sprite = -MATERIAL_MASK;
+	prim.pos.sprite = -material_id;
 	prim.u.m.header.sprite = luaL_checkinteger(L, 1) - 1;
 	uint32_t color = luaL_checkinteger(L, 2);
 	if (!(color & 0xff000000))
@@ -194,6 +209,7 @@ int
 luaopen_material_mask(lua_State *L) {
 	luaL_checkversion(L);
 	luaL_Reg l[] = {
+		{ "set_material_id", lset_material_id },
 		{ "mask", lmask },
 		{ "new", lnew_material_mask },
 		{ "instance_size", NULL },

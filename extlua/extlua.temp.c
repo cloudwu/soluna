@@ -56,14 +56,19 @@ static void stub_lua_createtable (lua_State *L, int narr, int nrec) {
 static void stub_luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
 }
 
-struct extraspace {
-	struct lua_api * api;
+struct sokol_api;
+struct soluna_api;
+
+struct extlua_apis {
+	struct lua_api * lua;
+	struct sokol_api * sokol;
+	struct soluna_api * soluna;
 };
 
 LUA_API void
 luaapi_init(lua_State *L) {
-	struct extraspace * ex = (struct extraspace *)lua_getextraspace(L);
-	struct lua_api * api = ex->api;
+	struct extlua_apis *apis = *(struct extlua_apis **)lua_getextraspace(L);
+	struct lua_api * api = apis->lua;
 	if (api->version == LUA_VERSION_NUM) {
 		API = *api;
 		return;

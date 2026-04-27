@@ -121,7 +121,7 @@ local deps = { "soluna_src" }
 
 for path in fs.pairs(lm.basedir .. "/clibs") do
 	local name = path:stem():string()
-	if name ~= "soluna" and fs.exists(path / "make.lua") then
+	if name ~= "soluna" and name ~= "sample" and fs.exists(path / "make.lua") then
 		local makefile = ("clibs/%s/make.lua"):format(name)
 		lm:import(makefile)
 		deps[#deps + 1] = name .. "_src"
@@ -129,6 +129,7 @@ for path in fs.pairs(lm.basedir .. "/clibs") do
 end
 
 lm:import "clibs/soluna/make.lua"
+lm:import "clibs/sample/make.lua"
 
 lm:exe "soluna" {
 	deps = deps,
@@ -147,16 +148,6 @@ lm:exe "soluna" {
 			"-Wl,-u,emscripten_builtin_memalign",
 			"-Wl,--export=emscripten_builtin_memalign",
 		},
-	},
-}
-
-lm:dll "sample" {
-	sources = {
-		"extlua/extlua.c",
-		"extlua/extlua_sample.c",
-	},
-	includes = {
-		"3rd/lua",
 	},
 }
 

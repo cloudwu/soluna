@@ -33,11 +33,13 @@ struct inst_object {
 struct material_quad {
 	sg_pipeline pip;
 	sg_buffer inst;
-	struct soluna_render_bindings *bind;
+	struct render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct tmp_buffer tmp;
 };
+
+static int material_id = 0;
 
 static void
 submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
@@ -46,7 +48,7 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 	int i;
 	for (i=0;i<n;i++) {
 		struct draw_primitive *p = &prim[i*2];
-		assert(p->sprite == -MATERIAL_QUAD);
+		assert(p->sprite == -material_id);
 		
 		struct quad * q = (struct quad *)&prim[i*2+1];
 		
@@ -111,6 +113,16 @@ lmateraial_quad_draw_ex(lua_State *L) {
 	return lmateraial_quad_draw_(L, 1);
 }
 
+static int
+lset_material_id(lua_State *L) {
+	int id = luaL_checkinteger(L, 1);
+	if (id <= 0) {
+		return luaL_error(L, "Invalid quad material id %d", id);
+	}
+	material_id = id;
+	return 0;
+}
+
 static void
 init_pipeline(struct material_quad *p) {
 	sg_pipeline_desc desc = {
@@ -160,11 +172,14 @@ struct quad_primitive {
 
 static int
 lquad(lua_State *L) {
+	if (material_id <= 0) {
+		return luaL_error(L, "Quad material is not registered");
+	}
 	struct quad_primitive prim;
 	prim.pos.x = 0;
 	prim.pos.y = 0;
 	prim.pos.sr = 0;
-	prim.pos.sprite = -MATERIAL_QUAD;
+	prim.pos.sprite = -material_id;
 	prim.u.q.w = luaL_checkinteger(L, 1);
 	prim.u.q.h = luaL_checkinteger(L, 2);
 	uint32_t color = luaL_checkinteger(L, 3);
@@ -183,6 +198,7 @@ int
 luaopen_material_quad(lua_State *L) {
 	luaL_checkversion(L);
 	luaL_Reg l[] = {
+		{ "set_material_id", lset_material_id },
 		{ "quad", lquad },
 		{ "new", lnew_material_quad },
 		{ "instance_size", NULL },

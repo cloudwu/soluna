@@ -7,6 +7,11 @@ const examples = defineCollection({
     title: z.string(),
     entry: z.string(),
     source: z.string(),
+    gameSettings: z.string(),
+    runtimeFiles: z.array(z.object({
+      path: z.string(),
+      source: z.string(),
+    })),
   }),
 })
 

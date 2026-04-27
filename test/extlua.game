@@ -1,3 +1,5 @@
 entry : extlua.lua
 extlua_entry : extlua_init
 extlua_preload : sample
+extlua_material : perspective_quad
+extlua_material_path : extlua/material/?.lua

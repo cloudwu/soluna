@@ -4,11 +4,32 @@
 #include <string.h>
 
 struct lua_api;
+struct sokol_api;
+struct soluna_api;
 extern struct lua_api * extlua_api();
+extern struct sokol_api * extlua_sokol_api();
+extern struct soluna_api * extlua_soluna_api();
 
-struct extraspace {
-	struct lua_api * api;
+struct extlua_apis {
+	struct lua_api * lua;
+	struct sokol_api * sokol;
+	struct soluna_api * soluna;
 };
+
+static struct extlua_apis *
+host_apis() {
+	static struct extlua_apis apis;
+	apis.lua = extlua_api();
+	apis.sokol = extlua_sokol_api();
+	apis.soluna = extlua_soluna_api();
+	return &apis;
+}
+
+static void
+init_extraspace(lua_State *L) {
+	struct extlua_apis **ex = (struct extlua_apis **)lua_getextraspace(L);
+	*ex = host_apis();
+}
 
 static int
 get_reg(lua_State *L) {
@@ -82,8 +103,7 @@ register_libs_(lua_State *L) {
 static int
 load_libs(lua_State *L) {
 	lua_State *dL = luaL_newstate();
-	struct extraspace * ex = (struct extraspace *)lua_getextraspace(dL);
-	ex->api = extlua_api();
+	init_extraspace(dL);
 	lua_CFunction init = lua_tocfunction(L, 1);
 	if (init == NULL)
 		return luaL_error(L, "Need C function");
@@ -109,8 +129,7 @@ static struct preload_extlib PRELOAD;
 static void
 preload_lib(lua_State *L, lua_CFunction init, int result_index) {
 	lua_State *dL = luaL_newstate();
-	struct extraspace * ex = (struct extraspace *)lua_getextraspace(dL);
-	ex->api = extlua_api();
+	init_extraspace(dL);
 	init(dL);
 	lua_pushcfunction(L, register_libs_);
 	lua_pushvalue(L, result_index);
