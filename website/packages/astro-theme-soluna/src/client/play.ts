@@ -28,10 +28,17 @@ interface StartOptions {
 
 interface PlayOptions {
   exampleSource: string
+  exampleGameSettings?: string
+  exampleRuntimeFiles?: RuntimeFile[]
 }
 
 interface RuntimeHandle {
   stop: () => void
+}
+
+interface RuntimeFile {
+  path: string
+  source: string
 }
 
 declare global {
@@ -234,8 +241,8 @@ function setupCanvasResize(canvas: HTMLCanvasElement): () => void {
   return resize
 }
 
-function buildMainGame(): string {
-  return [
+function buildMainGame(exampleGameSettings = ''): string {
+  const lines = [
     'entry : main.lua',
     'high_dpi : true',
     'text_sampler :',
@@ -243,8 +250,39 @@ function buildMainGame(): string {
     '  mag_filter : linear',
     'extlua_entry : extlua_init',
     'extlua_preload : sample',
-    '',
-  ].join('\n')
+  ]
+  const settings = exampleGameSettings.trim()
+  if (settings) {
+    lines.push(settings)
+  }
+  lines.push('')
+  return lines.join('\n')
+}
+
+function normalizeRuntimeFilePath(path: string): string {
+  if (path.startsWith('/') || path.includes('\\')) {
+    throw new Error(`Invalid runtime file path: ${path}`)
+  }
+  const parts = path.split('/')
+  if (parts.some(part => part === '' || part === '.' || part === '..')) {
+    throw new Error(`Invalid runtime file path: ${path}`)
+  }
+  return path
+}
+
+function buildMainZip(exampleSource: string, exampleGameSettings: string, runtimeFiles: RuntimeFile[]): Uint8Array {
+  const entries: Record<string, Uint8Array> = {
+    'main.lua': strToU8(exampleSource),
+    'main.game': strToU8(buildMainGame(exampleGameSettings)),
+  }
+  runtimeFiles.forEach((file) => {
+    const runtimePath = normalizeRuntimeFilePath(file.path)
+    if (runtimePath === 'main.lua' || runtimePath === 'main.game') {
+      throw new Error(`Reserved runtime file path: ${runtimePath}`)
+    }
+    entries[runtimePath] = strToU8(file.source)
+  })
+  return zipSync(entries)
 }
 
 async function destroyActiveRuntime(): Promise<void> {
@@ -286,7 +324,12 @@ async function ensureIsolation(basePath: string): Promise<boolean> {
   }
 }
 
-async function loadRuntimeAssets(basePath: string, exampleSource: string) {
+async function loadRuntimeAssets(
+  basePath: string,
+  exampleSource: string,
+  exampleGameSettings: string,
+  exampleRuntimeFiles: RuntimeFile[],
+) {
   setStatus('Preparing assets...')
 
   const assetBuffer = normalizeFileData(await fetchArrayBuffer(`${basePath}runtime/asset.zip`))
@@ -303,10 +346,7 @@ async function loadRuntimeAssets(basePath: string, exampleSource: string) {
   return {
     assetBuffer,
     fontZip: zipSync(fontEntries),
-    mainZip: zipSync({
-      'main.lua': strToU8(exampleSource),
-      'main.game': strToU8(buildMainGame()),
-    }),
+    mainZip: buildMainZip(exampleSource, exampleGameSettings, exampleRuntimeFiles),
     sampleWasmBuffer: normalizeFileData(await sampleWasmPromise),
   }
 }
@@ -379,7 +419,12 @@ export default async function initPlay(options: PlayOptions): Promise<void> {
 
   let assets: Awaited<ReturnType<typeof loadRuntimeAssets>>
   try {
-    assets = await loadRuntimeAssets(basePath, options.exampleSource)
+    assets = await loadRuntimeAssets(
+      basePath,
+      options.exampleSource,
+      options.exampleGameSettings ?? '',
+      options.exampleRuntimeFiles ?? [],
+    )
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)

@@ -6,6 +6,11 @@ interface ExampleItem {
   title: string
   entry: string
   source: string
+  gameSettings: string
+  runtimeFiles: Array<{
+    path: string
+    source: string
+  }>
 }
 
 interface Props {
@@ -16,6 +21,8 @@ interface Props {
 const { example, examples } = Astro.props
 const basePath = import.meta.env.BASE_URL
 const sourceJson = JSON.stringify(example.source).replace(/</g, '\\u003c')
+const gameSettingsJson = JSON.stringify(example.gameSettings).replace(/</g, '\\u003c')
+const runtimeFilesJson = JSON.stringify(example.runtimeFiles).replace(/</g, '\\u003c')
 ---
 
 <section class="section">
@@ -78,11 +85,17 @@ const sourceJson = JSON.stringify(example.source).replace(/</g, '\\u003c')
 </div>
 
 <script type="application/json" id="soluna-example-source" set:html={sourceJson}></script>
+<script type="application/json" id="soluna-example-game-settings" set:html={gameSettingsJson}></script>
+<script type="application/json" id="soluna-example-runtime-files" set:html={runtimeFilesJson}></script>
 <script>
 import initPlay from 'astro-theme-soluna/client/play'
 
 const sourceNode = document.querySelector('#soluna-example-source')
+const gameSettingsNode = document.querySelector('#soluna-example-game-settings')
+const runtimeFilesNode = document.querySelector('#soluna-example-runtime-files')
 const exampleSource = sourceNode ? JSON.parse(sourceNode.textContent ?? '""') : ''
+const exampleGameSettings = gameSettingsNode ? JSON.parse(gameSettingsNode.textContent ?? '""') : ''
+const exampleRuntimeFiles = runtimeFilesNode ? JSON.parse(runtimeFilesNode.textContent ?? '[]') : []
 
-initPlay({ exampleSource })
+initPlay({ exampleSource, exampleGameSettings, exampleRuntimeFiles })
 </script>
