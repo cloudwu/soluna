@@ -22,9 +22,9 @@
 #define SOLUNA_THREAD_LOCAL _Thread_local
 #endif
 
-typedef void (*material_submit_stride_func)(void *ud, void *ctx, int n);
+typedef void (*material_submit_stride_func)(void *ud, struct soluna_material_stream_context ctx, int n);
 
-struct material_stream_context {
+struct material_stream_context_impl {
 	const char *data;
 	int n;
 	int material_id;
@@ -33,6 +33,11 @@ struct material_stream_context {
 };
 
 static SOLUNA_THREAD_LOCAL char submit_error_buffer[STREAM_ERROR_SIZE];
+
+static struct material_stream_context_impl *
+stream_context(struct soluna_material_stream_context ctx) {
+	return (struct material_stream_context_impl *)ctx.ctx;
+}
 
 static soluna_material_error
 copy_error(char *buffer, size_t size, const char *error) {
@@ -47,16 +52,16 @@ copy_error(char *buffer, size_t size, const char *error) {
 }
 
 void
-material_stream_error(void *ctx_, const char *error) {
-	struct material_stream_context *ctx = (struct material_stream_context *)ctx_;
+material_stream_error(struct soluna_material_stream_context ctx_, const char *error) {
+	struct material_stream_context_impl *ctx = stream_context(ctx_);
 	if (ctx != NULL && ctx->error == NULL) {
 		ctx->error = copy_error(ctx->error_buffer, sizeof(ctx->error_buffer), error);
 	}
 }
 
 int
-material_stream_failed(void *ctx_) {
-	struct material_stream_context *ctx = (struct material_stream_context *)ctx_;
+material_stream_failed(struct soluna_material_stream_context ctx_) {
+	struct material_stream_context_impl *ctx = stream_context(ctx_);
 	return ctx == NULL || ctx->error != NULL;
 }
 
@@ -84,24 +89,27 @@ submit_material_stride(const void *data_, int prim_n, int material_id, int batch
 	int i = 0;
 	for (;;) {
 		int n = prim_n - i;
-		struct material_stream_context ctx = {
+		struct material_stream_context_impl impl = {
 			.data = data,
 			.n = n > batch_n ? batch_n : n,
 			.material_id = material_id,
 			.error = NULL,
 			.error_buffer = { 0 },
 		};
+		struct soluna_material_stream_context ctx = {
+			.ctx = &impl,
+		};
 		if (n > batch_n) {
-			submit(ud, &ctx, batch_n);
-			if (ctx.error != NULL) {
-				return copy_error(submit_error_buffer, sizeof(submit_error_buffer), ctx.error);
+			submit(ud, ctx, batch_n);
+			if (impl.error != NULL) {
+				return copy_error(submit_error_buffer, sizeof(submit_error_buffer), impl.error);
 			}
 			i += batch_n;
 			data += stride * batch_n;
 		} else {
-			submit(ud, &ctx, n);
-			if (ctx.error != NULL) {
-				return copy_error(submit_error_buffer, sizeof(submit_error_buffer), ctx.error);
+			submit(ud, ctx, n);
+			if (impl.error != NULL) {
+				return copy_error(submit_error_buffer, sizeof(submit_error_buffer), impl.error);
 			}
 			break;
 		}
@@ -115,8 +123,8 @@ material_submit(const void *stream, int prim_n, int material_id, int batch_n, vo
 }
 
 int
-material_sprite_rect(void *bank, int sprite, struct soluna_sprite_rect *out) {
-	struct sprite_bank *b = (struct sprite_bank *)bank;
+material_sprite_rect(struct soluna_sprite_bank bank, int sprite, struct soluna_sprite_rect *out) {
+	struct sprite_bank *b = (struct sprite_bank *)bank.ctx;
 	if (b == NULL || out == NULL || sprite < 0 || sprite >= b->n) {
 		return 0;
 	}
@@ -132,8 +140,8 @@ material_sprite_rect(void *bank, int sprite, struct soluna_sprite_rect *out) {
 }
 
 sg_bindings
-material_bindings(void *bindings) {
-	struct soluna_render_bindings *b = (struct soluna_render_bindings *)bindings;
+material_bindings(struct soluna_render_bindings bindings) {
+	struct render_bindings *b = (struct render_bindings *)bindings.ctx;
 	assert(b != NULL);
 	return b->bindings;
 }
@@ -221,15 +229,15 @@ clear_stream_read(size_t payload_size, void *payload, struct soluna_material_str
 }
 
 static int
-fail_stream_read(void *ctx, const char *error, size_t payload_size, void *payload, struct soluna_material_stream_data *out) {
+fail_stream_read(struct soluna_material_stream_context ctx, const char *error, size_t payload_size, void *payload, struct soluna_material_stream_data *out) {
 	material_stream_error(ctx, error);
 	clear_stream_read(payload_size, payload, out);
 	return 0;
 }
 
 int
-material_stream_read(void *ctx_, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out) {
-	struct material_stream_context *ctx = (struct material_stream_context *)ctx_;
+material_stream_read(struct soluna_material_stream_context ctx_, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out) {
+	struct material_stream_context_impl *ctx = stream_context(ctx_);
 	size_t payload_max = stream_payload_max();
 	if (ctx == NULL) {
 		clear_stream_read(payload_size, payload, out);

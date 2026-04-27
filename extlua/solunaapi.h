@@ -40,18 +40,31 @@ struct soluna_material_stream {
 };
 
 typedef const char *soluna_material_error;
-typedef void (*soluna_material_submit_func)(void *ud, void *ctx, int n);
+
+struct soluna_material_stream_context {
+	void *ctx;
+};
+
+struct soluna_render_bindings {
+	void *ctx;
+};
+
+struct soluna_sprite_bank {
+	void *ctx;
+};
+
+typedef void (*soluna_material_submit_func)(void *ud, struct soluna_material_stream_context ctx, int n);
 typedef void (*soluna_material_stream_write_func)(void *ud, int index, struct soluna_material_stream_item *item);
 
 
 void solunaapi_init(lua_State *L);
 soluna_material_error soluna_material_submit(const void *stream, int prim_n, int material_id, int batch_n, void *ud, soluna_material_submit_func submit);
-int soluna_material_sprite_rect(void *bank, int sprite, struct soluna_sprite_rect *out);
-sg_bindings soluna_material_bindings(void *bindings);
+int soluna_material_sprite_rect(struct soluna_sprite_bank bank, int sprite, struct soluna_sprite_rect *out);
+sg_bindings soluna_material_bindings(struct soluna_render_bindings bindings);
 soluna_material_error soluna_material_push_stream(int material_id, int count, size_t payload_size, soluna_material_stream_write_func write, void *ud, struct soluna_material_stream *out);
 void soluna_material_stream_free(void *ptr);
-int soluna_material_stream_read(void *ctx, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out);
-void soluna_material_stream_error(void *ctx, const char *error);
-int soluna_material_stream_failed(void *ctx);
+int soluna_material_stream_read(struct soluna_material_stream_context ctx, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out);
+void soluna_material_stream_error(struct soluna_material_stream_context ctx, const char *error);
+int soluna_material_stream_failed(struct soluna_material_stream_context ctx);
 
 #endif

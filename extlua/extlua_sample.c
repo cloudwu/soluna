@@ -43,10 +43,10 @@ struct pquad_inst {
 struct material_perspective_quad {
 	sg_pipeline pip;
 	sg_buffer inst;
-	void *bind;
+	struct soluna_render_bindings bind;
 	int base;
 	vs_params_t *uniform;
-	void *bank;
+	struct soluna_sprite_bank bank;
 	void *tmp_ptr;
 	size_t tmp_size;
 };
@@ -171,7 +171,7 @@ build_quad_from_rect(const struct sprite_rect_basis *basis, const struct soluna_
 }
 
 static void
-submit(void *m_, void *ctx, int n) {
+submit(void *m_, struct soluna_material_stream_context ctx, int n) {
 	struct material_perspective_quad *m = (struct material_perspective_quad *)m_;
 	struct pquad_inst *tmp = (struct pquad_inst *)m->tmp_ptr;
 	int out_n;
@@ -328,7 +328,9 @@ lnew_material_perspective_quad(lua_State *L) {
 	if (lua_getfield(L, 1, "bindings") != LUA_TUSERDATA) {
 		return luaL_error(L, "Invalid key .bindings");
 	}
-	m->bind = luaL_checkudata(L, -1, "SOKOL_BINDINGS");
+	m->bind = (struct soluna_render_bindings) {
+		.ctx = luaL_checkudata(L, -1, "SOKOL_BINDINGS"),
+	};
 	lua_pushvalue(L, -1);
 	lua_setiuservalue(L, material_index, 2);
 	lua_pop(L, 1);
@@ -344,7 +346,9 @@ lnew_material_perspective_quad(lua_State *L) {
 	if (lua_getfield(L, 1, "sprite_bank") != LUA_TLIGHTUSERDATA) {
 		return luaL_error(L, "Invalid key .sprite_bank");
 	}
-	m->bank = lua_touserdata(L, -1);
+	m->bank = (struct soluna_sprite_bank) {
+		.ctx = lua_touserdata(L, -1),
+	};
 	lua_pop(L, 1);
 
 	if (lua_getfield(L, 1, "tmp_buffer") != LUA_TUSERDATA) {

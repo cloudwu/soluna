@@ -8,13 +8,13 @@ struct soluna_api {
 	int version;
 
 	soluna_material_error (*material_submit) (const void *stream, int prim_n, int material_id, int batch_n, void *ud, soluna_material_submit_func submit);
-	int (*material_sprite_rect) (void *bank, int sprite, struct soluna_sprite_rect *out);
-	sg_bindings (*material_bindings) (void *bindings);
+	int (*material_sprite_rect) (struct soluna_sprite_bank bank, int sprite, struct soluna_sprite_rect *out);
+	sg_bindings (*material_bindings) (struct soluna_render_bindings bindings);
 	soluna_material_error (*material_push_stream) (int material_id, int count, size_t payload_size, soluna_material_stream_write_func write, void *ud, struct soluna_material_stream *out);
 	void (*material_stream_free) (void *ptr);
-	int (*material_stream_read) (void *ctx, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out);
-	void (*material_stream_error) (void *ctx, const char *error);
-	int (*material_stream_failed) (void *ctx);
+	int (*material_stream_read) (struct soluna_material_stream_context ctx, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out);
+	void (*material_stream_error) (struct soluna_material_stream_context ctx, const char *error);
+	int (*material_stream_failed) (struct soluna_material_stream_context ctx);
 };
 
 static struct soluna_api API;
@@ -25,12 +25,12 @@ soluna_material_submit(const void *stream, int prim_n, int material_id, int batc
 }
 
 int
-soluna_material_sprite_rect(void *bank, int sprite, struct soluna_sprite_rect *out) {
+soluna_material_sprite_rect(struct soluna_sprite_bank bank, int sprite, struct soluna_sprite_rect *out) {
 	return API.material_sprite_rect(bank, sprite, out);
 }
 
 sg_bindings
-soluna_material_bindings(void *bindings) {
+soluna_material_bindings(struct soluna_render_bindings bindings) {
 	return API.material_bindings(bindings);
 }
 
@@ -45,17 +45,17 @@ soluna_material_stream_free(void *ptr) {
 }
 
 int
-soluna_material_stream_read(void *ctx, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out) {
+soluna_material_stream_read(struct soluna_material_stream_context ctx, int index, size_t payload_size, void *payload, struct soluna_material_stream_data *out) {
 	return API.material_stream_read(ctx, index, payload_size, payload, out);
 }
 
 void
-soluna_material_stream_error(void *ctx, const char *error) {
+soluna_material_stream_error(struct soluna_material_stream_context ctx, const char *error) {
 	API.material_stream_error(ctx, error);
 }
 
 int
-soluna_material_stream_failed(void *ctx) {
+soluna_material_stream_failed(struct soluna_material_stream_context ctx) {
 	return API.material_stream_failed(ctx);
 }
 

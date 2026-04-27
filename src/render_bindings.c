@@ -6,13 +6,13 @@
 
 static inline sg_bindings *
 get_bindings(lua_State *L) {
-	struct soluna_render_bindings *b = luaL_checkudata(L, 1, "SOKOL_BINDINGS");
+	struct render_bindings *b = luaL_checkudata(L, 1, "SOKOL_BINDINGS");
 	return &b->bindings;	
 }
 
 static int
 lbindings_set_base(lua_State *L) {
-	struct soluna_render_bindings *b = luaL_checkudata(L, 1, "SOKOL_BINDINGS");
+	struct render_bindings *b = luaL_checkudata(L, 1, "SOKOL_BINDINGS");
 	int base = luaL_checkinteger(L, 2);
 	b->base = base;
 	return 0;
@@ -220,7 +220,7 @@ lview_new(lua_State *L) {
 
 int
 lbindings_new(lua_State *L) {
-	struct soluna_render_bindings *b = (struct soluna_render_bindings *)lua_newuserdatauv(L, sizeof(*b), 0);
+	struct render_bindings *b = (struct render_bindings *)lua_newuserdatauv(L, sizeof(*b), 0);
 	memset(b, 0, sizeof(*b));
 	if (luaL_newmetatable(L, "SOKOL_BINDINGS")) {
 		luaL_Reg l[] = {

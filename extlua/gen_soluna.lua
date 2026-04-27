@@ -17,7 +17,7 @@ local apis = {
 		ret = "int",
 		name = "soluna_material_sprite_rect",
 		params = {
-			{ type = "void *", name = "bank" },
+			{ type = "struct soluna_sprite_bank ", name = "bank" },
 			{ type = "int ", name = "sprite" },
 			{ type = "struct soluna_sprite_rect *", name = "out" },
 		},
@@ -26,7 +26,7 @@ local apis = {
 		ret = "sg_bindings",
 		name = "soluna_material_bindings",
 		params = {
-			{ type = "void *", name = "bindings" },
+			{ type = "struct soluna_render_bindings ", name = "bindings" },
 		},
 	},
 	{
@@ -52,7 +52,7 @@ local apis = {
 		ret = "int",
 		name = "soluna_material_stream_read",
 		params = {
-			{ type = "void *", name = "ctx" },
+			{ type = "struct soluna_material_stream_context ", name = "ctx" },
 			{ type = "int ", name = "index" },
 			{ type = "size_t ", name = "payload_size" },
 			{ type = "void *", name = "payload" },
@@ -63,7 +63,7 @@ local apis = {
 		ret = "void",
 		name = "soluna_material_stream_error",
 		params = {
-			{ type = "void *", name = "ctx" },
+			{ type = "struct soluna_material_stream_context ", name = "ctx" },
 			{ type = "const char *", name = "error" },
 		},
 	},
@@ -71,7 +71,7 @@ local apis = {
 		ret = "int",
 		name = "soluna_material_stream_failed",
 		params = {
-			{ type = "void *", name = "ctx" },
+			{ type = "struct soluna_material_stream_context ", name = "ctx" },
 		},
 	},
 }
@@ -108,7 +108,20 @@ struct soluna_material_stream {
 };
 
 typedef const char *soluna_material_error;
-typedef void (*soluna_material_submit_func)(void *ud, void *ctx, int n);
+
+struct soluna_material_stream_context {
+	void *ctx;
+};
+
+struct soluna_render_bindings {
+	void *ctx;
+};
+
+struct soluna_sprite_bank {
+	void *ctx;
+};
+
+typedef void (*soluna_material_submit_func)(void *ud, struct soluna_material_stream_context ctx, int n);
 typedef void (*soluna_material_stream_write_func)(void *ud, int index, struct soluna_material_stream_item *item);
 ]]
 

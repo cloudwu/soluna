@@ -36,7 +36,7 @@ struct inst_object {
 struct material_text {
 	sg_pipeline pip;
 	sg_buffer inst;
-	struct soluna_render_bindings *bind;
+	struct render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct font_manager *font;

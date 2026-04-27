@@ -38,7 +38,20 @@ struct soluna_material_stream {
 };
 
 typedef const char *soluna_material_error;
-typedef void (*soluna_material_submit_func)(void *ud, void *ctx, int n);
+
+struct soluna_material_stream_context {
+	void *ctx;
+};
+
+struct soluna_render_bindings {
+	void *ctx;
+};
+
+struct soluna_sprite_bank {
+	void *ctx;
+};
+
+typedef void (*soluna_material_submit_func)(void *ud, struct soluna_material_stream_context ctx, int n);
 typedef void (*soluna_material_stream_write_func)(void *ud, int index, struct soluna_material_stream_item *item);
 
 

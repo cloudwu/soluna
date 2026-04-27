@@ -33,7 +33,7 @@ struct inst_object {
 struct material_quad {
 	sg_pipeline pip;
 	sg_buffer inst;
-	struct soluna_render_bindings *bind;
+	struct render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct tmp_buffer tmp;

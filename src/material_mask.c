@@ -33,7 +33,7 @@ struct mask {
 struct material_mask {
 	sg_pipeline pip;
 	sg_buffer inst;
-	struct soluna_render_bindings *bind;
+	struct render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct sprite_bank *bank;
