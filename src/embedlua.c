@@ -26,7 +26,6 @@
 #include "mattext.lua.h"
 #include "matquad.lua.h"
 #include "matmask.lua.h"
-#include "matpquad.lua.h"
 
 #include "lua.h"
 #include "lauxlib.h"
@@ -103,7 +102,6 @@ luaopen_embedsource(lua_State *L) {
 			REG_MATERIAL(mattext)
 			REG_MATERIAL(matquad)
 			REG_MATERIAL(matmask)
-			REG_MATERIAL(matpquad)
 		lua_setfield(L, -2, "material");
 
 		lua_newtable(L);	// data list

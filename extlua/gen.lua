@@ -33,6 +33,7 @@ local function get_apis(result, filename, prefix)
 					error("Invalid function " .. line)
 				end
 			end
+			retv = retv:gsub("%s+$", "")
 			if retv:match "%s*void%s*$" then
 				retv = "void"
 			end

@@ -58,12 +58,17 @@ $(LUA_O) : $(LUASRC)
 
 SHADER_SRC=$(wildcard src/*.glsl)
 SHADER_O=$(patsubst src/%.glsl,$(BUILD)/%.glsl.h,$(SHADER_SRC))
+EXTLUA_SHADER_SRC=$(wildcard extlua/*.glsl)
+EXTLUA_SHADER_O=$(patsubst extlua/%.glsl,$(BUILD)/%.glsl.h,$(EXTLUA_SHADER_SRC))
 SHADERINC=-I$(BUILD)
 
 $(BUILD)/%.glsl.h : src/%.glsl
 	$(SHDC) --input $< --output $@ --slang hlsl4 --format sokol
 
-shader : $(SHADER_O)
+$(BUILD)/%.glsl.h : extlua/%.glsl
+	$(SHDC) --input $< --output $@ --slang hlsl4 --format sokol
+
+shader : $(SHADER_O) $(EXTLUA_SHADER_O)
 
 MAIN_FULL=$(wildcard src/*.c)
 PLATFORM_FULL=$(wildcard src/platform/windows/*.c)
@@ -71,7 +76,7 @@ MAIN_C=$(notdir $(MAIN_FULL))
 MAIN_O=$(patsubst %.c,$(BUILD)/soluna_%.o,$(MAIN_C))
 PLATFORM_C=$(notdir $(PLATFORM_FULL))
 PLATFORM_O=$(patsubst %.c,$(BUILD)/platform_%.o,$(PLATFORM_C))
-EXTLUA_O=$(BUILD)/extlua_impl.o
+EXTLUA_O=$(BUILD)/extlua_impl.o $(BUILD)/sokolapi_impl.o $(BUILD)/solunaapi_impl.o
 
 $(MAIN_O) : $(SHADER_O)
 
@@ -156,11 +161,17 @@ $(BUILD)/minizip_%.o : 3rd/zlib/contrib/minizip/%.c
 $(BUILD)/extlua_impl.o : extlua/extlua_impl.c
 	$(COMPILE_C) $(LUAINC)
 
+$(BUILD)/sokolapi_impl.o : extlua/sokolapi_impl.c
+	$(COMPILE_C) $(3RDINC)
+
+$(BUILD)/solunaapi_impl.o : extlua/solunaapi_impl.c
+	$(COMPILE_C) $(LUAINC) $(3RDINC)
+
 $(BIN)/$(APPNAME): $(MAIN_O) $(PLATFORM_O) $(EXTLUA_O) $(LTASK_O) $(LUA_O) $(DATALIST_O) $(BUILD)/yoga.o $(ZLIB_O) $(MINIZIP_O)
 	$(LD) $(OUTPUT_EXE) $@ $^ $(LDFLAGS)
 
-$(BIN)/sample.dll : extlua/extlua.c extlua/extlua_sample.c
-	$(CC) $(CFLAGS) $(SHARED) $(OUTPUT_EXE) $@ $^ $(LUAINC)
+$(BIN)/sample.dll : extlua/extlua.c extlua/sokolapi.c extlua/solunaapi.c extlua/extlua_sample.c | $(EXTLUA_SHADER_O)
+	$(CC) $(CFLAGS) $(SHARED) $(OUTPUT_EXE) $@ $^ $(LUAINC) $(3RDINC) $(SHADERINC) -Iextlua
 
 extlua_sample: $(BIN)/sample.dll
 

@@ -5,97 +5,56 @@ local embedsource = require "soluna.embedsource"
 local drawmgr = require "soluna.drawmgr"
 local file = require "soluna.file"
 
-global require, assert, pairs, pcall, ipairs, print, load, type, table
+global require, assert, pairs, pcall, ipairs, print, load, type
 
 local setting = require "soluna".settings()
-
-local reset_materials
 
 local font = {}
 
 local function create_materials(ctx)
-	local function load_materials()
-		local registry = {}
-
-		function reset_materials(materials)
-			for _, desc in ipairs(registry) do
-				local obj = materials[desc.id]
-				if obj.reset then
-					obj.reset()
-				end
-			end
-		end
-
-		local function join_path(path, name)
-			if path:match "/$" then
-				return path .. name
-			else
-				return path .. "/" .. name
-			end
-		end
-
-		local function append(desc, id)
-			assert(type(desc.name) == "string")
-			assert(type(desc.create) == "function")
-			desc.id = id
-			registry[#registry + 1] = desc
-			return id
-		end
-
-		local function run_source(source, chunkname, register)
-			local chunk = assert(load(source, chunkname))
-			local callback = assert(chunk())
-			assert(type(callback) == "function")
-			callback(register)
-		end
-		local MATERIAL_EXTLUA_BASE <const> = 256
-		do
-			local next_id = 0
-			local function register(desc)
-				local id = next_id
-				assert(id < MATERIAL_EXTLUA_BASE)
-				next_id = id + 1
-				return append(desc, id)
-			end
-			local function load_material(name)
-				local loader = assert(embedsource.material[name])
-				run_source(loader(), "@src/material/" .. name .. ".lua", register)
-			end
-			for _, name in ipairs(embedsource.material) do
-				load_material(name)
-			end
-		end
-		if setting.extlua_material_path and setting.extlua_material_path ~= "" then
-			local path = setting.extlua_material_path
-			if file.attributes(path, "mode") ~= "directory" then
-				return registry
-			end
-			local files = {}
-			for name in file.dir(path) do
-				if name ~= "." and name ~= ".." and name:match "%.lua$" then
-					files[#files + 1] = name
-				end
-			end
-			table.sort(files)
-			local next_id = MATERIAL_EXTLUA_BASE
-			local function register(desc)
-				local id = next_id
-				next_id = id + 1
-				return append(desc, id)
-			end
-			for _, name in ipairs(files) do
-				local fullname = join_path(path, name)
-				run_source(assert(file.load(fullname)), "@" .. fullname, register)
-			end
-		end
-		return registry
-	end
 	local materials = {}
-	for _, desc in ipairs(load_materials()) do
-		local obj = assert(desc.create(ctx))
-		assert(type(obj.submit) == "function")
-		assert(type(obj.draw) == "function")
-		materials[desc.id] = obj
+
+	local function load_material(source, chunkname, id)
+		local chunk = assert(load(source, chunkname))
+		local mctx = {
+			id = id,
+			state = ctx.state,
+			arg = ctx.arg,
+			tmp_buffer = ctx.tmp_buffer,
+			settings = ctx.settings,
+			font = ctx.font,
+			render = ctx.render,
+		}
+		local material = assert(chunk(mctx), chunkname .. " : no material returned")
+		assert(type(material.submit) == "function", chunkname .. " : missing submit function")
+		assert(type(material.draw) == "function", chunkname .. " : missing draw function")
+		materials[id] = material
+	end
+
+	local MATERIAL_EXTLUA_BASE <const> = 256
+	do
+		local next_id = 0
+		for _, name in ipairs(embedsource.material) do
+			local id = next_id
+			assert(id < MATERIAL_EXTLUA_BASE)
+			next_id = id + 1
+			local loader = assert(embedsource.material[name])
+			load_material(loader(), "@src/material/" .. name .. ".lua", id)
+		end
+	end
+	if setting.extlua_material then
+		local list = setting.extlua_material
+		if type(list) == "string" then
+			list = { list }
+		end
+		local path = assert(setting.extlua_material_path)
+		local next_id = MATERIAL_EXTLUA_BASE
+		for _, name in ipairs(list) do
+			local id = next_id
+			next_id = id + 1
+			local fullname = assert(file.searchpath(name, path))
+			load_material(file.load(fullname), "@" .. fullname, id)
+		end
 	end
 	return materials
 end
@@ -218,7 +177,12 @@ local function frame(count)
 	local batch_n = #batch
 	if update_image then update_image() end
 	STATE.drawmgr:reset()
-	reset_materials(STATE.materials)
+	for _, obj in pairs(STATE.materials) do
+		if obj.reset then
+			obj.reset()
+		end
+	end
+
 	for i = 1, batch_n do
 		local ptr, size = batch[i][1]()
 		if ptr then

@@ -1,0 +1,14 @@
+#ifndef SOLUNAAPI_H
+#define SOLUNAAPI_H
+
+#include <stddef.h>
+
+#include <lua.h>
+
+#include "sokol/sokol_gfx.h"
+
+$TYPE_DECL$
+
+$HEADER_DECL$
+
+#endif
