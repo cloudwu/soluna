@@ -117,6 +117,8 @@ end
 ---@field version_api integer API 版本号 / API version number
 local soluna = {}
 
+---@alias soluna.MouseCursor soluna.app.MouseCursor
+
 ---返回 `.game` 设置表
 ---Returns the `.game` settings table.
 ---@return table settings 游戏设置 / Game settings
@@ -127,6 +129,12 @@ end
 ---Sets the window title.
 ---@param text string 标题文字 / Window title
 function soluna.set_window_title(text)
+end
+
+---设置系统鼠标光标样式；nil 恢复默认样式。
+---Sets the system mouse cursor; nil restores the default cursor.
+---@param cursor? soluna.MouseCursor
+function soluna.set_mouse_cursor(cursor)
 end
 
 ---设置窗口图标

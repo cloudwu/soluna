@@ -106,6 +106,10 @@ local function start(config)
 		soluna_app.set_window_title(text)
 	end
 
+	function appmsg.set_cursor(cursor)
+		soluna_app.set_mouse_cursor(cursor)
+	end
+
 	function appmsg.set_icon(data)
 		soluna_app.set_icon(data)
 	end
