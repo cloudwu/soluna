@@ -15,7 +15,7 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "astro": "^5.16.8",
+    "astro": "^6.3.3",
     "astro-theme-soluna": "workspace:*",
     "marked": "^15.0.12"
   },

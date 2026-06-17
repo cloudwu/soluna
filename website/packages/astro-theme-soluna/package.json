@@ -16,9 +16,12 @@
     "./client/play": "./src/client/play.ts"
   },
   "peerDependencies": {
-    "astro": "^5.16.8"
+    "astro": "^6.3.3"
   },
   "dependencies": {
     "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "astro": "^6.3.3"
   }
 }
