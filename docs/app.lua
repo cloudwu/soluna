@@ -14,9 +14,28 @@
 ---@class soluna.app
 local app = {}
 
+---@alias soluna.app.MouseCursor
+---| '"default"'
+---| '"arrow"'
+---| '"ibeam"'
+---| '"crosshair"'
+---| '"pointing_hand"'
+---| '"resize_ew"'
+---| '"resize_ns"'
+---| '"resize_nwse"'
+---| '"resize_nesw"'
+---| '"resize_all"'
+---| '"not_allowed"'
+
 ---请求应用优雅退出
 ---Requests graceful application quit.
 function app.quit()
+end
+
+---设置系统鼠标光标样式；nil 恢复默认样式。
+---Sets the system mouse cursor; nil restores the default cursor.
+---@param cursor? soluna.app.MouseCursor
+function app.set_mouse_cursor(cursor)
 end
 
 ---设置输入法字体

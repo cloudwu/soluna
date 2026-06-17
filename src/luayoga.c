@@ -60,6 +60,14 @@ lnodeFree(lua_State *L) {
 }
 
 static int
+lnodeRemove(lua_State *L) {
+	YGNodeRef parent = lua_touserdata(L, 1);
+	YGNodeRef node = lua_touserdata(L, 2);
+	YGNodeRemoveChild(parent, node);
+	return 0;
+}
+
+static int
 lnodeCalc(lua_State *L) {
 	YGNodeRef node = lua_touserdata(L, 1);
 	YGNodeCalculateLayout(node, YGUndefined, YGUndefined, YGDirectionLTR);
@@ -597,6 +605,7 @@ luaopen_layout_yoga(lua_State *L) {
 	luaL_Reg l[] = {
 		{ "node_new", lnodeNew },
 		{ "node_free", lnodeFree },
+		{ "node_remove", lnodeRemove },
 		{ "node_calc", lnodeCalc },
 		{ "node_get", lnodeGet },
 		{ "node_set", NULL },

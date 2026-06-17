@@ -226,6 +226,37 @@ lset_window_title(lua_State *L) {
 	return 0;
 }
 
+static const char *const MOUSE_CURSOR_NAMES[] = {
+	"default",
+	"arrow",
+	"ibeam",
+	"crosshair",
+	"pointing_hand",
+	"resize_ew",
+	"resize_ns",
+	"resize_nwse",
+	"resize_nesw",
+	"resize_all",
+	"not_allowed",
+	NULL,
+};
+
+static sapp_mouse_cursor
+check_mouse_cursor(lua_State *L, int index) {
+	if (lua_isnoneornil(L, index)) {
+		return SAPP_MOUSECURSOR_DEFAULT;
+	}
+	return (sapp_mouse_cursor)luaL_checkoption(L, index, NULL, MOUSE_CURSOR_NAMES);
+}
+
+static int
+lset_mouse_cursor(lua_State *L) {
+	if (CTX == NULL)
+		return 0;
+	sapp_set_mouse_cursor(check_mouse_cursor(L, 1));
+	return 0;
+}
+
 struct icon_pixels {
 	uint8_t *ptr;
 };
@@ -561,6 +592,7 @@ luaopen_soluna_app(lua_State *L) {
 		{ "sendmessage", lmessage_send },
 		{ "unpackevent", levent_unpack },
 		{ "set_window_title", lset_window_title },
+		{ "set_mouse_cursor", lset_mouse_cursor },
 		{ "set_icon", lset_icon },
 		{ "set_ime_rect", lset_ime_rect },
 		{ "set_ime_font", lset_ime_font },

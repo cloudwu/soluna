@@ -37,6 +37,10 @@ function soluna.set_window_title(text)
 	mqueue.send(app.mqueue(), ltask.pack("set_title", text))
 end
 
+function soluna.set_mouse_cursor(cursor)
+	mqueue.send(app.mqueue(), ltask.pack("set_cursor", cursor))
+end
+
 function soluna.set_icon(data)
 	mqueue.send(app.mqueue(), ltask.pack("set_icon", data))
 end
