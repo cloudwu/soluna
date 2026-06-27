@@ -1,6 +1,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include <X11/keysym.h>
 #include <wchar.h>
 #include <uchar.h>
 #include <dlfcn.h>
@@ -43,6 +44,25 @@ soluna_linux_char_filter_state(void) {
 static void
 soluna_linux_reset_char_queues(void) {
     soluna_ime_char_filter_reset(soluna_linux_char_filter_state());
+}
+
+static bool
+soluna_linux_should_bypass_ime(XKeyEvent *kev) {
+    if (!(kev->state & ControlMask) || (kev->state & (Mod1Mask | Mod4Mask))) {
+        return false;
+    }
+    KeySym sym = XLookupKeysym(kev, 0);
+    switch (sym) {
+    case XK_A:
+    case XK_a:
+    case XK_C:
+    case XK_c:
+    case XK_V:
+    case XK_v:
+        return true;
+    default:
+        return false;
+    }
 }
 
 static Display *
@@ -220,9 +240,6 @@ soluna_linux_filter_event(Display *dpy, XEvent *event) {
     if (!event) {
         return true;
     }
-    if (XFilterEvent(event, None)) {
-        return true;
-    }
     if (event->type == KeyPress) {
         if (!g_soluna_ime_rect.valid) {
             return false;
@@ -230,6 +247,14 @@ soluna_linux_filter_event(Display *dpy, XEvent *event) {
         if (event->xkey.display != soluna_linux_display() || event->xkey.window != soluna_linux_window()) {
             return false;
         }
+        if (soluna_linux_should_bypass_ime(&event->xkey)) {
+            return false;
+        }
+    }
+    if (XFilterEvent(event, None)) {
+        return true;
+    }
+    if (event->type == KeyPress) {
         if (soluna_linux_handle_keypress(&event->xkey)) {
             return true;
         }
