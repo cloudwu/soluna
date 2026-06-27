@@ -108,6 +108,12 @@ struct soluna_message {
 	} v;
 };
 
+struct soluna_string_message {
+	struct soluna_message message;
+	size_t size;
+	char data[];
+};
+
 static inline struct soluna_message *
 message_create(const char *type, int p1, int p2) {
 	struct soluna_message *msg = (struct soluna_message *)malloc(sizeof(*msg));
@@ -123,6 +129,16 @@ message_create64(const char *type, uint64_t p) {
 	msg->type = type;
 	msg->v.u64 = p;
 	return msg;
+}
+
+static inline struct soluna_message *
+message_create_string(const char *type, const char *str, size_t len) {
+	struct soluna_string_message *msg = (struct soluna_string_message *)malloc(sizeof(*msg) + len + 1);
+	msg->message.type = type;
+	msg->size = len;
+	memcpy(msg->data, str, len);
+	msg->data[len] = '\0';
+	return &msg->message;
 }
 
 static inline void
@@ -155,13 +171,18 @@ lmessage_send(lua_State *L) {
 		luaL_checktype(L, 3, LUA_TLIGHTUSERDATA);
 		what = (const char *)lua_touserdata(L, 3);
 	}
-	int64_t p1 = luaL_optinteger(L, 4, 0);
 	struct soluna_message * msg = NULL;
-	if (lua_isnoneornil(L, 5)) {
+	if (what == SOLUNA_EVENT_CLIPBOARD_PASTED && lua_type(L, 4) == LUA_TSTRING && lua_isnoneornil(L, 5)) {
+		size_t len = 0;
+		const char *str = lua_tolstring(L, 4, &len);
+		msg = message_create_string(what, str, len);
+	} else if (lua_isnoneornil(L, 5)) {
+		int64_t p1 = luaL_optinteger(L, 4, 0);
 		msg = message_create64(what, p1);
 	} else {
+		int p1 = luaL_checkinteger(L, 4);
 		int p2 = luaL_checkinteger(L, 5);
-		msg = message_create(what, (int)p1, p2);
+		msg = message_create(what, p1, p2);
 	}
 	int fail = send_message(send_message_ud, msg);
 	if (fail) {
@@ -176,9 +197,16 @@ lmessage_unpack(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TLIGHTUSERDATA);
 	struct soluna_message *m = (struct soluna_message *)lua_touserdata(L,1);
 	lua_pushstring(L, m->type);
-	lua_pushinteger(L, m->v.p[0]);
-	lua_pushinteger(L, m->v.p[1]);
-	lua_pushinteger(L, m->v.u64);
+	if (m->type == SOLUNA_EVENT_CLIPBOARD_PASTED) {
+		struct soluna_string_message *sm = (struct soluna_string_message *)m;
+		lua_pushlstring(L, sm->data, sm->size);
+		lua_pushnil(L);
+		lua_pushnil(L);
+	} else {
+		lua_pushinteger(L, m->v.p[0]);
+		lua_pushinteger(L, m->v.p[1]);
+		lua_pushinteger(L, m->v.u64);
+	}
 	message_release(m);
 	return 4;
 }
@@ -211,6 +239,10 @@ levent_unpack(lua_State *L) {
 	struct event_message em;
 	app_event_unpack(&em, lua_touserdata(L, 1));
 	lua_pushlightuserdata(L, (void *)em.typestr);
+	if (em.str != NULL) {
+		lua_pushstring(L, em.str);
+		return 2;
+	}
 	lua_pushinteger(L, em.p1);
 	lua_pushinteger(L, em.p2);
 	lua_pushinteger(L, em.p3);
@@ -254,6 +286,13 @@ lset_mouse_cursor(lua_State *L) {
 	if (CTX == NULL)
 		return 0;
 	sapp_set_mouse_cursor(check_mouse_cursor(L, 1));
+	return 0;
+}
+
+static int
+lset_clipboard_text(lua_State *L) {
+	const char *text = luaL_checkstring(L, 1);
+	sapp_set_clipboard_string(text);
 	return 0;
 }
 
@@ -578,6 +617,8 @@ linit_desc(lua_State *L) {
 	desc_get_boolean(L, &d->fullscreen, 2, "fullscreen");
 	desc_get_int(L, &d->width, 2, "width");
 	desc_get_int(L, &d->height, 2, "height");
+	desc_get_boolean(L, &d->enable_clipboard, 2, "enable_clipboard");
+	desc_get_int(L, &d->clipboard_size, 2, "clipboard_size");
 	desc_get_string(L, &d->window_title, 2, "window_title");
 
 	return 0;
@@ -593,6 +634,7 @@ luaopen_soluna_app(lua_State *L) {
 		{ "unpackevent", levent_unpack },
 		{ "set_window_title", lset_window_title },
 		{ "set_mouse_cursor", lset_mouse_cursor },
+		{ "set_clipboard_text", lset_clipboard_text },
 		{ "set_icon", lset_icon },
 		{ "set_ime_rect", lset_ime_rect },
 		{ "set_ime_font", lset_ime_font },
@@ -927,6 +969,7 @@ sokol_main(int argc, char* argv[]) {
 	d.win32.console_utf8 = 1;
 	d.win32.console_attach = 1;
 	d.alpha = 0;
+	d.enable_clipboard = true;
 	
 	// init L
 	static struct app_context app;

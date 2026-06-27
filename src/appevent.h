@@ -1,8 +1,25 @@
 #ifndef soluna_app_event_h
 #define soluna_app_event_h
 
+static const char SOLUNA_EVENT_MOUSE_MOVE[] = "mouse_move";
+static const char SOLUNA_EVENT_MOUSE_BUTTON[] = "mouse_button";
+static const char SOLUNA_EVENT_MOUSE_SCROLL[] = "mouse_scroll";
+static const char SOLUNA_EVENT_MOUSE[] = "mouse";
+static const char SOLUNA_EVENT_TOUCH_BEGIN[] = "touch_begin";
+static const char SOLUNA_EVENT_TOUCH_MOVED[] = "touch_moved";
+static const char SOLUNA_EVENT_TOUCH_END[] = "touch_end";
+static const char SOLUNA_EVENT_TOUCH_CANCELLED[] = "touch_cancelled";
+static const char SOLUNA_EVENT_TOUCH[] = "touch";
+static const char SOLUNA_EVENT_WINDOW_RESIZE[] = "window_resize";
+static const char SOLUNA_EVENT_WINDOW[] = "window";
+static const char SOLUNA_EVENT_CHAR[] = "char";
+static const char SOLUNA_EVENT_KEY[] = "key";
+static const char SOLUNA_EVENT_CLIPBOARD_PASTED[] = "clipboard_pasted";
+static const char SOLUNA_EVENT_MESSAGE[] = "message";
+
 struct event_message {
 	const char *typestr;
+	const char *str;
 	int p1;
 	int p2;
 	int p3;
@@ -34,22 +51,22 @@ static inline void
 mouse_message(struct event_message *em, const sapp_event* ev) {
 	switch (ev->type) {
 	case SAPP_EVENTTYPE_MOUSE_MOVE:
-		em->typestr = "mouse_move";
+		em->typestr = SOLUNA_EVENT_MOUSE_MOVE;
 		get_xy(em, ev->mouse_x, ev->mouse_y);
 		break;
 	case SAPP_EVENTTYPE_MOUSE_DOWN:
 	case SAPP_EVENTTYPE_MOUSE_UP:
-		em->typestr = "mouse_button";
+		em->typestr = SOLUNA_EVENT_MOUSE_BUTTON;
 		em->p1 = ev->mouse_button;
 		em->p2 = ev->type == SAPP_EVENTTYPE_MOUSE_DOWN;
 		break;
 	case SAPP_EVENTTYPE_MOUSE_SCROLL:
-		em->typestr = "mouse_scroll";
+		em->typestr = SOLUNA_EVENT_MOUSE_SCROLL;
 		em->p1 = ev->scroll_y;
 		em->p2 = ev->scroll_x;
 		break;
 	default:
-		em->typestr = "mouse";
+		em->typestr = SOLUNA_EVENT_MOUSE;
 		em->p1 = ev->type;
 		break;
 	}
@@ -64,19 +81,19 @@ touch_message(struct event_message *em, const sapp_event* ev) {
 	em->p3 = t->changed;
 	switch (ev->type) {
 	case SAPP_EVENTTYPE_TOUCHES_BEGAN:
-		em->typestr = "touch_begin";
+		em->typestr = SOLUNA_EVENT_TOUCH_BEGIN;
 		break;
 	case SAPP_EVENTTYPE_TOUCHES_MOVED:
-		em->typestr = "touch_moved";
+		em->typestr = SOLUNA_EVENT_TOUCH_MOVED;
 		break;
 	case SAPP_EVENTTYPE_TOUCHES_ENDED:
-		em->typestr = "touch_end";
+		em->typestr = SOLUNA_EVENT_TOUCH_END;
 		break;
 	case SAPP_EVENTTYPE_TOUCHES_CANCELLED:
-		em->typestr = "touch_cancelled";
+		em->typestr = SOLUNA_EVENT_TOUCH_CANCELLED;
 		break;
 	default:
-		em->typestr = "touch";
+		em->typestr = SOLUNA_EVENT_TOUCH;
 		break;
 	}
 }
@@ -85,12 +102,12 @@ static inline void
 window_message(struct event_message *em, const sapp_event *ev) {
 	switch (ev->type) {
 	case SAPP_EVENTTYPE_RESIZED:
-		em->typestr = "window_resize";
+		em->typestr = SOLUNA_EVENT_WINDOW_RESIZE;
 		em->p1 = ev->window_width;
 		em->p2 = ev->window_height;
 		break;
 	default:
-		em->typestr = "window";
+		em->typestr = SOLUNA_EVENT_WINDOW;
 		em->p1 = ev->type;
 		break;
 	}
@@ -100,12 +117,12 @@ static inline void
 key_message(struct event_message *em, const sapp_event *ev) {
 	switch (ev->type) {
 	case SAPP_EVENTTYPE_CHAR:
-		em->typestr = "char";
+		em->typestr = SOLUNA_EVENT_CHAR;
 		em->p1 = (int)ev->char_code;
 		em->p2 = 0;
 		break;
 	default:
-		em->typestr = "key";
+		em->typestr = SOLUNA_EVENT_KEY;
 		em->p1 = (int)ev->key_code;
 		em->p2 = ev->type == SAPP_EVENTTYPE_KEY_DOWN;
 		break;
@@ -115,6 +132,7 @@ key_message(struct event_message *em, const sapp_event *ev) {
 static inline void
 app_event_unpack(struct event_message *em, const sapp_event* ev) {
 	em->typestr = NULL;
+	em->str = NULL;
 	em->p1 = 0;
 	em->p2 = 0;
 	em->p3 = 0;
@@ -141,8 +159,15 @@ app_event_unpack(struct event_message *em, const sapp_event* ev) {
 	case SAPP_EVENTTYPE_KEY_UP:
 		key_message(em, ev);
 		break;
+	case SAPP_EVENTTYPE_CLIPBOARD_PASTED:
+		em->typestr = SOLUNA_EVENT_CLIPBOARD_PASTED;
+		em->str = sapp_get_clipboard_string();
+		if (em->str == NULL) {
+			em->str = "";
+		}
+		break;
 	default:
-		em->typestr = "message";
+		em->typestr = SOLUNA_EVENT_MESSAGE;
 		em->p1 = ev->type;
 		break;
 	}

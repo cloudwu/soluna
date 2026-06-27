@@ -53,4 +53,10 @@ end
 function app.set_ime_rect(rect)
 end
 
+---写入系统剪贴板文本
+---Writes text to the system clipboard.
+---@param text string UTF-8 文本 / UTF-8 text
+function app.set_clipboard_text(text)
+end
+
 return app
