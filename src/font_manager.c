@@ -330,6 +330,7 @@ font_manager_fontheight(struct font_manager *F, int fontid, int size, int *ascen
 		*ascent = 0;
 		*descent = 0;
 		*lineGap = 0;
+		return;
 	}
 
 	const struct stbtt_fontinfo *fi = get_ttf(F, fontid);
