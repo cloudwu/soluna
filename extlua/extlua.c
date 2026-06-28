@@ -948,13 +948,11 @@ static void stub_lua_createtable (lua_State *L, int narr, int nrec) {
 static void stub_luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
 }
 
-struct sokol_api;
-struct soluna_api;
+struct material_api;
 
 struct extlua_apis {
 	struct lua_api * lua;
-	struct sokol_api * sokol;
-	struct soluna_api * soluna;
+	struct material_api * material;
 };
 
 LUA_API void

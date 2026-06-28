@@ -8,6 +8,11 @@ struct render_bindings {
 	sg_bindings bindings;
 };
 
+struct view {
+	sg_view view;
+	int type;
+};
+
 #define DRAWFUNC(name) (sg_query_features().draw_base_instance ? name##_ex : name)
 
 #endif

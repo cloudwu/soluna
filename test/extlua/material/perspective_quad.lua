@@ -1,4 +1,5 @@
 local render = require "soluna.render"
+local matext = require "soluna.material.ext"
 local pqmat = require "ext.material.perspective_quad"
 
 local ctx = ...
@@ -15,29 +16,19 @@ local inst_buffer = render.buffer {
 
 local bindings = render.bindings()
 bindings:vbuffer(0, inst_buffer)
+bindings:view(0, state.views.storage)
 bindings:sampler(0, state.default_sampler)
 
-local cobj = pqmat.new {
+return matext.new {
+	id = ctx.id,
+	instance_size = pqmat.instance_size,
 	inst_buffer = inst_buffer,
 	bindings = bindings,
 	uniform = state.uniform,
+	sr_buffer = state.srbuffer_mem,
 	sprite_bank = ctx.arg.bank_ptr,
-	tmp_buffer = ctx.tmp_buffer,
+	texture_views = state.views,
+	texture_view_slot = 1,
+	hooks = pqmat.hooks,
+	label = "extlua-perspective-quad-pipeline",
 }
-
-local material = {}
-
-function material.reset()
-	cobj:reset()
-end
-
-function material.submit(ptr, n)
-	cobj:submit(ptr, n)
-end
-
-function material.draw(ptr, n, tex)
-	bindings:view(1, state.views[tex + 1])
-	cobj:draw(ptr, n, tex)
-end
-
-return material

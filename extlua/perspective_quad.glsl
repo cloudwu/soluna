@@ -7,6 +7,7 @@ layout(binding=0) uniform vs_params {
 in vec3 pos_h0;
 in vec3 pos_h1;
 in vec3 pos_h2;
+in vec3 position;
 in vec4 uv_rect;
 in vec4 q;
 
@@ -16,12 +17,20 @@ out vec3 uvq;
 out vec4 frag_color;
 out flat float tex_scale;
 
+struct sr_mat {
+	mat2 m;
+};
+
+layout(binding=0) readonly buffer sr_lut {
+	sr_mat sr[];
+};
+
 void main() {
 	vec2 corner = vec2(float(gl_VertexIndex & 1), float(gl_VertexIndex >> 1));
 	mat3 pos_h = mat3(pos_h0, pos_h1, pos_h2);
 	vec3 pos_hv = pos_h * vec3(corner, 1.0);
 	float pos_w = max(pos_hv.z, 1e-6);
-	vec2 pos = pos_hv.xy / pos_w;
+	vec2 pos = (pos_hv.xy / pos_w) * sr[int(position.z)].m + position.xy;
 	vec2 uv = uv_rect.xy + uv_rect.zw * corner;
 	float qx0 = mix(q.x, q.y, corner.x);
 	float qx1 = mix(q.z, q.w, corner.x);
