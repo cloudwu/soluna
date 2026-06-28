@@ -114,9 +114,14 @@ lmaterial_external_submit(lua_State *L) {
 	if (prim == NULL || prim_n <= 0) {
 		return 0;
 	}
-	void *instance = lua_newuserdatauv(L, (size_t)m->instance_size, 0);
+	if ((size_t)prim_n > ~(size_t)0 / (size_t)m->instance_size) {
+		return luaL_error(L, "External material instance buffer is too large");
+	}
+	size_t buffer_size = (size_t)prim_n * (size_t)m->instance_size;
+	char *buffer = (char *)lua_newuserdatauv(L, buffer_size, 0);
 	int i;
 	for (i = 0; i < prim_n; i++) {
+		void *instance = buffer + (size_t)i * (size_t)m->instance_size;
 		struct material_item item;
 		decode_item(L, m, prim, i, 1, &item);
 		memset(instance, 0, (size_t)m->instance_size);
@@ -124,8 +129,8 @@ lmaterial_external_submit(lua_State *L) {
 		if (err != NULL) {
 			return luaL_error(L, "%s", err);
 		}
-		sg_append_buffer(m->inst, &(sg_range){ instance, (size_t)m->instance_size });
 	}
+	sg_append_buffer(m->inst, &(sg_range){ buffer, buffer_size });
 	lua_pop(L, 1);
 	return 0;
 }
