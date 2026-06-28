@@ -1,0 +1,130 @@
+#include "fontapi.h"
+
+#include "font_define.h"
+#include "font_manager.h"
+
+static font_error
+inspect_info(fontapi_font *font, union font_inspect_result *out) {
+	struct font_manager *F = (struct font_manager *)font;
+	out->info.texture_size = FONT_MANAGER_TEXSIZE;
+	out->info.edge = font_manager_sdf_mask(F);
+	return NULL;
+}
+
+static font_error
+inspect_metrics(fontapi_font *font, const struct font_inspect *inspect, union font_inspect_result *out) {
+	struct font_manager *F = (struct font_manager *)font;
+	int ascent;
+	int descent;
+	int line_gap;
+	font_manager_fontheight(F, inspect->font_id, inspect->size, &ascent, &descent, &line_gap);
+	out->metrics.ascent = (float)ascent;
+	out->metrics.descent = (float)descent;
+	out->metrics.line_gap = (float)line_gap;
+	return NULL;
+}
+
+static font_error
+inspect_underline(fontapi_font *font, const struct font_inspect *inspect, union font_inspect_result *out) {
+	struct font_manager *F = (struct font_manager *)font;
+	if (inspect->font_id <= 0 || inspect->font_id == FONT_ICON) {
+		return "No underline metrics";
+	}
+	if (font_manager_underline(F, inspect->font_id, inspect->size, &out->underline.position,
+		&out->underline.thickness) != 0) {
+		return "No underline metrics";
+	}
+	return NULL;
+}
+
+static font_error
+inspect_glyph_metrics(fontapi_font *font, const struct font_inspect *inspect, union font_inspect_result *out) {
+	struct font_manager *F = (struct font_manager *)font;
+	struct font_glyph glyph;
+	font_error err = font_manager_glyph_metrics(F, inspect->font_id, inspect->codepoint, inspect->size, &glyph);
+	if (err != NULL) {
+		return err;
+	}
+	out->glyph_metrics.offset_x = (float)glyph.offset_x;
+	out->glyph_metrics.offset_y = (float)glyph.offset_y;
+	out->glyph_metrics.advance_x = (float)glyph.advance_x;
+	out->glyph_metrics.advance_y = (float)glyph.advance_y;
+	out->glyph_metrics.width = (float)glyph.w;
+	out->glyph_metrics.height = (float)glyph.h;
+	return NULL;
+}
+
+font_error
+font_inspect(fontapi_font *font, int kind, const struct font_inspect *inspect, union font_inspect_result *out) {
+	switch (kind) {
+	case FONT_INSPECT_INFO:
+		return inspect_info(font, out);
+	case FONT_INSPECT_METRICS:
+		if (inspect == NULL) {
+			return "Missing font inspect";
+		}
+		return inspect_metrics(font, inspect, out);
+	case FONT_INSPECT_UNDERLINE:
+		if (inspect == NULL) {
+			return "Missing font inspect";
+		}
+		return inspect_underline(font, inspect, out);
+	case FONT_INSPECT_GLYPH_METRICS:
+		if (inspect == NULL) {
+			return "Missing font inspect";
+		}
+		return inspect_glyph_metrics(font, inspect, out);
+	}
+	return "Unsupported font inspect";
+}
+
+font_error
+font_resolve_glyph(fontapi_font *font, int font_id, int codepoint, int size, struct font_glyph_image *out) {
+	struct font_manager *F = (struct font_manager *)font;
+	struct font_glyph glyph;
+	struct font_glyph image;
+	font_error err = font_manager_glyph(F, font_id, codepoint, size, &glyph, &image);
+	if (err != NULL) {
+		return err;
+	}
+	out->visible = image.w > 0 && image.h > 0;
+	if (!out->visible) {
+		out->x = 0;
+		out->y = 0;
+		out->w = 0;
+		out->h = 0;
+		out->u0 = 0;
+		out->v0 = 0;
+		out->u1 = 0;
+		out->v1 = 0;
+		return NULL;
+	}
+	float scale_x = (float)glyph.w / (float)image.w;
+	float scale_y = (float)glyph.h / (float)image.h;
+	float texture_scale = 1.0f / (float)FONT_MANAGER_TEXSIZE;
+	out->x = (float)image.offset_x * scale_x;
+	out->y = (float)image.offset_y * scale_y;
+	out->w = (float)FONT_MANAGER_GLYPHSIZE * scale_x;
+	out->h = (float)FONT_MANAGER_GLYPHSIZE * scale_y;
+	out->u0 = (float)image.u * texture_scale;
+	out->v0 = (float)image.v * texture_scale;
+	out->u1 = (float)(image.u + FONT_MANAGER_GLYPHSIZE) * texture_scale;
+	out->v1 = (float)(image.v + FONT_MANAGER_GLYPHSIZE) * texture_scale;
+	return NULL;
+}
+
+struct font_api {
+	int version;
+
+$API_DECL$
+};
+
+struct font_api *
+extlua_font_api() {
+	static struct font_api api = {
+		FONT_API_VERSION,
+
+$API_STRUCT$
+	};
+	return &api;
+}

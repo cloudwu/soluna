@@ -343,6 +343,58 @@ font_manager_fontheight(struct font_manager *F, int fontid, int size, int *ascen
 	*lineGap = scale_font(*lineGap, scale, size);
 }
 
+static void icon_scale(struct font_glyph *glyph, int size);
+
+const char *
+font_manager_glyph_metrics(struct font_manager *F, int fontid, int codepoint, int size, struct font_glyph *glyph) {
+	if (fontid == FONT_ICON) {
+		lock(F);
+		int r = get_icon(F, codepoint, glyph);
+		unlock(F);
+		if (r != 0) {
+			memset(glyph, 0, sizeof(*glyph));
+			return NULL;
+		}
+		icon_scale(glyph, size);
+		return NULL;
+	}
+	if (fontid <= 0 || font_index(fontid) <= 0) {
+		memset(glyph, 0, sizeof(*glyph));
+		return NULL;
+	}
+	const struct stbtt_fontinfo *fi = get_ttf(F, fontid);
+	if (fi == NULL) {
+		memset(glyph, 0, sizeof(*glyph));
+		return NULL;
+	}
+	float scale = stbtt_ScaleForMappingEmToPixels(fi, ORIGINAL_SIZE);
+	int ascent;
+	int descent;
+	int lineGap;
+	int advance;
+	int lsb;
+	int ix0;
+	int iy0;
+	int ix1;
+	int iy1;
+	if (!stbtt_GetFontVMetricsOS2(fi, &ascent, &descent, &lineGap)) {
+		stbtt_GetFontVMetrics(fi, &ascent, &descent, &lineGap);
+	}
+	(void)lineGap;
+	stbtt_GetCodepointHMetrics(fi, codepoint, &advance, &lsb);
+	stbtt_GetCodepointBitmapBox(fi, codepoint, scale, scale, &ix0, &iy0, &ix1, &iy1);
+	glyph->offset_x = (short)(lsb * scale) - DISTANCE_OFFSET;
+	glyph->offset_y = iy0 - DISTANCE_OFFSET;
+	glyph->advance_x = (short)(((float)advance) * scale + 0.5f);
+	glyph->advance_y = (short)((ascent - descent) * scale + 0.5f);
+	glyph->w = ix1 - ix0 + DISTANCE_OFFSET * 2;
+	glyph->h = iy1 - iy0 + DISTANCE_OFFSET * 2;
+	glyph->u = 0;
+	glyph->v = 0;
+	font_manager_scale(F, glyph, size);
+	return NULL;
+}
+
 int 
 font_manager_underline(struct font_manager *F, int fontid, int size, float *position, float *thickness){
 	const struct stbtt_fontinfo *fi = get_ttf(F, fontid);

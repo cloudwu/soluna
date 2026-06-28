@@ -1,11 +1,50 @@
 -- bin/soluna.exe test/extlua.game
 
 local soluna = require "soluna"
+local font = require "soluna.font"
+local file = require "soluna.file"
 local foobar = require "ext.foobar"
+local font_probe = require "ext.font_probe"
 local matpq = require "ext.material.perspective_quad"
 
 print(foobar.hello())
 soluna.set_window_title "extlua perspective quad"
+
+local function init_font()
+	if soluna.platform == "wasm" then
+		local data = file.load "asset/font/SourceHanSansSC-Regular.ttf"
+		if data then
+			font.import(data)
+			local fontid = font.name "Source Han Sans SC Regular"
+			if fontid then
+				return fontid
+			end
+		end
+	end
+
+	local sysfont = require "soluna.font.system"
+	local candidates = {
+		"WenQuanYi Micro Hei",
+		"Microsoft YaHei",
+		"Yuanti SC",
+		"Source Han Sans SC Regular",
+	}
+	for _, name in ipairs(candidates) do
+		local ok, data = pcall(sysfont.ttfdata, name)
+		if ok and data then
+			font.import(data)
+			local fontid = font.name(name)
+			if fontid then
+				return fontid
+			end
+		end
+	end
+	error "No available system font for extlua fontapi sample"
+end
+
+local fontid = init_font()
+local info = font_probe.info(font.cobj(), fontid, 32, string.byte "A")
+print("fontapi", info.texture_size, info.edge, info.ascent, info.advance_x, info.width, info.height)
 
 local args = ...
 local batch = args.batch

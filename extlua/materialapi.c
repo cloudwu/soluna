@@ -40,10 +40,12 @@ material_push_hooks(lua_State *L, const struct material_hook *hooks) {
 }
 
 struct lua_api;
+struct font_api;
 
 struct extlua_apis {
 	struct lua_api *lua;
 	struct material_api *material;
+	struct font_api *font;
 };
 
 void
