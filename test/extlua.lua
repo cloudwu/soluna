@@ -130,8 +130,8 @@ local card = assert(sprites.card)
 function callback.frame(count)
 	local theta = math.sin(count * 0.021) * 1.15
 	batch:add(matpq.sprite(card, {
-		angle = theta,
-		depth = 460.0,
+		sin_angle = math.sin(theta),
+		cos_angle = math.cos(theta),
 		color = WHITE,
 	}), args.width * 0.5, args.height * 0.5)
 end
