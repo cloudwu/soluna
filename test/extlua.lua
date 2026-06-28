@@ -13,8 +13,6 @@ local callback = {}
 
 local CARD_W <const> = 160
 local CARD_H <const> = 196
-local HALF_W <const> = CARD_W * 0.5
-local HALF_H <const> = CARD_H * 0.5
 local WHITE <const> = 0xffffffff
 
 local function rgba(color)
@@ -81,6 +79,8 @@ local function make_card_sprite()
 		{
 			name = "card",
 			filename = "@extlua_perspective_card",
+			x = -0.5,
+			y = -0.5,
 		},
 	}
 end
@@ -88,41 +88,11 @@ end
 local sprites = make_card_sprite()
 local card = assert(sprites.card)
 
-local function card_quad(theta)
-	local dist = 460.0
-	local focal = 460.0
-	local c = math.cos(theta)
-	local s = math.sin(theta)
-	local corners = {
-		{ -HALF_W, -HALF_H },
-		{ HALF_W,  -HALF_H },
-		{ -HALF_W, HALF_H },
-		{ HALF_W,  HALF_H },
-	}
-
-	local quad = {}
-	local q = {}
-	for i = 1, 4 do
-		local x = corners[i][1]
-		local y = corners[i][2]
-		local rx = x * c
-		local rz = -x * s
-		local w = dist + rz
-		local scale = focal / w
-
-		quad[#quad + 1] = rx * scale
-		quad[#quad + 1] = y * scale
-		q[i] = 1.0 / w
-	end
-	return quad, q
-end
-
 function callback.frame(count)
 	local theta = math.sin(count * 0.021) * 1.15
-	local quad, q = card_quad(theta)
 	batch:add(matpq.sprite(card, {
-		quad = quad,
-		q = q,
+		angle = theta,
+		depth = 460.0,
 		color = WHITE,
 	}), args.width * 0.5, args.height * 0.5)
 end

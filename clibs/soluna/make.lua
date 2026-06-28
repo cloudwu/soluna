@@ -31,16 +31,17 @@ lm:source_set "soluna_src" {
 	sources = {
 		"src/*.c",
 		"extlua/extlua_impl.c",
-		"extlua/sokolapi_impl.c",
-		"extlua/solunaapi_impl.c",
+		"extlua/materialapi_impl.c",
 	},
 	objdeps = objdeps,
 	defines = {
 		commit and string.format('SOLUNA_HASH_VERSION=\\"%s\\"', commit),
 	},
 	includes = {
+		".",
 		"build",
 		"src",
+		"extlua",
 		"3rd",
 		"3rd/lua",
 		"3rd/yoga",

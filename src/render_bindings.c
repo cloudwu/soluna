@@ -58,11 +58,6 @@ lbindings_set_ioff(lua_State *L) {
 	return 0;
 }
 
-struct view {
-	sg_view view;
-	int type;
-};
-
 static int
 lbindings_set_view(lua_State *L) {
 	sg_bindings *b = get_bindings(L);

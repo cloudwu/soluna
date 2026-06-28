@@ -4,24 +4,20 @@
 #include <string.h>
 
 struct lua_api;
-struct sokol_api;
-struct soluna_api;
+struct material_api;
 extern struct lua_api * extlua_api();
-extern struct sokol_api * extlua_sokol_api();
-extern struct soluna_api * extlua_soluna_api();
+extern struct material_api * extlua_material_api();
 
 struct extlua_apis {
 	struct lua_api * lua;
-	struct sokol_api * sokol;
-	struct soluna_api * soluna;
+	struct material_api * material;
 };
 
 static struct extlua_apis *
 host_apis() {
 	static struct extlua_apis apis;
 	apis.lua = extlua_api();
-	apis.sokol = extlua_sokol_api();
-	apis.soluna = extlua_soluna_api();
+	apis.material = extlua_material_api();
 	return &apis;
 }
 

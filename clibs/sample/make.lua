@@ -66,8 +66,7 @@ local sample_shader = compile_shader("extlua/perspective_quad.glsl", "perspectiv
 lm:dll "sample" {
 	sources = {
 		"extlua/extlua.c",
-		"extlua/sokolapi.c",
-		"extlua/solunaapi.c",
+		"extlua/materialapi.c",
 		"extlua/extlua_sample.c",
 	},
 	objdeps = {
@@ -78,5 +77,10 @@ lm:dll "sample" {
 		"3rd",
 		"build",
 		"extlua",
+	},
+	gcc = {
+		links = {
+			"m",
+		},
 	},
 }
