@@ -2,6 +2,8 @@ local lm = require "luamake"
 local fs = require "bee.filesystem"
 local platform = require "bee.platform"
 
+local fs_basedir = lm.fs_basedir
+
 local function shdc_plat()
 	if lm.os == "windows" then
 		return "win32"
@@ -26,11 +28,11 @@ local shdc = assert(paths[lm.os]):gsub("%$(%u+)", {
 
 local function compile_shader(src, name, lang)
 	local dep = name .. "_shader"
-	local target = lm.builddir .. "/" .. name
+	local target = lm.basedir / lm.builddir / name
 	lm:runlua(dep) {
-		script = lm.basedir .. "/clibs/soluna/shader2c.lua",
-		inputs = lm.basedir .. "/" .. src,
-		outputs = lm.basedir .. "/" .. target,
+		script = lm.basedir / "clibs/soluna/shader2c.lua",
+		inputs = lm.basedir / src,
+		outputs = target,
 		args = {
 			shdc,
 			"$in",
@@ -59,7 +61,7 @@ local function shader_lang()
 end
 
 return function(objdeps)
-	for path in fs.pairs "src" do
+	for path in fs.pairs(fs_basedir / "src") do
 		local lang = shader_lang()
 		if path:extension() == ".glsl" then
 			local base = path:stem():string()

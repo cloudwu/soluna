@@ -1,6 +1,6 @@
 local lm = require "luamake"
 
-lm.rootdir = lm.basedir .. "/3rd/yoga"
+lm.rootdir = lm.basedir / "3rd/yoga"
 
 lm:source_set "yoga_src" {
 	sources = {

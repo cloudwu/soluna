@@ -1,11 +1,11 @@
 local lm = require "luamake"
 
-lm.rootdir = lm.basedir .. "/3rd/lua"
+lm.rootdir = lm.basedir / "3rd/lua"
 
 if lm.os == "windows" then
 	lm:source_set "winfile" {
 		sources = {
-			lm.basedir .. "/src/winfile.c",
+			lm.basedir / "src/winfile.c",
 		},
 	}
 end

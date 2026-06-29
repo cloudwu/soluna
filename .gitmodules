@@ -25,3 +25,6 @@
 [submodule "3rd/miniaudio"]
 	path = 3rd/miniaudio
 	url = https://github.com/mackron/miniaudio.git
+[submodule "bin/luamake-bin"]
+	path = bin/luamake-bin
+	url = https://github.com/yuchanns/luamake-bin.git

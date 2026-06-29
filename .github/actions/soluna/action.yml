@@ -49,10 +49,11 @@ runs:
       run: |
         git submodule update --init --recursive
       shell: bash
-    - uses: yuchanns/actions-luamake@v1
+    - name: Setup LuaMake
       if: steps.cache.outputs.cache-hit != 'true'
+      uses: ./.github/actions/setup-luamake
       with:
-        luamake-version: "5bedfce66f075a9f68b1475747738b81b3b41c25"
+        soluna_path: ${{ inputs.soluna_path }}
     - name: Install Dependencies (Linux)
       shell: bash
       if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
