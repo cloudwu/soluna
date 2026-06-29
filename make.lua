@@ -1,6 +1,8 @@
 local lm = require "luamake"
 local fs = require "bee.filesystem"
 
+lm:required_version "1.11"
+
 local function detect_emcc()
 	if lm.compiler == "emcc" then
 		return true
@@ -33,6 +35,7 @@ end)()
 
 lm.platform = plat
 lm.basedir = lm:path "."
+lm.fs_basedir = fs.path(tostring(lm.basedir))
 lm.bindir = ("bin/%s/%s"):format(plat, lm.mode)
 lm.osbindir = ("bin/%s/%s"):format(osplat, lm.mode)
 
@@ -119,7 +122,7 @@ lm:conf {
 
 local deps = { "soluna_src" }
 
-for path in fs.pairs(lm.basedir .. "/clibs") do
+for path in fs.pairs(lm.fs_basedir / "clibs") do
 	local name = path:stem():string()
 	if name ~= "soluna" and name ~= "sample" and fs.exists(path / "make.lua") then
 		local makefile = ("clibs/%s/make.lua"):format(name)

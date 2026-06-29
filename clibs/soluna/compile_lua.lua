@@ -1,23 +1,25 @@
 local lm = require "luamake"
 local fs = require "bee.filesystem"
 
+local fs_basedir = lm.fs_basedir
+
 local function compile_lua_code(script, src, name)
 	local dep = name .. "_lua_code"
-	local target = lm.builddir .. "/" .. name
+	local target = lm.basedir / lm.builddir / name
 	local bindir = lm.bindir
 	if lm.platform == "emcc" then
 		bindir = lm.osbindir
 	end
 	lm:runlua(dep) {
-		script = lm.basedir .. "/clibs/soluna/runlua.lua",
+		script = lm.basedir / "clibs/soluna/runlua.lua",
 		deps = {
 			"lua",
 		},
-		inputs = lm.basedir .. "/" .. src,
-		outputs = lm.basedir .. "/" .. target,
+		inputs = lm.basedir / src,
+		outputs = target,
 		args = {
 			bindir,
-			lm.basedir .. "/" .. script,
+			lm.basedir / script,
 			"$in",
 			"$out",
 		},
@@ -35,7 +37,7 @@ local lua_code_src = {
 
 return function(objdeps)
 	for _, dir in ipairs(lua_code_src) do
-		for path in fs.pairs(lm.basedir .. "/" .. dir) do
+		for path in fs.pairs(fs_basedir / dir) do
 			if path:extension() == ".lua" then
 				local base = path:stem():string()
 				local dep = compile_lua_code("script/lua2c.lua", path:string(), base .. ".lua.h")
@@ -44,7 +46,7 @@ return function(objdeps)
 		end
 	end
 
-	for path in fs.pairs "src/data" do
+	for path in fs.pairs(fs_basedir / "src/data") do
 		if path:extension() == ".dl" then
 			local base = path:stem():string()
 			local dep = compile_lua_code("script/datalist2c.lua", path:string(), base .. ".dl.h")

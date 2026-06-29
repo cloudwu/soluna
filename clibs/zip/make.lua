@@ -1,6 +1,6 @@
 local lm = require "luamake"
 
-lm.rootdir = lm.basedir .. "/3rd/zlib"
+lm.rootdir = lm.basedir / "3rd/zlib"
 
 lm:source_set "minizip" {
 	sources = {

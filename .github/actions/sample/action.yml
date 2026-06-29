@@ -6,10 +6,6 @@ inputs:
     description: "The path to the Soluna repository. Defaults to ."
     required: false
     default: "."
-  luamake_version:
-    description: "LuaMake commit SHA used to build."
-    required: false
-    default: "5bedfce66f075a9f68b1475747738b81b3b41c25"
   emsdk_version:
     description: "Emscripten SDK version."
     required: false
@@ -37,7 +33,7 @@ runs:
         path: |
           ${{ inputs.soluna_path }}/bin
           ${{ inputs.soluna_path }}/build
-        key: ${{ runner.os }}-sample-wasm-${{ steps.refs.outputs.commit }}-${{ inputs.luamake_version }}-${{ inputs.emsdk_version }}
+        key: ${{ runner.os }}-sample-wasm-${{ steps.refs.outputs.commit }}-${{ inputs.emsdk_version }}
 
     - name: Checkout all submodules
       if: steps.cache.outputs.cache-hit != 'true'
@@ -48,9 +44,9 @@ runs:
 
     - name: Setup LuaMake
       if: steps.cache.outputs.cache-hit != 'true'
-      uses: yuchanns/actions-luamake@v1
+      uses: ./.github/actions/setup-luamake
       with:
-        luamake-version: ${{ inputs.luamake_version }}
+        soluna_path: ${{ inputs.soluna_path }}
 
     - name: Setup Emscripten
       if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'

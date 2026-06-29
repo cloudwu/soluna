@@ -46,11 +46,11 @@ end
 
 local function compile_shader(src, name)
 	local dep = name .. "_shader"
-	local target = lm.builddir .. "/" .. name
+	local target = lm.basedir / lm.builddir / name
 	lm:runlua(dep) {
-		script = lm.basedir .. "/clibs/soluna/shader2c.lua",
-		inputs = lm.basedir .. "/" .. src,
-		outputs = lm.basedir .. "/" .. target,
+		script = lm.basedir / "clibs/soluna/shader2c.lua",
+		inputs = lm.basedir / src,
+		outputs = target,
 		args = {
 			shdc,
 			"$in",
