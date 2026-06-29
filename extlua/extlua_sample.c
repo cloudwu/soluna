@@ -1,6 +1,5 @@
 #include <lua.h>
 #include <lauxlib.h>
-#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -18,14 +17,15 @@ void materialapi_init(lua_State *L);
 
 #define PQUAD_CORNER_N 4
 #define PQUAD_EPSILON 0.000001f
+#define PQUAD_DEPTH 460.0f
 
 struct color {
 	unsigned char channel[4];
 };
 
 struct pquad_payload {
-	float angle;
-	float depth;
+	float sin_angle;
+	float cos_angle;
 	struct color color;
 };
 
@@ -111,10 +111,10 @@ submit_perspective_quad(const struct material_item *item, void *out) {
 		return "Perspective quad needs a sprite";
 	}
 	const struct pquad_payload *payload = (const struct pquad_payload *)item->data;
-	float depth = payload->depth > PQUAD_EPSILON ? payload->depth : 460.0f;
+	float depth = PQUAD_DEPTH;
 	float focal = depth;
-	float c = cosf(payload->angle);
-	float s = sinf(payload->angle);
+	float s = payload->sin_angle;
+	float c = payload->cos_angle;
 	float pos[PQUAD_CORNER_N][2];
 	struct pquad_inst *inst = (struct pquad_inst *)out;
 	int corner;
@@ -180,8 +180,8 @@ lperspective_quad_sprite(lua_State *L) {
 	luaL_checktype(L, 2, LUA_TTABLE);
 	struct pquad_payload payload;
 	memset(&payload, 0, sizeof(payload));
-	payload.angle = get_number_field(L, 2, "angle", 0.0f);
-	payload.depth = get_number_field(L, 2, "depth", 460.0f);
+	payload.sin_angle = get_number_field(L, 2, "sin_angle", 0.0f);
+	payload.cos_angle = get_number_field(L, 2, "cos_angle", 1.0f);
 	payload.color = get_color(L, 2);
 	int sprite = luaL_checkinteger(L, 1) - 1;
 	struct material_push_item item = {
