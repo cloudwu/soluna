@@ -42,11 +42,32 @@ runs:
       run: |
         git submodule update --init --recursive
 
-    - name: Setup LuaMake
-      if: steps.cache.outputs.cache-hit != 'true'
-      uses: ./.github/actions/setup-luamake
-      with:
-        soluna_path: ${{ inputs.soluna_path }}
+    - name: Resolve LuaMake
+      id: luamake
+      if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+      working-directory: ${{ inputs.soluna_path }}
+      shell: bash
+      run: |
+        case "$RUNNER_ARCH" in
+          X64)
+            luamake_platform=linux
+            ;;
+          ARM64)
+            luamake_platform=linux_arm64
+            ;;
+          *)
+            echo "Unsupported LuaMake runner: ${RUNNER_OS}-${RUNNER_ARCH}" >&2
+            exit 1
+            ;;
+        esac
+
+        luamake_path="bin/luamake-bin/bin/$luamake_platform/luamake"
+        if [ ! -f "$luamake_path" ]; then
+          echo "LuaMake binary not found: $luamake_path" >&2
+          exit 1
+        fi
+        chmod +x "$luamake_path"
+        echo "path=$luamake_path" >> "$GITHUB_OUTPUT"
 
     - name: Setup Emscripten
       if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
@@ -60,7 +81,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.soluna_path }}
       run: |
-        luamake -compiler emcc sample
+        "${{ steps.luamake.outputs.path }}" -compiler emcc sample
 
     - name: Set output
       id: set-output
