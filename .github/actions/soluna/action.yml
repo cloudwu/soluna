@@ -49,11 +49,48 @@ runs:
       run: |
         git submodule update --init --recursive
       shell: bash
-    - name: Setup LuaMake
+    - name: Resolve LuaMake
+      id: luamake
       if: steps.cache.outputs.cache-hit != 'true'
-      uses: ./.github/actions/setup-luamake
-      with:
-        soluna_path: ${{ inputs.soluna_path }}
+      working-directory: ${{ inputs.soluna_path }}
+      shell: bash
+      run: |
+        case "${RUNNER_OS}-${RUNNER_ARCH}" in
+          Linux-X64)
+            luamake_platform=linux
+            luamake_exe=luamake
+            ;;
+          Linux-ARM64)
+            luamake_platform=linux_arm64
+            luamake_exe=luamake
+            ;;
+          macOS-X64)
+            luamake_platform=osx
+            luamake_exe=luamake
+            ;;
+          macOS-ARM64)
+            luamake_platform=osx_arm64
+            luamake_exe=luamake
+            ;;
+          Windows-*)
+            luamake_platform=win32
+            luamake_exe=luamake.exe
+            ;;
+          *)
+            echo "Unsupported LuaMake runner: ${RUNNER_OS}-${RUNNER_ARCH}" >&2
+            exit 1
+            ;;
+        esac
+
+        luamake_path="bin/luamake-bin/bin/$luamake_platform/$luamake_exe"
+        if [ ! -f "$luamake_path" ]; then
+          echo "LuaMake binary not found: $luamake_path" >&2
+          exit 1
+        fi
+        if [ "$RUNNER_OS" != "Windows" ]; then
+          chmod +x "$luamake_path"
+        fi
+        echo "path=$luamake_path" >> "$GITHUB_OUTPUT"
     - name: Install Dependencies (Linux)
       shell: bash
       if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
@@ -73,7 +110,7 @@ runs:
         } else {
           $env:LUAMAKE_BUILD_TYPE = 'release'
         }
-        luamake -mode $env:LUAMAKE_BUILD_TYPE soluna
+        & "${{ steps.luamake.outputs.path }}" -mode $env:LUAMAKE_BUILD_TYPE soluna
     - name: Build (Unix)
       if: runner.os != 'Windows' && steps.cache.outputs.cache-hit != 'true'
       shell: bash
@@ -84,7 +121,7 @@ runs:
         else
           export LUAMAKE_BUILD_TYPE=release
         fi
-        luamake -mode $LUAMAKE_BUILD_TYPE soluna
+        "${{ steps.luamake.outputs.path }}" -mode $LUAMAKE_BUILD_TYPE soluna
     - uses: mymindstorm/setup-emsdk@v14
       if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
       with:
@@ -100,7 +137,7 @@ runs:
         else
           export LUAMAKE_BUILD_TYPE=release
         fi
-        luamake -mode $LUAMAKE_BUILD_TYPE -compiler emcc
+        "${{ steps.luamake.outputs.path }}" -mode $LUAMAKE_BUILD_TYPE -compiler emcc
         SOLUNA_JS="soluna.js"
         SOLUNA_JS_PATH=$(find bin -name $SOLUNA_JS | head -n 1)
         sed -i 's/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32),dynamicOffsetsPtr>>2,dynamicOffsetCount)/setBindGroup(groupIndex,group,(growMemViews(),HEAPU32).subarray(dynamicOffsetsPtr>>2,(dynamicOffsetsPtr>>2)+dynamicOffsetCount))/g' "$SOLUNA_JS_PATH"
