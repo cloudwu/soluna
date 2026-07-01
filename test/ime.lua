@@ -369,7 +369,7 @@ function callback.frame()
 	local label = text_block(state.text, tw, th)
 	batch:add(label, tx, ty)
 
-	local cx, cy, cw, ch, n, descent = text_cursor(state.text, state.cursor, tw, th)
+	local cx, cy, cw, ch, n, descent = text_cursor(state.text, tw, th):cursor(state.cursor)
 	state.cursor = n
 	descent = descent or 0
 	if state.focused then
