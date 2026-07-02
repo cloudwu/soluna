@@ -64,9 +64,14 @@ local label_layout = layout(TEXT, WIDTH, HEIGHT)
 
 local CURSOR_N = 0
 
-function callback.frame(count)
+local function position()
 	local x = (screen_w - WIDTH) / 2
 	local y = (screen_h - HEIGHT) / 2
+	return x, y
+end
+
+function callback.frame(count)
+	local x, y = position()
 	batch:add(matquad.quad(WIDTH, HEIGHT, 0x400000ff), x, y)
 	batch:add(label, x, y)
 	-- cursor
@@ -85,6 +90,28 @@ function callback.key(keycode, state)
 			print(keycode)
 		end
 	end
+end
+
+
+local mouse_x = 0
+local mouse_y = 0
+
+function callback.mouse_move(x, y)
+	mouse_x = x
+	mouse_y = y
+end
+
+local MOUSE_LEFT <const> = 0
+local MOUSE_PRESS <const> = 1
+
+function callback.mouse_button(button, state)
+	if button ~= MOUSE_LEFT or state ~= MOUSE_PRESS then
+		return
+	end
+	local x, y = position()
+	x = mouse_x - x
+	y = mouse_y - y
+	CURSOR_N = label_layout:hit_test(x, y)
 end
 
 return callback

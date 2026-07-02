@@ -17,6 +17,8 @@
 #include "render_bindings.h"
 #include "tmpbuffer.h"
 
+#define PIXEL_SCALE 256
+
 struct text {
 	struct draw_primitive_external header;
 	int codepoint;
@@ -72,8 +74,8 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 				// todo: support multiply srbuffer
 				luaL_error(L, "sr buffer is full");
 			}
-			tmp[count].x = (float)p->x / 256.0f;
-			tmp[count].y = (float)p->y / 256.0f;
+			tmp[count].x = (float)p->x / PIXEL_SCALE;
+			tmp[count].y = (float)p->y / PIXEL_SCALE;
 			tmp[count].sr_index = (float)sr_index;
 			++count;
 		} else {
@@ -372,6 +374,8 @@ struct layout {
 	int height;
 	int top;
 	int line_height;
+	int line_gap;
+	int text_height;
 	int ascent;
 	int decent;
 	struct position pos[];
@@ -398,10 +402,10 @@ newline(struct block_context *ctx, struct text_primitive * prim, int n, struct l
 	int align = ctx->alignment & ALIGNMENT_MASK;
 	switch (align) {
 	case ALIGNMENT_CENTER:
-		offx = (ctx->width - line_width) / 2 * 256;
+		offx = (ctx->width - line_width) / 2 * PIXEL_SCALE;
 		break;
 	case ALIGNMENT_RIGHT:
-		offx = (ctx->width - line_width) * 256;
+		offx = (ctx->width - line_width) * PIXEL_SCALE;
 		break;
 	}
 
@@ -414,7 +418,7 @@ newline(struct block_context *ctx, struct text_primitive * prim, int n, struct l
 		}
 		if (pos != NULL) {
 			for (i=from;i<n;i++) {
-				pos->pos[i].x += offx / 256;
+				pos->pos[i].x += offx / PIXEL_SCALE;
 			}
 		}
 	}
@@ -502,8 +506,10 @@ ltext_(lua_State *L, int gen_layout) {
 		pos->n = 0;
 		pos->width = ctx.width;
 		pos->height = ctx.height;
+		pos->text_height = 0;
 		pos->top = 0;
 		pos->line_height = ctx.ascent + ctx.decent - gap;
+		pos->line_gap = gap;
 		pos->ascent = ctx.ascent;
 		pos->decent = ctx.decent;
 	} else {
@@ -557,8 +563,8 @@ ltext_(lua_State *L, int gen_layout) {
 			}
 			
 			if (prim) {
-				prim[n].pos.x = ctx.x * 256;
-				prim[n].pos.y = ctx.y * 256 + dy * 256;
+				prim[n].pos.x = ctx.x * PIXEL_SCALE;
+				prim[n].pos.y = ( ctx.y + dy ) * PIXEL_SCALE;
 				prim[n].pos.sr = 0;
 				prim[n].pos.sprite = -material_id;
 			} else {
@@ -578,8 +584,8 @@ ltext_(lua_State *L, int gen_layout) {
 					if (newline(&ctx, prim, n, pos))
 						break;
 					if (prim) {
-						prim[n].pos.x = ctx.x * 256;
-						prim[n].pos.y = ctx.y * 256 + dy * 256;
+						prim[n].pos.x = ctx.x * PIXEL_SCALE;
+						prim[n].pos.y = ( ctx.y + dy ) * PIXEL_SCALE;
 					} else {
 						struct position *p = &pos->pos[n];
 						p->x = ctx.x;
@@ -614,10 +620,10 @@ ltext_(lua_State *L, int gen_layout) {
 	int valign = ctx.alignment & VALIGNMENT_MASK;
 	switch (valign) {
 	case VALIGNMENT_CENTER:
-		offy = (ctx.height - height) / 2 * 256;
+		offy = (ctx.height - height) / 2 * PIXEL_SCALE;
 		break;
 	case VALIGNMENT_BOTTOM:
-		offy = (ctx.height - height) * 256;
+		offy = (ctx.height - height) * PIXEL_SCALE;
 		break;
 	default:
 		offy = 0;
@@ -635,10 +641,10 @@ ltext_(lua_State *L, int gen_layout) {
 	} else {
 		if (n > 0)
 			++n;
-		pos->height = height;
+		pos->text_height = height;
 		pos->n = n;
 		if (offy != 0) {
-			int offset = offy / 256 - ctx.ascent;
+			int offset = offy / PIXEL_SCALE - ctx.ascent;
 			for (i=0;i<n;i++) {
 				pos->pos[i].y += offset;
 			}
@@ -677,6 +683,61 @@ ltext_cursor(lua_State *L) {
 	lua_pushinteger(L, n);
 	lua_pushinteger(L, pos->decent);
 	return 6;
+}
+
+static int
+get_pos(lua_State *L, int index) {
+	int isnum;
+	int r = lua_tointegerx (L, index, &isnum);
+	if (isnum) {
+		return r;
+	}
+	return (int)(luaL_checknumber(L, index) + 0.5);
+}
+
+static int
+bsearch_pos(struct layout * pos, int x, int y) {
+	int from = 0;
+	int to = pos->n - 1;
+	int advance_y = pos->line_height + pos->line_gap;
+	while (from < to) {
+		int mid = from + (to - from) / 2;
+		struct position *p = &pos->pos[mid];
+		if (y < p->y) {
+			to = mid;
+		} else if (y >= p->y + advance_y) {
+			from = mid + 1;
+		} else if (x < p->x) {
+			to = mid;
+		} else if (x >= p->x + p->w) {
+			from = mid + 1;
+		} else {
+			return mid;
+		}
+	}
+	return from;
+}
+
+static int
+ltext_hit_test(lua_State *L) {
+	struct layout * pos = (struct layout *)lua_touserdata(L, 1);
+	int x = get_pos(L, 2);
+	int y = get_pos(L, 3);
+	int top = pos->top + pos->ascent;
+	if (y < top) {
+		lua_pushinteger(L, 0);
+		lua_pushboolean(L, y < 0);	// out of box
+		return 2;
+	}
+	if (y - top >= pos->text_height) {
+		lua_pushinteger(L, pos->n-1);
+		lua_pushboolean(L, y >= pos->height);	// out of box
+		return 2;
+	}
+	int index = bsearch_pos(pos, x, y);
+	lua_pushinteger(L, index);
+	lua_pushboolean(L, (x < 0 || x >= pos->width));
+	return 2;
 }
 
 static uint32_t
@@ -764,6 +825,7 @@ luaopen_material_text(lua_State *L) {
 	if (luaL_newmetatable(L, "SOLUNA_TEXT_LAYOUT")) {
 		luaL_Reg meta[] = {
 			{ "cursor", ltext_cursor },
+			{ "hit_test", ltext_hit_test },
 			{ NULL, NULL },
 		};
 		luaL_setfuncs(L, meta, 0);
