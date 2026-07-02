@@ -3,10 +3,12 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "fontapi.h"
 #include "materialapi.h"
 #include "perspective_quad.glsl.h"
 
 LUA_API void luaapi_init(lua_State *L);
+void fontapi_init(lua_State *L);
 void materialapi_init(lua_State *L);
 
 #if defined(_WIN32)
@@ -225,12 +227,74 @@ luaopen_foobar(lua_State *L) {
 	return 1;
 }
 
+static void
+set_number(lua_State *L, const char *key, lua_Number value) {
+	lua_pushnumber(L, value);
+	lua_setfield(L, -2, key);
+}
+
+static int
+lfont_info(lua_State *L) {
+	fontapi_font *font = (fontapi_font *)lua_touserdata(L, 1);
+	int font_id = luaL_checkinteger(L, 2);
+	int size = luaL_checkinteger(L, 3);
+	int codepoint = luaL_checkinteger(L, 4);
+
+	struct font_inspect inspect = {
+		.font_id = font_id,
+		.size = size,
+		.codepoint = codepoint,
+	};
+	union font_inspect_result info;
+	union font_inspect_result metrics;
+	union font_inspect_result glyph;
+	font_error err = font_inspect(font, FONT_INSPECT_INFO, &inspect, &info);
+	if (err != NULL) {
+		return luaL_error(L, "%s", err);
+	}
+	err = font_inspect(font, FONT_INSPECT_METRICS, &inspect, &metrics);
+	if (err != NULL) {
+		return luaL_error(L, "%s", err);
+	}
+	err = font_inspect(font, FONT_INSPECT_GLYPH_METRICS, &inspect, &glyph);
+	if (err != NULL) {
+		return luaL_error(L, "%s", err);
+	}
+
+	lua_createtable(L, 0, 11);
+	lua_pushinteger(L, info.info.texture_size);
+	lua_setfield(L, -2, "texture_size");
+	set_number(L, "edge", info.info.edge);
+	set_number(L, "ascent", metrics.metrics.ascent);
+	set_number(L, "descent", metrics.metrics.descent);
+	set_number(L, "line_gap", metrics.metrics.line_gap);
+	set_number(L, "offset_x", glyph.glyph_metrics.offset_x);
+	set_number(L, "offset_y", glyph.glyph_metrics.offset_y);
+	set_number(L, "advance_x", glyph.glyph_metrics.advance_x);
+	set_number(L, "advance_y", glyph.glyph_metrics.advance_y);
+	set_number(L, "width", glyph.glyph_metrics.width);
+	set_number(L, "height", glyph.glyph_metrics.height);
+	return 1;
+}
+
+static int
+luaopen_font_probe(lua_State *L) {
+	luaL_Reg l[] = {
+		{ "info", lfont_info },
+		{ NULL, NULL },
+	};
+	luaL_newlib(L, l);
+	return 1;
+}
+
 EXTLUA_EXPORT int
 extlua_init(lua_State *L) {
 	luaapi_init(L);
+	fontapi_init(L);
 	materialapi_init(L);
 	luaL_Reg l[] = {
 		{ "ext.foobar", luaopen_foobar },
+		{ "ext.font_probe", luaopen_font_probe },
 		{ "ext.material.perspective_quad", luaopen_ext_material_perspective_quad },
 		{ NULL, NULL },
 	};

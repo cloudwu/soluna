@@ -76,7 +76,7 @@ MAIN_C=$(notdir $(MAIN_FULL))
 MAIN_O=$(patsubst %.c,$(BUILD)/soluna_%.o,$(MAIN_C))
 PLATFORM_C=$(notdir $(PLATFORM_FULL))
 PLATFORM_O=$(patsubst %.c,$(BUILD)/platform_%.o,$(PLATFORM_C))
-EXTLUA_O=$(BUILD)/extlua_impl.o $(BUILD)/materialapi_impl.o
+EXTLUA_O=$(BUILD)/extlua_impl.o $(BUILD)/materialapi_impl.o $(BUILD)/fontapi_impl.o
 
 $(MAIN_O) : $(SHADER_O)
 
@@ -164,10 +164,13 @@ $(BUILD)/extlua_impl.o : extlua/extlua_impl.c
 $(BUILD)/materialapi_impl.o : extlua/materialapi_impl.c
 	$(COMPILE_C) $(LUAINC) $(3RDINC) -Iextlua
 
+$(BUILD)/fontapi_impl.o : extlua/fontapi_impl.c
+	$(COMPILE_C) $(LUAINC) $(3RDINC) -Iextlua -Isrc
+
 $(BIN)/$(APPNAME): $(MAIN_O) $(PLATFORM_O) $(EXTLUA_O) $(LTASK_O) $(LUA_O) $(DATALIST_O) $(BUILD)/yoga.o $(ZLIB_O) $(MINIZIP_O)
 	$(LD) $(OUTPUT_EXE) $@ $^ $(LDFLAGS)
 
-$(BIN)/sample.dll : extlua/extlua.c extlua/materialapi.c extlua/extlua_sample.c | $(EXTLUA_SHADER_O)
+$(BIN)/sample.dll : extlua/extlua.c extlua/materialapi.c extlua/fontapi.c extlua/extlua_sample.c | $(EXTLUA_SHADER_O)
 	$(CC) $(CFLAGS) $(SHARED) $(OUTPUT_EXE) $@ $^ $(LUAINC) $(3RDINC) $(SHADERINC) -Iextlua
 
 extlua_sample: $(BIN)/sample.dll

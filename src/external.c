@@ -5,12 +5,15 @@
 
 struct lua_api;
 struct material_api;
+struct font_api;
 extern struct lua_api * extlua_api();
 extern struct material_api * extlua_material_api();
+extern struct font_api * extlua_font_api();
 
 struct extlua_apis {
 	struct lua_api * lua;
 	struct material_api * material;
+	struct font_api * font;
 };
 
 static struct extlua_apis *
@@ -18,6 +21,7 @@ host_apis() {
 	static struct extlua_apis apis;
 	apis.lua = extlua_api();
 	apis.material = extlua_material_api();
+	apis.font = extlua_font_api();
 	return &apis;
 }
 

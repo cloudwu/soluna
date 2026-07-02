@@ -949,10 +949,12 @@ static void stub_luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
 }
 
 struct material_api;
+struct font_api;
 
 struct extlua_apis {
 	struct lua_api * lua;
 	struct material_api * material;
+	struct font_api * font;
 };
 
 LUA_API void

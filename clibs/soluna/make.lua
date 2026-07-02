@@ -32,6 +32,7 @@ lm:source_set "soluna_src" {
 		"src/*.c",
 		"extlua/extlua_impl.c",
 		"extlua/materialapi_impl.c",
+		"extlua/fontapi_impl.c",
 	},
 	objdeps = objdeps,
 	defines = {

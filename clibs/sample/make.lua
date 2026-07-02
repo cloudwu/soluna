@@ -67,6 +67,7 @@ lm:dll "sample" {
 	sources = {
 		"extlua/extlua.c",
 		"extlua/materialapi.c",
+		"extlua/fontapi.c",
 		"extlua/extlua_sample.c",
 	},
 	objdeps = {
