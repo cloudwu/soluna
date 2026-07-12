@@ -203,10 +203,9 @@ soluna_wasm_handle_event(const sapp_event *ev) {
     if (!ev) {
         return;
     }
+    /* Focusing the IME textarea also unfocuses the canvas.
+     * Window blur/focus is handled in JS. */
     switch (ev->type) {
-    case SAPP_EVENTTYPE_UNFOCUSED:
-        soluna_wasm_hide();
-        break;
     case SAPP_EVENTTYPE_FOCUSED:
     case SAPP_EVENTTYPE_RESIZED:
         if (g_soluna_ime_rect.valid) {
