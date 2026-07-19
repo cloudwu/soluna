@@ -974,7 +974,6 @@ sokol_main(int argc, char* argv[]) {
 	d.logger.func = log_func;
 	d.win32.console_utf8 = 1;
 	d.win32.console_attach = 1;
-	d.alpha = 0;
 	d.enable_clipboard = true;
 	
 	// init L
