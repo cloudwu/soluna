@@ -20,10 +20,12 @@ local function crop_(item, c)
 	local offx = item.x or 0
 	local offy = item.y or 0
 	if offx < 0 then
-		offx = - c.w * offx // 1 | 0
+		local ww = w or (item.w - (x or 0))
+		offx = - ww * offx // 1 | 0
 	end
 	if offy < 0 then
-		offy = - c.h * offy // 1 | 0
+		local hh = h or (item.h - (y or 0))
+		offy = - hh * offy // 1 | 0
 	end
 	local cx, cy, cw, ch = image.crop(c.data, c.w, c.h, x, y, w, h)
 	offx = offx - cx
