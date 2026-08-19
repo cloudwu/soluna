@@ -290,7 +290,7 @@ local function render_init(arg)
 			color0 = setting.background,
 			swapchain = true,
 		},
-		default_sampler = render.sampler { label = "texquad-sampler" },
+		default_sampler = render.sampler { label = "texquad-sampler", max_anisotropy = 16 },
 		textures = {},
 		font_texture = font_texture,
 		views = views,

@@ -530,6 +530,17 @@ lsampler(lua_State *L) {
 	desc.mag_filter = read_enum(L, "mag_filter", filter);
 	desc.mipmap_filter = read_enum(L, "mipmap_filter", filter);
 	
+	if (lua_getfield(L, 1, "max_anisotropy") == LUA_TNUMBER) {
+		int max_anisotropy = lua_tointeger(L, -1);
+		if (max_anisotropy > 0) {
+			desc.min_filter = SG_FILTER_LINEAR;
+			desc.mag_filter = SG_FILTER_LINEAR;
+			desc.mipmap_filter = SG_FILTER_LINEAR;
+			desc.max_anisotropy = max_anisotropy;
+		}
+	}
+	lua_pop(L, 1);
+
 	static struct enum_string wrap[] = {
 		{ "repeat", SG_WRAP_REPEAT },
 		{ "edge", SG_WRAP_CLAMP_TO_EDGE },
