@@ -9,7 +9,7 @@ lm:source_set "minizip" {
 		"contrib/minizip/zip.c",
 	},
 	windows = {
-		sources = {
+		sources = lm.compiler ~= "emcc" and {
 			"contrib/minizip/iowin32.c",
 		},
 		includes = {

@@ -16,7 +16,7 @@ lm:source_set "lua_src" {
 	},
 	defines = {
 		"MAKE_LIB",
-		lm.os == "windows" and "LUA_DL_DLL" or "LUA_USE_DLOPEN",
+		lm.os == "windows" and lm.compiler ~= "emcc" and "LUA_DL_DLL" or "LUA_USE_DLOPEN",
 	},
 }
 

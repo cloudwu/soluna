@@ -68,7 +68,7 @@ lm:source_set "soluna_src" {
 		},
 	},
 	windows = {
-		sources = {
+		sources = lm.compiler ~= "emcc" and {
 			"src/platform/windows/*.c",
 		},
 		includes = {
@@ -78,7 +78,7 @@ lm:source_set "soluna_src" {
 	gcc = {
 		sources = lm.os == "linux" and {
 			"src/platform/linux/*.c",
-		} or nil,
+		},
 		links = lm.os == "linux" and {
 			"pthread",
 			"dl",
