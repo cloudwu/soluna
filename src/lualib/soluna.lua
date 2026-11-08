@@ -80,6 +80,11 @@ function soluna.load_sprites(filename)
 	return sprites
 end
 
+function soluna.target(w, h, color)
+	local render = ltask.uniqueservice "render"
+	return ltask.call(render, "target", w, h, color)
+end
+
 local audio_service
 
 local voice_index = {}

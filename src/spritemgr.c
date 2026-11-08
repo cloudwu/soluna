@@ -34,7 +34,7 @@ lbank_add(lua_State *L) {
 	r->u = w;
 	r->v = h;
 	r->off = (dx + 0x8000) << 16 | (dy + 0x8000);
-	r->texid = INVALID_TEXTUREID;
+	r->texid = luaL_optinteger(L, 6, INVALID_TEXTUREID);
 	lua_pushinteger(L, b->n);
 	return 1;
 }

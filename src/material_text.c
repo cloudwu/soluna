@@ -121,8 +121,7 @@ lmateraial_text_draw_(lua_State *L, int ex) {
 		return 0;
 	
 	int i;
-	float texsize = m->uniform->texsize;
-	m->uniform->texsize = 1.0f / FONT_MANAGER_TEXSIZE;
+	m->uniform->texsize[0] = m->uniform->texsize[1] = 1.0f / FONT_MANAGER_TEXSIZE;
 	sg_apply_pipeline(m->pip);
 	
 	int count = -1;
@@ -143,8 +142,6 @@ lmateraial_text_draw_(lua_State *L, int ex) {
 		}
 	}
 	draw_text(m, color, count, ex);
-
-	m->uniform->texsize = texsize;
 
 	return 0;
 }

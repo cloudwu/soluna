@@ -22,7 +22,7 @@ void main() {
 	ivec2 v2 = ivec2(0 , position.w);
 	vec2 uv_offset = vec2(u2[gl_VertexIndex & 1] , v2[gl_VertexIndex >> 1]);
 	vec2 pos = (uv_offset * sr[idx].m + position.xy) * framesize;
-	gl_Position = vec4(pos.x - 1.0f, pos.y + 1.0f, 0, 1);
+	gl_Position = vec4(pos - sign(framesize), 0, 1);
 	color = c;
 }
 

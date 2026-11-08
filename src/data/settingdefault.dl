@@ -14,3 +14,5 @@ background : 0x4080c0
 tmpbuffer_size : 0x20000
 text_sampler :
 	max_anisotropy : 16
+sprite_sampler :
+	max_anisotropy : 16
