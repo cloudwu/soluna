@@ -40,10 +40,16 @@ struct scissor_primitive {
 	} u;
 };
 
+struct clip {
+	struct scissor_rect rect;
+	int depth;
+};
+
 struct material_clip {
 	float *uniform;
+	int depth;
 	int stack_n;
-	struct scissor_rect stack[CLIP_STACK_MAX];
+	struct clip stack[CLIP_STACK_MAX];
 };
 
 static int material_id = 0;
@@ -73,16 +79,23 @@ intersect_scissor(struct scissor_rect a, struct scissor_rect b) {
 	return r;
 }
 
+static struct scissor_rect
+current_scissor(struct material_clip *m) {
+	int n = m->stack_n - 1;
+	return n >= 0 && m->stack[n].depth == m->depth ? m->stack[n].rect : full_scissor(m);
+}
+
 static void
-apply_scissor(struct scissor_rect r, bool origin_top_left) {
-	float scale = sapp_dpi_scale();
+apply_scissor(struct material_clip *m) {
+	struct scissor_rect r = current_scissor(m);
+	float scale = m->depth > 0 ? 1.0f : sapp_dpi_scale();
 	if (scale <= 0.0f)
 		scale = 1.0f;
 	int x0 = (int)floorf((float)r.x * scale);
 	int y0 = (int)floorf((float)r.y * scale);
 	int x1 = (int)ceilf((float)(r.x + r.w) * scale);
 	int y1 = (int)ceilf((float)(r.y + r.h) * scale);
-	sg_apply_scissor_rect(x0, y0, x1 > x0 ? x1 - x0 : 0, y1 > y0 ? y1 - y0 : 0, origin_top_left);
+	sg_apply_scissor_rect(x0, y0, x1 > x0 ? x1 - x0 : 0, y1 > y0 ? y1 - y0 : 0, m->uniform[1] < 0);
 }
 
 static void
@@ -158,6 +171,14 @@ lmaterial_clip_reset(lua_State *L) {
 }
 
 static int
+lmaterial_clip_apply(lua_State *L) {
+	struct material_clip *m = (struct material_clip *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_CLIP");
+	m->depth = luaL_optinteger(L, 2, 0);
+	apply_scissor(m);
+	return 0;
+}
+
+static int
 lmaterial_clip_submit(lua_State *L) {
 	return 0;
 }
@@ -176,17 +197,16 @@ lmaterial_clip_draw(lua_State *L) {
 		case SCISSOR_PUSH: {
 			if (m->stack_n >= CLIP_STACK_MAX)
 				return luaL_error(L, "Too many nested clip commands");
-			struct scissor_rect current = m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m);
-			struct scissor_rect next = intersect_scissor(current, primitive_scissor(pos, payload));
-			m->stack[m->stack_n++] = next;
-			apply_scissor(next, m->uniform[1] < 0);
+			struct scissor_rect next = intersect_scissor(current_scissor(m), primitive_scissor(pos, payload));
+			m->stack[m->stack_n++] = (struct clip) { next, m->depth };
+			apply_scissor(m);
 			break;
 		}
 		case SCISSOR_POP:
-			if (m->stack_n <= 0)
+			if (m->stack_n <= 0 || m->stack[m->stack_n - 1].depth != m->depth)
 				return luaL_error(L, "Clip close without open");
 			--m->stack_n;
-			apply_scissor(m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m), m->uniform[1] < 0);
+			apply_scissor(m);
 			break;
 		default:
 			return luaL_error(L, "Invalid clip command %d", payload->command);
@@ -206,6 +226,7 @@ lnew_material_clip(lua_State *L) {
 		luaL_Reg l[] = {
 			{ "__index", NULL },
 			{ "reset", lmaterial_clip_reset },
+			{ "apply", lmaterial_clip_apply },
 			{ "submit", lmaterial_clip_submit },
 			{ "draw", lmaterial_clip_draw },
 			{ NULL, NULL },

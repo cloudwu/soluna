@@ -8,6 +8,7 @@
 ---（render pass）。离屏通道按命令顺序执行，屏幕通道在所有离屏通道结束后执行。
 ---渲染目标在每帧的首次渲染通道开始时清屏，同一帧内的后续通道保留已有内容。
 ---本帧未使用的渲染目标保留原有内容。
+---渲染目标纹理采用预乘 alpha 格式存储颜色。
 ---
 ---`target(sprite)` directs subsequent draw commands to the specified render
 ---target; `target()` restores the previous target. Targets can be nested, with
@@ -16,6 +17,7 @@
 ---in command order, followed by the screen pass. Each render target is cleared
 ---at the start of its first pass in a frame; subsequent passes in the same frame
 ---preserve its contents. Targets unused in a frame retain their existing contents.
+---Render target textures store colors in premultiplied alpha format.
 ---@class soluna.material.target
 local mattarget = {}
 

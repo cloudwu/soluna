@@ -187,6 +187,7 @@ local function new_target(id, texid, w, h, color)
 	STATE.textures[texid + 1] = img
 	STATE.views[texid + 1] = render.view { texture = img }
 	STATE.texsize[texid] = { 1 / w, 1 / h }
+	STATE.premultiplied[texid] = true
 	STATE.targets[id] = {
 		attachment = attachment,
 		clear = render.pass { color0 = color or "clear", attachment = attachment },
@@ -244,6 +245,7 @@ local function frame(count)
 					passes[npass] = list
 				end
 				list.target = stack[nstack]
+				list.depth = nstack
 				list.n = 0
 			else
 				list = screen
@@ -280,6 +282,7 @@ local function frame(count)
 			STATE.uniform.framesize = STATE.framesize
 		end
 		pass:begin()
+		STATE.material_clip:apply(list.depth)
 		for k = 1, list.n do
 			local mat, ptr, n, tex = STATE.drawmgr(list[k])
 			STATE.uniform.tex_size = STATE.texsize[tex] or STATE.atlas_texsize
@@ -411,6 +414,7 @@ local function render_init(arg)
 	STATE.framesize = { 2 / arg.width, -2 / arg.height }
 	STATE.atlas_texsize = { 1 / texture_size, 1 / texture_size }
 	STATE.texsize = {}
+	STATE.premultiplied = {}
 	STATE.targets = {}
 
 	local tmp_buffer = render.tmp_buffer(setting.tmpbuffer_size)

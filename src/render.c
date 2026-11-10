@@ -253,9 +253,10 @@ read_color_action(lua_State *L, int index, sg_pass_action *action, int idx) {
 		} else {
 			action->colors[idx].clear_value.a = ((c & 0xff000000) >> 24) / 255.0f;
 		}
-		action->colors[idx].clear_value.r = ((c & 0xff0000) >> 16) / 255.0f;
-		action->colors[idx].clear_value.g = ((c & 0x00ff00) >> 8) / 255.0f;
-		action->colors[idx].clear_value.b = ((c & 0x0000ff)) / 255.0f;
+		float a = action->colors[idx].clear_value.a;
+		action->colors[idx].clear_value.r = ((c & 0xff0000) >> 16) / 255.0f * a;
+		action->colors[idx].clear_value.g = ((c & 0x00ff00) >> 8) / 255.0f * a;
+		action->colors[idx].clear_value.b = ((c & 0x0000ff)) / 255.0f * a;
 		action->colors[idx].load_action = SG_LOADACTION_CLEAR;
 	}
 	lua_pop(L, 1);

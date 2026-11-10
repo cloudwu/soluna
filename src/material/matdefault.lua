@@ -38,7 +38,7 @@ end
 
 function material.draw(ptr, n, tex)
 	bindings:view(1, state.views[tex + 1])
-	state.material:draw(ptr, n, tex)
+	state.material:draw(ptr, n, tex, state.premultiplied[tex])
 end
 
 return material
