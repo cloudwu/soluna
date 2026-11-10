@@ -1,7 +1,7 @@
 @vs vs
 layout(binding=0) uniform vs_params {
 	vec2 framesize;
-	float texsize;
+	vec2 texsize;
 };
 
 struct sr_mat {
@@ -28,7 +28,7 @@ void main() {
 	ivec2 off = ivec2(offset >> 16 , offset & 0xffff) - 0x8000;
 	vec2 uv_offset = vec2(u2[gl_VertexIndex & 1] , v2[gl_VertexIndex >> 1]);
 	vec2 pos = ((uv_offset - off) * sr[int(position.z)].m + position.xy) * framesize;
-	gl_Position = vec4(pos.x - 1.0f, pos.y + 1.0f, 0, 1);
+	gl_Position = vec4(pos - sign(framesize), 0, 1);
 	uv = (uv_base + uv_offset) * texsize;
 	maskcolor = color;
 }

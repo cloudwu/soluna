@@ -239,6 +239,8 @@ read_color_action(lua_State *L, int index, sg_pass_action *action, int idx) {
 		const char * key = lua_tostring(L, -1);
 		if (strcmp(key, "load") == 0) {
 			action->colors[idx].load_action = SG_LOADACTION_LOAD;
+		} else if (strcmp(key, "clear") == 0) {
+			action->colors[idx].load_action = SG_LOADACTION_CLEAR;
 		} else if (strcmp(key, "dontcare") == 0 ) {
 			action->colors[idx].load_action = SG_LOADACTION_DONTCARE;
 		} else {
@@ -251,9 +253,10 @@ read_color_action(lua_State *L, int index, sg_pass_action *action, int idx) {
 		} else {
 			action->colors[idx].clear_value.a = ((c & 0xff000000) >> 24) / 255.0f;
 		}
-		action->colors[idx].clear_value.r = ((c & 0xff0000) >> 16) / 255.0f;
-		action->colors[idx].clear_value.g = ((c & 0x00ff00) >> 8) / 255.0f;
-		action->colors[idx].clear_value.b = ((c & 0x0000ff)) / 255.0f;
+		float a = action->colors[idx].clear_value.a;
+		action->colors[idx].clear_value.r = ((c & 0xff0000) >> 16) / 255.0f * a;
+		action->colors[idx].clear_value.g = ((c & 0x00ff00) >> 8) / 255.0f * a;
+		action->colors[idx].clear_value.b = ((c & 0x0000ff)) / 255.0f * a;
 		action->colors[idx].load_action = SG_LOADACTION_CLEAR;
 	}
 	lua_pop(L, 1);
@@ -370,6 +373,12 @@ static int
 lsubmit(lua_State *L) {
 	sg_commit();
 	return 0;
+}
+
+static int
+lorigin_top_left(lua_State *L) {
+	lua_pushboolean(L, sg_query_features().origin_top_left);
+	return 1;
 }
 
 static int
@@ -669,6 +678,7 @@ luaopen_render(lua_State *L) {
 	luaL_Reg l[] = {
 		{ "pass", lpass_new },
 		{ "submit", lsubmit },
+		{ "origin_top_left", lorigin_top_left },
 		{ "image", limage },
 		{ "buffer", lbuffer },
 		{ "sampler", lsampler },

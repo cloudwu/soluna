@@ -22,6 +22,7 @@ struct inst_object {
 
 struct material_default {
 	sg_pipeline pip;
+	sg_pipeline premultiplied;
 	sg_buffer inst;
 	struct render_bindings *bind;
 	vs_params_t *uniform;
@@ -74,7 +75,7 @@ lmaterial_default_draw_(lua_State *L, int ex) {
 	int prim_n = luaL_checkinteger(L, 3);
 //	int tex_id = luaL_checkinteger(L, 4);
 
-	sg_apply_pipeline(m->pip);
+	sg_apply_pipeline(lua_toboolean(L, 5) ? m->premultiplied : m->pip);
 	sg_apply_uniforms(UB_vs_params, &(sg_range){ m->uniform, sizeof(vs_params_t) });
 	
 	if (ex) {
@@ -113,6 +114,8 @@ init_pipeline(struct material_default *p) {
         },
 	};
 	p->pip = util_make_pipeline(&desc, texquad_shader_desc, "default-pipeline", 1);
+	desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_ONE;
+	p->premultiplied = sg_make_pipeline(&desc);
 }
 
 static int

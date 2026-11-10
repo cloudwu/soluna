@@ -3,6 +3,7 @@ local render = require "soluna.render"
 local image = require "soluna.image"
 local embedsource = require "soluna.embedsource"
 local drawmgr = require "soluna.drawmgr"
+local mattarget = require "soluna.material.target"
 local file = require "soluna.file"
 
 global require, assert, pairs, pcall, ipairs, print, load, type
@@ -170,12 +171,43 @@ local function delay_update_image(imgmem)
 	end
 end
 
+local new_targets = {}
+local screen = {}
+local passes = {}
+local stack = {}
+
+local function new_target(id, texid, w, h, color)
+	local img = render.image { width = w, height = h, color_attachment = true }
+	local attachment = {
+		color0 = render.view { color_attachment = img },
+		depth_stencil = render.view {
+			depth_stencil_attachment = render.image { width = w, height = h, depth_stencil_attachment = true },
+		},
+	}
+	STATE.textures[texid + 1] = img
+	STATE.views[texid + 1] = render.view { texture = img }
+	STATE.texsize[texid] = { 1 / w, 1 / h }
+	STATE.premultiplied[texid] = true
+	STATE.targets[id] = {
+		attachment = attachment,
+		clear = render.pass { color0 = color or "clear", attachment = attachment },
+		load = render.pass { color0 = "load", attachment = attachment },
+		framesize = { 2 / w, (render.origin_top_left() and -2 or 2) / h },
+	}
+end
+
 local function frame(count)
 	local batch_size = setting.batch_size
 
 	-- todo: do not wait all batch commits
 	local batch_n = #batch
 	if update_image then update_image() end
+	if new_targets[1] then
+		for _, f in ipairs(new_targets) do
+			f()
+		end
+		new_targets = {}
+	end
 	STATE.drawmgr:reset()
 	for _, obj in pairs(STATE.materials) do
 		if obj.reset then
@@ -189,21 +221,75 @@ local function frame(count)
 			STATE.drawmgr:append(ptr, size)
 		end
 	end
-	local draw_n = #STATE.drawmgr
-	for i = 1, draw_n do
-		local mat, ptr, n, tex = STATE.drawmgr(i)
-		local obj = assert(STATE.materials[mat])
-		obj.submit(ptr, n)
+	local npass = 0
+	local nstack = 0
+	local list = screen
+	screen.n = 0
+	for i = 1, #STATE.drawmgr do
+		local mat, ptr, n = STATE.drawmgr(i)
+		if mat == STATE.target_material then
+			for j = 0, n - 1 do
+				local id = mattarget.sprite(ptr, j)
+				if id > 0 then
+					nstack = nstack + 1
+					stack[nstack] = assert(STATE.targets[id])
+				elseif nstack > 0 then
+					nstack = nstack - 1
+				end
+			end
+			if nstack > 0 then
+				npass = npass + 1
+				list = passes[npass]
+				if not list then
+					list = {}
+					passes[npass] = list
+				end
+				list.target = stack[nstack]
+				list.depth = nstack
+				list.n = 0
+			else
+				list = screen
+			end
+		else
+			local k = list.n + 1
+			list.n = k
+			list[k] = i
+		end
+	end
+	for p = 1, npass + 1 do
+		local list = p > npass and screen or passes[p]
+		for k = 1, list.n do
+			local mat, ptr, n = STATE.drawmgr(list[k])
+			local obj = assert(STATE.materials[mat])
+			obj.submit(ptr, n)
+		end
 	end
 	STATE.srbuffer:update(STATE.srbuffer_mem:ptr())
-	STATE.pass:begin()
 	font.submit(STATE.font_texture)
-	for i = 1, draw_n do
-		local mat, ptr, n, tex = STATE.drawmgr(i)
-		local obj = assert(STATE.materials[mat])
-		obj.draw(ptr, n, tex)
+	for p = 1, npass + 1 do
+		local list = p > npass and screen or passes[p]
+		local target = list.target
+		local pass = STATE.pass
+		if target then
+			if target.frame == count then
+				pass = target.load
+			else
+				pass = target.clear
+				target.frame = count
+			end
+			STATE.uniform.framesize = target.framesize
+		else
+			STATE.uniform.framesize = STATE.framesize
+		end
+		pass:begin()
+		STATE.material_clip:apply(list.depth)
+		for k = 1, list.n do
+			local mat, ptr, n, tex = STATE.drawmgr(list[k])
+			STATE.uniform.tex_size = STATE.texsize[tex] or STATE.atlas_texsize
+			STATE.materials[mat].draw(ptr, n, tex)
+		end
+		pass:finish()
 	end
-	STATE.pass:finish()
 	render.submit()
 end
 
@@ -262,6 +348,15 @@ function S.load_sprites(name)
 	return spr
 end
 
+function S.target(w, h, color)
+	local loader = ltask.uniqueservice "loader"
+	local id, texid = ltask.call(loader, "target", w, h)
+	new_targets[#new_targets + 1] = function()
+		new_target(id, texid, w, h, color)
+	end
+	return id
+end
+
 local function render_init(arg)
 	font.init()
 
@@ -285,12 +380,15 @@ local function render_init(arg)
 		font = render.view { texture = font_texture },
 	}
 
+	local sprite_sampler = setting.sprite_sampler
+	sprite_sampler.label = sprite_sampler.label or "texquad-sampler"
+
 	STATE = {
 		pass = render.pass {
 			color0 = setting.background,
 			swapchain = true,
 		},
-		default_sampler = render.sampler { label = "texquad-sampler", max_anisotropy = 16 },
+		default_sampler = render.sampler(sprite_sampler),
 		textures = {},
 		font_texture = font_texture,
 		views = views,
@@ -301,7 +399,7 @@ local function render_init(arg)
 	STATE.drawmgr = drawmgr.new(arg.bank_ptr, setting.draw_instance)
 
 	STATE.uniform = render.uniform {
-		12, -- size
+		16, -- size
 		framesize = {
 			offset = 0,
 			type = "float",
@@ -310,10 +408,14 @@ local function render_init(arg)
 		tex_size = {
 			offset = 8,
 			type = "float",
+			n = 2,
 		},
 	}
-	STATE.uniform.framesize = { 2 / arg.width, -2 / arg.height }
-	STATE.uniform.tex_size = 1 / texture_size
+	STATE.framesize = { 2 / arg.width, -2 / arg.height }
+	STATE.atlas_texsize = { 1 / texture_size, 1 / texture_size }
+	STATE.texsize = {}
+	STATE.premultiplied = {}
+	STATE.targets = {}
 
 	local tmp_buffer = render.tmp_buffer(setting.tmpbuffer_size)
 	STATE.materials = create_materials {
@@ -331,7 +433,7 @@ function S.init(arg)
 end
 
 function S.resize(w, h)
-	STATE.uniform.framesize = { 2 / w, -2 / h }
+	STATE.framesize = { 2 / w, -2 / h }
 end
 
 return S

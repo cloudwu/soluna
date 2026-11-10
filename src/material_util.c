@@ -60,7 +60,7 @@ util_make_pipeline(sg_pipeline_desc *desc, util_shader_desc_func func, const cha
 			.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
 			.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
 			.src_factor_alpha = SG_BLENDFACTOR_ONE,
-			.dst_factor_alpha = SG_BLENDFACTOR_ZERO
+			.dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
 		};
 	}
 	sg_pipeline pip = sg_make_pipeline(desc);

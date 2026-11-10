@@ -1,7 +1,7 @@
 @vs vs
 layout(binding=0) uniform vs_params {
 	vec2 framesize;
-	float texsize;
+	vec2 texsize;
 };
 
 in vec3 pos_h0;
@@ -15,7 +15,7 @@ in vec4 color;
 
 out vec3 uvq;
 out vec4 frag_color;
-out flat float tex_scale;
+out flat vec2 tex_scale;
 
 struct sr_mat {
 	mat2 m;
@@ -37,7 +37,7 @@ void main() {
 	float qv = max(mix(qx0, qx1, corner.y), 1e-6);
 	uvq = vec3(uv * qv, qv);
 	vec2 clip = pos * framesize;
-	gl_Position = vec4(clip.x - 1.0, clip.y + 1.0, 0.0, 1.0);
+	gl_Position = vec4(clip - sign(framesize), 0.0, 1.0);
 	frag_color = color;
 	tex_scale = texsize;
 }
@@ -50,7 +50,7 @@ layout(binding=0) uniform sampler smp;
 
 in vec3 uvq;
 in vec4 frag_color;
-in flat float tex_scale;
+in flat vec2 tex_scale;
 out vec4 out_color;
 
 void main() {

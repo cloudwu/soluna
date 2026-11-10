@@ -98,6 +98,14 @@ function S.write(id, filename)
 	img:write(filename)
 end
 
+-- texture ids of render targets count down from INVALID_TEXTUREID
+local target_texid = 0xffff
+
+function S.target(w, h)
+	target_texid = target_texid - 1
+	return sprite_bank:add(w, h, 0, 0, target_texid), target_texid
+end
+
 function S.preload(filename, content, w, h)
 	assert(#content == w * h * 4)
 	filecache[filename] = { data = content, w = w, h = h }
