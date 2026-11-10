@@ -1,15 +1,14 @@
 local soluna = require "soluna"
 local matquad = require "soluna.material.quad"
-local matmask = require "soluna.material.mask"
 local mattarget = require "soluna.material.target"
 
 soluna.set_window_title "soluna render target sample"
 
-local function checker(n, a, b)
+local function checker(n, size, a, b)
 	local t = {}
-	for y = 0, n - 1 do
-		for x = 0, n - 1 do
-			t[#t + 1] = (x + y) % 2 == 0 and a or b
+	for y = 0, n * size - 1 do
+		for x = 0, n * size - 1 do
+			t[#t + 1] = (x // size + y // size) % 2 == 0 and a or b
 		end
 	end
 	return table.concat(t)
@@ -17,9 +16,9 @@ end
 
 soluna.preload {
 	filename = "@checker",
-	content = checker(8, "\xff\xff\xff\xff", "\x40\x40\x40\xff"),
-	w = 8,
-	h = 8,
+	content = checker(8, 12, "\xff\xff\xff\xff", "\x40\x40\x40\xff"),
+	w = 96,
+	h = 96,
 }
 
 local rects = soluna.load_sprites {
@@ -29,7 +28,8 @@ local rects = soluna.load_sprites {
 	},
 }
 
-local scene = soluna.target(160, 120)
+local scene = soluna.target(480, 360, 0x203040)
+local small = soluna.target(160, 120)
 
 local args = ...
 local batch = args.batch
@@ -37,14 +37,12 @@ local batch = args.batch
 local callback = {}
 
 local function draw(rad)
-	batch:layer(60, 60)
+	batch:layer(180, 180)
 		batch:layer(rad)
-			batch:add(matquad.quad(60, 60, 0xff8040), -30, -30)
+			batch:add(matquad.quad(180, 180, 0xff8040), -90, -90)
 		batch:layer()
 	batch:layer()
-	batch:layer(4, 112, 12)
-		batch:add(rects.checker)
-	batch:layer()
+	batch:add(rects.checker, 336, 36)
 end
 
 function callback.frame(count)
@@ -52,17 +50,17 @@ function callback.frame(count)
 	batch:add(mattarget.target(scene))
 		draw(rad)
 	batch:add(mattarget.target())
+	batch:add(mattarget.target(small))
+		batch:layer(1 / 3, 0, 0)
+			batch:add(scene)
+		batch:layer()
+	batch:add(mattarget.target())
 	local y = (args.height - 360) // 2
-	-- left : draw to the screen directly
-	batch:add(matquad.quad(480, 360, 0x203040), 16, y)
-	batch:layer(3, 16, y)
-		draw(rad)
-	batch:layer()
-	-- right : draw the target as a sprite, and use it as a mask for the shadow
-	batch:add(matquad.quad(480, 360, 0x203040), 528, y)
+	-- left : draw the target as a sprite
+	batch:add(scene, 16, y)
+	-- right : shrink the target to a third, then draw it three times larger
 	batch:layer(3, 528, y)
-		batch:add(matmask.mask(scene, 0x80000000), 3, 3)
-		batch:add(scene)
+		batch:add(small)
 	batch:layer()
 end
 
