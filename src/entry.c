@@ -92,6 +92,7 @@ struct app_context {
 	int (*send_log)(void *ud, unsigned int id, void *data, uint32_t sz);
 	void *send_log_ud;
 	void *mqueue;
+	int in_frame;
 };
 
 static struct app_context *CTX = NULL;
@@ -855,18 +856,20 @@ invoke_callback(lua_State *L, int index, int nargs) {
 		lua_insert(L, -nargs-1);
 	}
 	if (lua_pcall(L, nargs, 0, 0) != LUA_OK) {
-		fprintf(stderr, "Error : %s\n", lua_tostring(L, -1));
+		fprintf(stderr, "Error in callback(%d) : %s\n", index, lua_tostring(L, -1));
 		lua_pop(L, 1);
 	}
 }
 
 static void
 app_frame() {
+	CTX->in_frame = 1;
 	lua_State *L = get_L(CTX);
 	if (L) {
 		lua_pushinteger(L, sapp_frame_count());
 		invoke_callback(L, FRAME_CALLBACK, 1);
 	}
+	CTX->in_frame = 0;
 }
 
 static void
@@ -928,7 +931,7 @@ app_event(const sapp_event* ev) {
 	soluna_wasm_handle_event(ev);
 #endif
 	lua_State *L = get_L(CTX);
-	if (L) {
+	if (L && !CTX->in_frame) {
 		lua_pushlightuserdata(L, (void *)ev);
 		invoke_callback(L, EVENT_CALLBACK, 1);
 	}

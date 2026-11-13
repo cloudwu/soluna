@@ -7,7 +7,6 @@ quadmat.set_material_id(ctx.id)
 
 state.quad_inst = render.buffer {
 	type = "vertex",
-	usage = "stream",
 	label = "quad-instance",
 	size = quadmat.instance_size * ctx.settings.draw_instance,
 }
@@ -23,12 +22,14 @@ state.material_quad = quadmat.new {
 	uniform = state.uniform,
 	sr_buffer = state.srbuffer_mem,
 	tmp_buffer = ctx.tmp_buffer,
+	transient_buffer = ctx.transient_buffer,
 }
 
 local material = {}
 
 function material.reset()
 	quad_bindings:base(0)
+	state.material_quad:reset()
 end
 
 function material.submit(ptr, n)

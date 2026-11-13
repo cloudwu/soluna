@@ -29,6 +29,11 @@ init_pipeline(struct material_blit *p) {
 }
 
 static int
+lmaterial_blit_reset(lua_State *L) {
+	return 0;
+}
+
+static int
 lnew_material_blit(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	struct material_blit *m = (struct material_blit *)lua_newuserdatauv(L, sizeof(*m), 1);
@@ -39,6 +44,7 @@ lnew_material_blit(lua_State *L) {
 		luaL_Reg l[] = {
 			{ "__index", NULL },
 			{ "draw", lmaterial_blit_draw },
+			{ "reset", lmaterial_blit_reset },
 			{ NULL, NULL },
 		};
 		luaL_setfuncs(L, l, 0);

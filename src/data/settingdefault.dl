@@ -12,5 +12,6 @@ high_dpi : false
 window_title : soluna
 background : 0x4080c0
 tmpbuffer_size : 0x20000
+transient_buffer : 0x1000000
 text_sampler :
 	max_anisotropy : 16

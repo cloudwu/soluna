@@ -7,7 +7,6 @@ maskmat.set_material_id(ctx.id)
 
 state.mask_inst = render.buffer {
 	type = "vertex",
-	usage = "stream",
 	label = "mask-instance",
 	size = maskmat.instance_size * ctx.settings.draw_instance,
 }
@@ -25,12 +24,14 @@ state.material_mask = maskmat.new {
 	sr_buffer = state.srbuffer_mem,
 	sprite_bank = ctx.arg.bank_ptr,
 	tmp_buffer = ctx.tmp_buffer,
+	transient_buffer = ctx.transient_buffer,
 }
 
 local material = {}
 
 function material.reset()
 	mask_bindings:base(0)
+	state.material_mask:reset()
 end
 
 function material.submit(ptr, n)

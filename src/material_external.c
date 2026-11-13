@@ -11,6 +11,7 @@
 #include "render_bindings.h"
 #include "material_util.h"
 #include "extlua/materialapi.h"
+#include "transient.h"
 
 #define STREAM_FIX_INV_SCALE (1.0f / 256.0f)
 
@@ -31,8 +32,10 @@ struct material_external {
 	int item_uniform_slot;
 	int texture_view_slot;
 	int has_texture_views;
+	int submit_n;
 	sg_pipeline pip;
 	sg_buffer inst;
+	struct transient_buffer *tb;
 	struct render_bindings *bind;
 	void *uniform;
 	size_t uniform_size;
@@ -102,6 +105,7 @@ set_texture_view(lua_State *L, struct material_external *m, int tex) {
 static int
 lmaterial_external_reset(lua_State *L) {
 	struct material_external *m = (struct material_external *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_EXTERNAL");
+	m->submit_n  = 0;
 	m->bind->base = 0;
 	return 0;
 }
@@ -130,7 +134,8 @@ lmaterial_external_submit(lua_State *L) {
 			return luaL_error(L, "%s", err);
 		}
 	}
-	sg_append_buffer(m->inst, &(sg_range){ buffer, buffer_size });
+	util_transient_buffer_append(L, m->tb, m->inst, buffer, buffer_size, m->submit_n * m->instance_size);
+	m->submit_n += prim_n;
 	lua_pop(L, 1);
 	return 0;
 }
@@ -358,6 +363,7 @@ lnew_material_external(lua_State *L) {
 	util_ref_object(L, &m->srbuffer, 3, "sr_buffer", "SOLUNA_SRBUFFER", 1);
 	ref_uniform(L, material_index, 4, "uniform", &m->uniform, &m->uniform_size);
 	ref_uniform(L, material_index, 5, "item_uniform", &m->item_uniform, &m->item_uniform_size);
+	util_ref_object(L, &m->tb, 6, "transient_buffer", "SOKOL_TRANSIENT", 0);
 	if (m->uniform_one != NULL && m->item_uniform == NULL) {
 		return luaL_error(L, "Missing .item_uniform");
 	}
@@ -367,7 +373,7 @@ lnew_material_external(lua_State *L) {
 	lua_pop(L, 1);
 	if (lua_getfield(L, 1, "texture_views") == LUA_TTABLE) {
 		m->has_texture_views = 1;
-		lua_setiuservalue(L, material_index, 6);
+		lua_setiuservalue(L, material_index, 7);
 	} else {
 		lua_pop(L, 1);
 	}

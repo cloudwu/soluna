@@ -13,7 +13,6 @@ if text_sampler_desc then
 	state.text_sampler = render.sampler(text_sampler_desc)
 	state.text_inst = render.buffer {
 		type = "vertex",
-		usage = "stream",
 		label = "text-instance",
 		size = textmat.instance_size * setting.draw_instance,
 	}
@@ -33,12 +32,14 @@ state.material_text = textmat.normal {
 	sr_buffer = state.srbuffer_mem,
 	font_manager = ctx.font.cobj,
 	tmp_buffer = ctx.tmp_buffer,
+	transient_buffer = ctx.transient_buffer,
 }
 
 local material = {}
 
 function material.reset()
 	text_bindings:base(0)
+	state.material_text:reset()
 end
 
 function material.submit(ptr, n)

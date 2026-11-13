@@ -11,6 +11,7 @@
 #include "material_util.h"
 #include "render_bindings.h"
 #include "tmpbuffer.h"
+#include "transient.h"
 
 struct inst_object {
 	float x, y;
@@ -23,6 +24,8 @@ struct inst_object {
 struct material_default {
 	sg_pipeline pip;
 	sg_buffer inst;
+	int submit_n;
+	struct transient_buffer *tb;
 	struct render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
@@ -56,7 +59,8 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 		tmp[i].u = r->u;
 		tmp[i].v = r->v;
 	}
-	sg_append_buffer(m->inst, &(sg_range) { tmp , n * sizeof(tmp[0]) });
+	util_transient_buffer_append(L, m->tb, m->inst, tmp, n * sizeof(tmp[0]), m->submit_n * sizeof(tmp[0]));
+	m->submit_n += n;
 }
 
 static int
@@ -116,15 +120,24 @@ init_pipeline(struct material_default *p) {
 }
 
 static int
+lmaterial_default_reset(lua_State *L) {
+	struct material_default *m = (struct material_default *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_DEFAULT");
+	m->submit_n = 0;
+	return 0;
+}
+
+static int
 lnew_material_default(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	struct material_default *m = (struct material_default *)lua_newuserdatauv(L, sizeof(*m), 5);
+	m->submit_n = 0;
 	init_pipeline(m);
 	util_ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	util_ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
 	util_ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
 	util_ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
-	tmp_buffer_init(L, &m->tmp, 5, "tmp_buffer");
+	util_ref_object(L, &m->tb, 5, "transient_buffer", "SOKOL_TRANSIENT", 0);
+	tmp_buffer_init(&m->tmp, m->tb);
 	if (lua_getfield(L, 1, "sprite_bank") != LUA_TLIGHTUSERDATA) {
 		return luaL_error(L, "Missing .sprite_bank");
 	}
@@ -136,6 +149,7 @@ lnew_material_default(lua_State *L) {
 			{ "__index", NULL },
 			{ "submit", lmaterial_default_submit },
 			{ "draw", DRAWFUNC(lmaterial_default_draw) },
+			{ "reset", lmaterial_default_reset },
 			{ NULL, NULL },
 		};
 		luaL_setfuncs(L, l, 0);

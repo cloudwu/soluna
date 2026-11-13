@@ -6,7 +6,6 @@ local state = ctx.state
 local setting = ctx.settings
 local inst_buffer = render.buffer {
 	type = "vertex",
-	usage = "stream",
 	label = "texquad-instance",
 	size = defmat.instance_size * setting.draw_instance,
 }
@@ -24,12 +23,14 @@ state.material = defmat.new {
 	sr_buffer = state.srbuffer_mem,
 	sprite_bank = ctx.arg.bank_ptr,
 	tmp_buffer = ctx.tmp_buffer,
+	transient_buffer = ctx.transient_buffer,
 }
 
 local material = {}
 
 function material.reset()
 	bindings:base(0)
+	state.material:reset()
 end
 
 function material.submit(ptr, n)

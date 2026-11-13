@@ -11,6 +11,7 @@
 #include "material_util.h"
 #include "render_bindings.h"
 #include "tmpbuffer.h"
+#include "transient.h"
 
 struct color {
 	unsigned char channel[4];
@@ -33,6 +34,8 @@ struct inst_object {
 struct material_quad {
 	sg_pipeline pip;
 	sg_buffer inst;
+	int submit_n;
+	struct transient_buffer *tb;
 	struct render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
@@ -66,7 +69,8 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 		inst->sr_index = sr_index;
 		inst->c = q->c;
 	}
-	sg_append_buffer(m->inst, &(sg_range) { tmp , n * sizeof(tmp[0]) });
+	util_transient_buffer_append(L, m->tb, m->inst, tmp, n * sizeof(tmp[0]), m->submit_n * sizeof(tmp[0]));
+	m->submit_n += n;
 }
 
 static int
@@ -136,14 +140,23 @@ init_pipeline(struct material_quad *p) {
 }
 
 static int
+lmateraial_quad_reset(lua_State *L) {
+	struct material_quad *m = (struct material_quad *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_QUAD");
+	m->submit_n = 0;
+	return 0;
+}
+
+static int
 lnew_material_quad(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	struct material_quad *m = (struct material_quad *)lua_newuserdatauv(L, sizeof(*m), 5);
+	m->submit_n = 0;
 	util_ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	util_ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
 	util_ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
 	util_ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
-	tmp_buffer_init(L, &m->tmp, 5, "tmp_buffer");
+	util_ref_object(L, &m->tb, 5, "transient_buffer", "SOKOL_TRANSIENT", 0);
+	tmp_buffer_init(&m->tmp, m->tb);
 	init_pipeline(m);
 
 	if (luaL_newmetatable(L, "SOLUNA_MATERIAL_QUAD")) {
@@ -151,6 +164,7 @@ lnew_material_quad(lua_State *L) {
 			{ "__index", NULL },
 			{ "submit", lmateraial_quad_submit },
 			{ "draw", DRAWFUNC(lmateraial_quad_draw) },
+			{ "reset", lmateraial_quad_reset },
 			{ NULL, NULL },
 		};
 		luaL_setfuncs(L, l, 0);

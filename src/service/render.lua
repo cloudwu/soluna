@@ -5,15 +5,14 @@ local embedsource = require "soluna.embedsource"
 local drawmgr = require "soluna.drawmgr"
 local file = require "soluna.file"
 
-global require, assert, pairs, pcall, ipairs, print, load, type
+global require, assert, pairs, pcall, ipairs, print, load, type, tostring, print_r
 
 local setting = require "soluna".settings()
-
+local STATE
 local font = {}
 
 local function create_materials(ctx)
 	local materials = {}
-
 	local function load_material(source, chunkname, id)
 		local chunk = assert(load(source, chunkname))
 		local mctx = {
@@ -24,6 +23,7 @@ local function create_materials(ctx)
 			settings = ctx.settings,
 			font = ctx.font,
 			render = ctx.render,
+			transient_buffer = ctx.transient_buffer,
 		}
 		local material = assert(chunk(mctx), chunkname .. " : no material returned")
 		assert(type(material.submit) == "function", chunkname .. " : missing submit function")
@@ -77,7 +77,7 @@ do
 
 	function font.submit(img)
 		if fontapi.submit() then
-			img:update(texture_ptr)
+			img:update(STATE.transient_buffer, texture_ptr)
 		end
 	end
 end
@@ -132,8 +132,6 @@ local batch = {}; do
 	end
 end
 
-local STATE
-
 local S = {}
 
 function S.app(settings)
@@ -164,13 +162,15 @@ local function delay_update_image(imgmem)
 				STATE.textures[tid] = tex
 				STATE.views[tid] = render.view { texture = tex }
 			end
-			tex:update(imgmem[i])
+			tex:update(STATE.transient_buffer, imgmem[i])
 		end
 		update_image = nil
 	end
 end
 
 local function frame(count)
+	STATE.transient_buffer:reset()
+
 	local batch_size = setting.batch_size
 
 	-- todo: do not wait all batch commits
@@ -178,9 +178,7 @@ local function frame(count)
 	if update_image then update_image() end
 	STATE.drawmgr:reset()
 	for _, obj in pairs(STATE.materials) do
-		if obj.reset then
-			obj.reset()
-		end
+		obj.reset()
 	end
 
 	for i = 1, batch_n do
@@ -195,9 +193,10 @@ local function frame(count)
 		local obj = assert(STATE.materials[mat])
 		obj.submit(ptr, n)
 	end
-	STATE.srbuffer:update(STATE.srbuffer_mem:ptr())
-	STATE.pass:begin()
+	STATE.srbuffer:update(STATE.transient_buffer, STATE.srbuffer_mem:ptr())
 	font.submit(STATE.font_texture)
+	STATE.transient_buffer:copy()
+	STATE.pass:begin()
 	for i = 1, draw_n do
 		local mat, ptr, n, tex = STATE.drawmgr(i)
 		local obj = assert(STATE.materials[mat])
@@ -266,13 +265,12 @@ local function render_init(arg)
 	font.init()
 
 	local texture_size = setting.texture_size
+	
 	local sr_buffer = render.buffer {
 		type = "storage",
-		usage = "dynamic",
 		label = "texquad-scalerot",
 		size = render.buffer_size("srbuffer", setting.srbuffer_size),
 	}
-
 	-- todo: don't load texture here
 
 	local font_texture = render.image {
@@ -314,15 +312,14 @@ local function render_init(arg)
 	}
 	STATE.uniform.framesize = { 2 / arg.width, -2 / arg.height }
 	STATE.uniform.tex_size = 1 / texture_size
-
-	local tmp_buffer = render.tmp_buffer(setting.tmpbuffer_size)
+	STATE.transient_buffer = render.transient_buffer(setting.transient_buffer, setting.tmpbuffer_size)
 	STATE.materials = create_materials {
 		state = STATE,
 		arg = arg,
-		tmp_buffer = tmp_buffer,
 		settings = setting,
 		font = font,
 		render = render,
+		transient_buffer = STATE.transient_buffer,
 	}
 end
 

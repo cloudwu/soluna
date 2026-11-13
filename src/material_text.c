@@ -16,6 +16,7 @@
 #include "material_util.h"
 #include "render_bindings.h"
 #include "tmpbuffer.h"
+#include "transient.h"
 
 #define PIXEL_SCALE 256
 
@@ -38,6 +39,8 @@ struct inst_object {
 struct material_text {
 	sg_pipeline pip;
 	sg_buffer inst;
+	int submit_n;
+	struct transient_buffer *tb;
 	struct render_bindings *bind;
 	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
@@ -82,7 +85,8 @@ submit(lua_State *L, void *m_, struct draw_primitive *prim, int n) {
 			t->codepoint = -1;
 		}
 	}
-	sg_append_buffer(m->inst, &(sg_range) { tmp , count * sizeof(tmp[0]) });
+	util_transient_buffer_append(L, m->tb, m->inst, tmp, n * sizeof(tmp[0]), m->submit_n * sizeof(tmp[0]));
+	m->submit_n += n;
 }
 
 static int
@@ -173,14 +177,23 @@ init_pipeline(struct material_text *p) {
 }
 
 static int
+lmateraial_text_reset(lua_State *L) {
+	struct material_text *m = (struct material_text *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_TEXT");
+	m->submit_n = 0;
+	return 0;
+}
+
+static int
 lnew_material_text_normal(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	struct material_text *m = (struct material_text *)lua_newuserdatauv(L, sizeof(*m), 5);
+	m->submit_n = 0;
 	util_ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	util_ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
 	util_ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
 	util_ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
-	tmp_buffer_init(L, &m->tmp, 5, "tmp_buffer");
+	util_ref_object(L, &m->tb, 5, "transient_buffer", "SOKOL_TRANSIENT", 0);
+	tmp_buffer_init(&m->tmp, m->tb);
 	init_pipeline(m);
 
 	if (lua_getfield(L, 1, "font_manager") != LUA_TLIGHTUSERDATA) {
@@ -189,18 +202,19 @@ lnew_material_text_normal(lua_State *L) {
 	m->font = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 	
-  fs_params_t temp = {
-      .edge_mask = font_manager_sdf_mask(m->font),
-      .dist_multiplier = 1.0f,
-      .color = 0xff000000,
-  };
-  memcpy(&m->fs_uniform, &temp, sizeof(fs_params_t));
+	fs_params_t temp = {
+		.edge_mask = font_manager_sdf_mask(m->font),
+		.dist_multiplier = 1.0f,
+		.color = 0xff000000,
+	};
+	memcpy(&m->fs_uniform, &temp, sizeof(fs_params_t));
 
 	if (luaL_newmetatable(L, "SOLUNA_MATERIAL_TEXT")) {
 		luaL_Reg l[] = {
 			{ "__index", NULL },
 			{ "submit", lmateraial_text_submit },
 			{ "draw", DRAWFUNC(lmateraial_text_draw) },
+			{ "reset", lmateraial_text_reset },
 			{ NULL, NULL },
 		};
 		luaL_setfuncs(L, l, 0);

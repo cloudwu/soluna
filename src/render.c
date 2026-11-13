@@ -11,6 +11,7 @@
 #include "sprite_submit.h"
 #include "batch.h"
 #include "spritemgr.h"
+#include "transient.h"
 
 #define UNIFORM_MAX 4
 #define BINDINGNAME_MAX 32
@@ -22,7 +23,10 @@ struct buffer {
 
 struct image {
 	sg_image img;
-	int size;
+	struct sg_image_usage usage;
+	int width;
+	int height;
+	int pixel_size;
 };
 
 struct sampler {
@@ -42,34 +46,15 @@ get_buffer_type(lua_State *L, int index) {
 		usage.index_buffer = true;
 	} else if (strcmp(str, "storage") == 0) {
 	    usage.storage_buffer = true;
+	} else if (strcmp(str, "staging") == 0) {
+	    usage.staging_buffer = true;
+	} else if (strcmp(str, "staging_index") == 0) {
+	    usage.staging_index_buffer = true;
 	} else {
 		luaL_error(L, "Invalid buffer .type = %s", str);
 	}
 	lua_pop(L, 1);
 	return usage;
-}
-
-static void
-get_buffer_usage(lua_State *L, int index, struct sg_buffer_usage *usage) {
-	if (lua_getfield(L, index, "usage") != LUA_TSTRING) {
-		if (lua_isnil(L, -1)) {
-			lua_pop(L, 1);
-			usage->immutable = true;
-			return;
-		}
-		luaL_error(L, "Invalid .usage");
-	}
-	const char * str = lua_tostring(L, -1);
-	if (strcmp(str, "stream") == 0) {
-		usage->stream_update = true;
-	} else if (strcmp(str, "dynamic") == 0) {
-		usage->dynamic_update = true;
-	} else if (strcmp(str, "immutable") == 0) {
-		usage->immutable = true;
-	} else {
-		luaL_error(L, "Invalid buffer .usage = %s", str);
-	}
-	lua_pop(L, 1);
 }
 
 static const void *
@@ -121,35 +106,59 @@ get_buffer_data(lua_State *L, int index, size_t *sz) {
 	return NULL;
 }
 
+struct box_transient_buffer {
+	struct transient_buffer *tb;
+};
+
+static inline struct transient_buffer *
+get_tb(lua_State *L, int index) {
+	struct box_transient_buffer *ptr = luaL_checkudata(L, index, "SOKOL_TRANSIENT");
+	return ptr->tb;
+}
+
 static int
 lbuffer_update(lua_State *L) {
-	if (lua_gettop(L) == 1)
+	if (lua_gettop(L) <= 2)
 		return 0;
 	struct buffer *p = (struct buffer *)luaL_checkudata(L, 1, "SOKOL_BUFFER");
+	if (!p->usage.copy_dst) {
+		return luaL_error(L, "can't update buffer without .copy_dst usage");
+	}
+	struct transient_buffer *tb = get_tb(L, 2);
 	size_t sz;
 	const void *ptr;
-	switch (lua_type(L, 2)) {
+	int buffer_index = 3;
+	switch (lua_type(L, buffer_index)) {
 	case LUA_TSTRING:
-		ptr = (const void *)lua_tolstring(L, 2, &sz);
+		ptr = (const void *)lua_tolstring(L, buffer_index, &sz);
 		break;
 	case LUA_TUSERDATA:
-		ptr = (const void *)lua_touserdata(L, 2);
-		sz = lua_rawlen(L, 2);
-		if (lua_isinteger(L, 3)) {
-			int usersize = lua_tointeger(L, 3);
+		ptr = (const void *)lua_touserdata(L, buffer_index);
+		sz = lua_rawlen(L, buffer_index);
+		if (lua_isinteger(L, buffer_index+1)) {
+			int usersize = lua_tointeger(L, buffer_index+1);
 			if (usersize > sz)
 				return luaL_error(L, "Invalid size %d > %d", usersize, sz);
 			sz = usersize;
 		}
 		break;
 	case LUA_TLIGHTUSERDATA:
-		ptr = (const void *)lua_touserdata(L, 2);
-		sz = luaL_checkinteger(L, 3);
+		ptr = (const void *)lua_touserdata(L, buffer_index);
+		sz = luaL_checkinteger(L, buffer_index+1);
 		break;
 	default:
-		return luaL_error(L, "Invalid data type %s", lua_typename(L, lua_type(L, 2)));
+		return luaL_error(L, "Invalid data type %s", lua_typename(L, lua_type(L, buffer_index)));
 	}
-	sg_update_buffer(p->handle, &(sg_range) { ptr, sz });
+	size_t offset;
+	sg_buffer *staging = transient_buffer_append(tb, ptr, sz, &offset);
+	if (staging == NULL)
+		return luaL_error(L, "transient buffer overflow");
+	sg_copy_buffer_to_buffer_desc *desc = transient_buffer_alloc_command(tb, TRANSIENT_BUFFER);
+	desc->src.buffer = *staging;
+	desc->src.offset = offset;
+	desc->dst.buffer = p->handle;
+	desc->size = sz;
+
 	return 0;
 }
 
@@ -166,15 +175,37 @@ static int
 lbuffer_tostring(lua_State *L) {
 	struct buffer *p = (struct buffer *)lua_touserdata(L, 1);
 	const char * name = "Invalid";
+	char copy[3] = "..";
 	if (p->usage.vertex_buffer) {
 		name = "VB";
 	} else if (p->usage.index_buffer) {
 		name = "IB";
 	} else if (p->usage.storage_buffer) {
 		name = "SB";
+	} else if (p->usage.staging_buffer) {
+		name = "VS";
+	} else if (p->usage.staging_index_buffer) {
+		name = "IS";
 	}
-	lua_pushfstring(L, "[%s:%d]", name, p->handle.id);
+	if (p->usage.copy_src) {
+		copy[0] = 's';
+	}
+	if (p->usage.copy_dst) {
+		copy[1] = 'd';
+	}
+	lua_pushfstring(L, "[%s%s:%d]", name, copy, p->handle.id);
 	return 1;
+}
+
+static int
+get_boolean(lua_State *L, int index, const char *key) {
+	if (lua_getfield(L, index, key) == LUA_TNIL) {
+		lua_pop(L, 1);
+		return 0;
+	}
+	int r = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+	return r ? 1: -1;
 }
 
 static int
@@ -182,11 +213,21 @@ lbuffer(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	struct buffer * p = (struct buffer *)lua_newuserdatauv(L, sizeof(*p), 0);
 	p->usage = get_buffer_type(L, 1);
-	get_buffer_usage(L, 1, &p->usage);
+	// todo: support usage.write_unsealed, usage.write_transient
+	int copy_src = get_boolean(L, 1, "copy_src");
+	if (copy_src) {
+		p->usage.copy_src = (copy_src > 0);
+	}
+	int copy_dst = get_boolean(L, 1, "copy_dst");
+	if (copy_dst) {
+		p->usage.copy_dst = (copy_dst > 0);
+	}
 	size_t sz;
 	const void *ptr = get_buffer_data(L, 1, &sz);
-	if (p->usage.immutable && ptr == NULL) {
-		return luaL_error(L, "immutable buffer needs init data");
+	if (ptr == NULL && copy_dst == 0) {
+		// Turn on copy_dst by default if ptr == NULL (no init data)
+		// Unless explicitly specifies it
+		p->usage.copy_dst = true;
 	}
 	const char *label = NULL;
 	if (lua_getfield(L, 1, "label") == LUA_TSTRING) {
@@ -375,15 +416,34 @@ lsubmit(lua_State *L) {
 static int
 limage_update(lua_State *L) {
 	struct image *p = (struct image *)luaL_checkudata(L, 1, "SOKOL_IMAGE");
-	// todo: support subimage
-	void *buffer = lua_touserdata(L, 2);
+	if (!p->usage.copy_dst)
+		return luaL_error(L, "Not copy_dst image");
+	struct transient_buffer * tb = get_tb(L, 2);
+	
+	void *buffer = lua_touserdata(L, 3);
 	if (buffer == NULL)
 		return luaL_error(L, "Need data");
-	sg_image_data data = {
-		.mip_levels[0].ptr = buffer,
-		.mip_levels[0].size = p->size,
-	};
-	sg_update_image(p->img, &data);
+	
+	int row = p->pixel_size * p->width;
+	int size = row * p->height;
+	
+	size_t offset;
+	sg_buffer *staging = transient_buffer_append(tb, buffer, size, &offset);
+	if (staging == NULL)
+		return luaL_error(L, "transient buffer overflow");
+	
+	sg_copy_buffer_to_image_desc *desc = transient_buffer_alloc_command(tb, TRANSIENT_IMAGE);
+	
+	
+	// todo: support subimage
+	desc->src.buffer = *staging;
+	desc->src.offset = offset;
+	desc->src.bytes_per_row = row;
+	desc->src.bytes_per_slice = size;
+	desc->dst.image = p->img;
+	desc->size.width = p->width;
+	desc->size.height = p->height;
+		
 	return 0;
 }
 
@@ -414,7 +474,7 @@ limage_ref(lua_State *L) {
 static int
 limage(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
-	sg_image_desc img = { .usage.dynamic_update = true };
+	sg_image_desc img = { .usage.copy_dst = true };
 	if (lua_getfield(L, 1, "width") != LUA_TNUMBER) {
 		return luaL_error(L, "Need .width");
 	}
@@ -440,15 +500,16 @@ limage(lua_State *L) {
 	if (lua_getfield(L, 1, "color_attachment") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
 		img.pixel_format = 0;
 		img.usage.color_attachment = 1;
-		img.usage.dynamic_update = 0;
+		img.usage.copy_dst = 0;
 	}
 	lua_pop(L, 1);
 	if (lua_getfield(L, 1, "depth_stencil_attachment") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
 		img.pixel_format = 0;
 		img.usage.depth_stencil_attachment = 1;
-		img.usage.dynamic_update = 0;
+		img.usage.copy_dst = 0;
 	}
 	lua_pop(L, 1);
+	// todo: call sg_destroy_image at the end
 	// todo: type, render_target, num_slices, num_mipmaps, pixel_format, etc
 	struct image * p = (struct image *)lua_newuserdatauv(L, sizeof(*p), 0);
 	memset(p, 0, sizeof(*p));
@@ -465,8 +526,11 @@ limage(lua_State *L) {
 		lua_setfield(L, -2, "__index");
 	}
 	lua_setmetatable(L, -2);
+	p->usage = img.usage;
 	p->img = sg_make_image(&img);
-	p->size = img.width * img.height * pixel_size;
+	p->pixel_size = pixel_size;
+	p->width = img.width;
+	p->height = img.height;
 	return 1;
 }
 
@@ -653,10 +717,79 @@ lbuffer_size(lua_State *L) {
 }
 
 static int
-ltmp_buffer(lua_State *L) {
-	size_t sz = luaL_optinteger(L, 1, 128 * 1024);
-	lua_newuserdatauv(L, sz, 0);
+ltransient_release(lua_State *L) {
+	struct transient_buffer *tb = get_tb(L, 1);
+	transient_buffer_delete(tb);
+	return 0;
+}
+
+static int
+ltransient_ref(lua_State *L) {
+	struct transient_buffer *tb = get_tb(L, 1);
+	luaL_checktype(L, 2, LUA_TLIGHTUSERDATA);
+	struct transient_buffer **ref = (struct transient_buffer **)lua_touserdata(L, 2);
+	*ref = tb;
+	return 0;
+}
+
+static int
+ltransient_reset(lua_State *L) {
+	struct transient_buffer *tb = get_tb(L, 1);
+	transient_buffer_reset(tb);
+	return 0;
+}
+
+static int
+ltransient_copy(lua_State *L) {
+	struct transient_buffer *tb = get_tb(L, 1);
+	int i,n;
+	sg_copy_buffer_to_buffer_desc *copy_buffer = transient_buffer_get_command(tb, TRANSIENT_BUFFER, &n);
+	for (i=0;i<n;i++) {
+		sg_copy_buffer_to_buffer(&copy_buffer[i]);
+	}
+	sg_copy_buffer_to_image_desc *copy_image = transient_buffer_get_command(tb, TRANSIENT_IMAGE, &n);
+	for (i=0;i<n;i++) {
+		sg_copy_buffer_to_image(&copy_image[i]);
+	}
+	return 0;
+}
+
+static int
+ltransient_buffer_(lua_State *L, int stage_index) {
+	int init_size = luaL_checkinteger(L, 1);
+	int tmp_size = luaL_optinteger(L, 1, 128 * 1024);
+	struct transient_buffer * tb = transient_buffer_new(init_size, tmp_size, stage_index);
+	if (tb == NULL)
+		return luaL_error(L, "Create transient buffer with size %d failed", init_size);
+	struct box_transient_buffer *ptr = lua_newuserdatauv(L, sizeof(*ptr), 0);
+	ptr->tb = tb;
+	if (luaL_newmetatable(L, "SOKOL_TRANSIENT")) {
+		luaL_Reg l[] = {
+			{ "__index", NULL },
+			{ "__gc", ltransient_release },
+			{ "__call", ltransient_ref },
+			{ "reset", ltransient_reset },
+			{ "copy", ltransient_copy },
+			{ NULL, NULL },
+		};
+		luaL_setfuncs(L, l, 0);
+
+		lua_pushvalue(L, -1);
+		lua_setfield(L, -2, "__index");
+	}
+	lua_setmetatable(L, -2);
+
 	return 1;
+}
+
+static int
+ltransient_buffer(lua_State *L) {
+	return ltransient_buffer_(L, 0);
+}
+
+static int
+ltransient_index_buffer(lua_State *L) {
+	return ltransient_buffer_(L, 1);
 }
 
 int lbindings_new(lua_State *L);
@@ -678,7 +811,8 @@ luaopen_render(lua_State *L) {
 		{ "bindings", lbindings_new },
 		{ "view", lview_new },
 		{ "uniform", luniform_new },
-		{ "tmp_buffer", ltmp_buffer },
+		{ "transient_buffer", ltransient_buffer },
+		{ "transient_index_buffer", ltransient_index_buffer },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);

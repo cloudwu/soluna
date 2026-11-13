@@ -69,3 +69,18 @@ util_make_pipeline(sg_pipeline_desc *desc, util_shader_desc_func func, const cha
 	}
 	return pip;
 }
+
+void
+util_transient_buffer_append(lua_State *L, struct transient_buffer *tb, sg_buffer buffer, const void *ptr, size_t sz, size_t from) {
+	size_t offset;
+	sg_buffer *staging = transient_buffer_append(tb, ptr, sz, &offset);
+	if (staging == NULL)
+		luaL_error(L, "transient buffer overflow");
+
+	sg_copy_buffer_to_buffer_desc *desc = transient_buffer_alloc_command(tb, TRANSIENT_BUFFER);
+	desc->src.buffer = *staging;
+	desc->src.offset = offset;
+	desc->dst.buffer = buffer;
+	desc->dst.offset = from;
+	desc->size = sz;
+}

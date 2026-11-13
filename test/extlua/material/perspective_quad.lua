@@ -9,7 +9,6 @@ pqmat.set_material_id(ctx.id)
 
 local inst_buffer = render.buffer {
 	type = "vertex",
-	usage = "stream",
 	label = "extlua-perspective-quad-instance",
 	size = pqmat.instance_size * ctx.settings.draw_instance,
 }
