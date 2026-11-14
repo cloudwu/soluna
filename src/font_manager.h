@@ -1,9 +1,9 @@
 #ifndef font_manager_h
 #define font_manager_h
 
-#include <stb/stb_truetype.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stb/stb_truetype.h>
 #include "font_define.h"
 
 struct font_manager;

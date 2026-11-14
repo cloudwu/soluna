@@ -41,7 +41,7 @@ realloc_luastring(void *ptr, size_t sz) {
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 
-#include "stb/stb_image_resize2.h"
+#include "stb_image_resize/stb_image_resize2.h"
 
 #include "luabuffer.h"
 

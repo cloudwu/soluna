@@ -522,7 +522,7 @@ lset_ime_rect(lua_State *L) {
 
 static int
 lset_ime_font(lua_State *L) {
-	const char *name = NULL;
+	const char *name = NULL; (void)name;
 	float size = 0.0f;
 	int top = lua_gettop(L);
 	if (top == 0) {

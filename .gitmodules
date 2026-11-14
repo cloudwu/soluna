@@ -28,3 +28,6 @@
 [submodule "bin/luamake-bin"]
 	path = bin/luamake-bin
 	url = https://github.com/yuchanns/luamake-bin.git
+[submodule "3rd/stb_image_resize"]
+	path = 3rd/stb_image_resize
+	url = https://github.com/nothings/stb_image_resize.git
