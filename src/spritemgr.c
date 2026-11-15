@@ -116,11 +116,15 @@ static int
 lbank_pack(lua_State *L) {
 	struct sprite_bank *b = (struct sprite_bank *)luaL_checkudata(L, 1, "SOLUNA_SPRITEBANK");
 	struct tmp_context *ctx = alloc_context(b->n);
+	int limit = luaL_optinteger(L, INVALID_TEXTUREID);
 
 	int texture = b->texture_n;
 	int from = 0;
 	int reserved = 0;
 	for (;;) {
+		if (b->texture_n >= limit) {
+			return luaL_error(L, "Too many textures %d", texture);
+		}
 		from = pack_sprite(b, &ctx->ctx, ctx->tmp, ctx->rect, from, reserved, &reserved);
 		if (from < 0) {
 			return luaL_error(L, "sprite image is larger than texture");
