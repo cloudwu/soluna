@@ -116,7 +116,7 @@ static int
 lbank_pack(lua_State *L) {
 	struct sprite_bank *b = (struct sprite_bank *)luaL_checkudata(L, 1, "SOLUNA_SPRITEBANK");
 	struct tmp_context *ctx = alloc_context(b->n);
-	int limit = luaL_optinteger(L, INVALID_TEXTUREID);
+	int limit = luaL_optinteger(L, 2, INVALID_TEXTUREID);
 
 	int texture = b->texture_n;
 	int from = 0;
