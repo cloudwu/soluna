@@ -757,7 +757,7 @@ ltransient_copy(lua_State *L) {
 static int
 ltransient_buffer_(lua_State *L, int stage_index) {
 	int init_size = luaL_checkinteger(L, 1);
-	int tmp_size = luaL_optinteger(L, 1, 128 * 1024);
+	int tmp_size = luaL_optinteger(L, 2, 128 * 1024);
 	struct transient_buffer * tb = transient_buffer_new(init_size, tmp_size, stage_index);
 	if (tb == NULL)
 		return luaL_error(L, "Create transient buffer with size %d failed", init_size);

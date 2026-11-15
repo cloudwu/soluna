@@ -22,6 +22,7 @@ return matext.new {
 	id = ctx.id,
 	instance_size = pqmat.instance_size,
 	inst_buffer = inst_buffer,
+	transient_buffer = ctx.transient_buffer,
 	bindings = bindings,
 	uniform = state.uniform,
 	sr_buffer = state.srbuffer_mem,

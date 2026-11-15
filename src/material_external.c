@@ -93,7 +93,7 @@ set_texture_view(lua_State *L, struct material_external *m, int tex) {
 	if (!m->has_texture_views || m->texture_view_slot < 0 || tex < 0) {
 		return;
 	}
-	if (lua_getiuservalue(L, 1, 6) != LUA_TTABLE) {
+	if (lua_getiuservalue(L, 1, 7) != LUA_TTABLE) {
 		luaL_error(L, "Missing material texture views");
 	}
 	lua_geti(L, -1, tex + 1);
