@@ -47,6 +47,12 @@ util_make_pipeline(sg_pipeline_desc *desc, util_shader_desc_func func, const cha
 		fprintf(stderr, "Failed to create shader for %s!\n", what);
 	}
 	desc->shader = shd;
+	// 2d pipeline doesn't need depth
+	desc->depth = (sg_depth_state) {
+		.pixel_format = SG_PIXELFORMAT_NONE,
+		.write_enabled = false,
+		.compare = SG_COMPAREFUNC_ALWAYS,
+	};
 	if (desc->primitive_type == 0) {
 		desc->primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP;
 	}

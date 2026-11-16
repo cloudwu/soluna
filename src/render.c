@@ -337,14 +337,15 @@ read_attachments(lua_State *L, sg_attachments *attachments) {
 		lua_pop(L, 1);
 	}
 
-	lua_getfield(L, -1, "depth_stencil");
-	luaL_checkudata(L, -1, "SOKOL_VIEW");
-	lua_call(L, 0, 1);
-	sg_view *ds_v = (sg_view *)lua_touserdata(L, -1);
-	if (ds_v == NULL) {
-		luaL_error(L, "Invalid depth_stencil view");
+	if (lua_getfield(L, -1, "depth_stencil") != LUA_TNIL) {
+		luaL_checkudata(L, -1, "SOKOL_VIEW");
+		lua_call(L, 0, 1);
+		sg_view *ds_v = (sg_view *)lua_touserdata(L, -1);
+		if (ds_v == NULL) {
+			luaL_error(L, "Invalid depth_stencil view");
+		}
+		attachments->depth_stencil = *ds_v;
 	}
-	attachments->depth_stencil = *ds_v;
 	lua_pop(L, 1);
 }
 

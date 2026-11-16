@@ -978,6 +978,8 @@ sokol_main(int argc, char* argv[]) {
 	d.win32.console_utf8 = 1;
 	d.win32.console_attach = 1;
 	d.enable_clipboard = true;
+	// 2d pipeline doesn't need depth
+	d.depth_format = SAPP_PIXELFORMAT_NONE;
 	
 	// init L
 	static struct app_context app;
