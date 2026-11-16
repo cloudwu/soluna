@@ -238,3 +238,37 @@ lbindings_new(lua_State *L) {
 	lua_setmetatable(L, -2);
 	return 1;
 }
+
+static lua_Number
+get_number(lua_State *L, int idx, const char *key) {
+	if (lua_getfield(L, idx, key) != LUA_TNUMBER) {
+		return luaL_error(L, ".%s is not a number", key);
+	}
+	lua_Number v = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	return v;
+}
+
+int
+ltexture_view_new(lua_State *L) {
+	struct texture_view * tex = lua_newuserdatauv(L, sizeof(*tex), 1);
+	int result_index = lua_gettop(L);
+	luaL_checktype(L, 1, LUA_TTABLE);
+	lua_getfield(L, 1, "view");
+	struct view *v = (struct view *)luaL_checkudata(L, -1, "SOKOL_VIEW");
+	lua_setiuservalue(L, result_index, 1);
+	tex->view = v->view;
+	float w = get_number(L, 1, "width");
+	tex->width = (int)w;
+	if (tex->width == 0)
+		return luaL_error(L, ".width should not be 0");
+	tex->inv_width = 1 / w;
+	
+	float h = get_number(L, 1, "height");
+	tex->height = (int)h;
+	if (tex->height == 0)
+		return luaL_error(L, ".height should not be 0");
+	tex->inv_height = 1 / h;
+
+	return 1;
+}

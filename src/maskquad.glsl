@@ -1,7 +1,7 @@
 @vs vs
 layout(binding=0) uniform vs_params {
 	vec2 framesize;
-	float texsize;
+	vec2 texsize;
 };
 
 struct sr_mat {

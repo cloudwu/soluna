@@ -47,8 +47,7 @@ function material.submit(ptr, n)
 end
 
 function material.draw(ptr, n)
-	text_bindings:view(1, state.views.font)
-	state.material_text:draw(ptr, n)
+	state.material_text:draw(ptr, n, state.views.font)
 end
 
 return material

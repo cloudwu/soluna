@@ -92,7 +92,10 @@ lmaterial_mask_draw_(lua_State *L, int ex) {
 	struct material_mask *m = (struct material_mask *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_MASK");
 //	struct draw_primitive *prim = lua_touserdata(L, 2);
 	int prim_n = luaL_checkinteger(L, 3);
-//	int tex_id = luaL_checkinteger(L, 4);
+	struct texture_view *tv = (struct texture_view *)lua_touserdata(L, 4);
+	m->bind->bindings.views[VIEW_tex] = tv->view;
+	m->uniform->texsize[0] = tv->inv_width;
+	m->uniform->texsize[1] = tv->inv_height;
 
 	sg_apply_pipeline(m->pip);
 	sg_apply_uniforms(UB_vs_params, &(sg_range){ m->uniform, sizeof(vs_params_t) });

@@ -796,6 +796,7 @@ ltransient_index_buffer(lua_State *L) {
 int lbindings_new(lua_State *L);
 int lview_new(lua_State *L);
 int luniform_new(lua_State *L);
+int ltexture_view_new(lua_State *L);
 
 int
 luaopen_render(lua_State *L) {
@@ -814,6 +815,7 @@ luaopen_render(lua_State *L) {
 		{ "uniform", luniform_new },
 		{ "transient_buffer", ltransient_buffer },
 		{ "transient_index_buffer", ltransient_index_buffer },
+		{ "texture_view", ltexture_view_new },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);

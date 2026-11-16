@@ -123,11 +123,14 @@ lmateraial_text_draw_(lua_State *L, int ex) {
 	int prim_n = luaL_checkinteger(L, 3);
 	if (prim_n <= 0)
 		return 0;
+	struct texture_view *tv = (struct texture_view *)lua_touserdata(L, 4);
+	m->bind->bindings.views[VIEW_tex] = tv->view;
+	// tv->inv_width == tv->inv_height
+	m->uniform->texsize = tv->inv_width;
 	
 	int i;
-	float texsize = m->uniform->texsize;
-	m->uniform->texsize = 1.0f / FONT_MANAGER_TEXSIZE;
 	sg_apply_pipeline(m->pip);
+	sg_apply_uniforms(UB_vs_params, &(sg_range){ m->uniform, sizeof(vs_params_t) });
 	
 	int count = -1;
 	uint32_t color = 0;
@@ -147,8 +150,6 @@ lmateraial_text_draw_(lua_State *L, int ex) {
 		}
 	}
 	draw_text(m, color, count, ex);
-
-	m->uniform->texsize = texsize;
 
 	return 0;
 }

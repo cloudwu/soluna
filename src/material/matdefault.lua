@@ -38,8 +38,7 @@ function material.submit(ptr, n)
 end
 
 function material.draw(ptr, n, tex)
-	bindings:view(1, state.views[tex + 1])
-	state.material:draw(ptr, n, tex)
+	state.material:draw(ptr, n, state.views[tex + 1])
 end
 
 return material

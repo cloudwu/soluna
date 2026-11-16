@@ -39,8 +39,7 @@ function material.submit(ptr, n)
 end
 
 function material.draw(ptr, n, tex)
-	mask_bindings:view(1, state.views[tex + 1])
-	state.material_mask:draw(ptr, n, tex)
+	state.material_mask:draw(ptr, n, state.views[tex + 1])
 end
 
 return material

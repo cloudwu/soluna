@@ -11,6 +11,14 @@ local setting = require "soluna".settings()
 local STATE
 local font = {}
 
+local function create_texture_view (img, width, height)
+	return render.texture_view {
+		width = width,
+		height = height,
+		view = render.view { texture = img }
+	}
+end
+
 local function create_materials(ctx)
 	local materials = {}
 	local function load_material(source, chunkname, id)
@@ -160,7 +168,7 @@ local function delay_update_image(imgmem)
 					height = texture_size,
 				}
 				STATE.textures[tid] = tex
-				STATE.views[tid] = render.view { texture = tex }
+				STATE.views[tid] = create_texture_view(tex, texture_size, texture_size)
 			end
 			tex:update(STATE.transient_buffer, imgmem[i])
 		end
@@ -280,7 +288,7 @@ local function render_init(arg)
 	}
 	local views = {
 		storage = render.view { storage = sr_buffer },
-		font = render.view { texture = font_texture },
+		font = create_texture_view (font_texture, font.texture_size, font.texture_size),
 	}
 
 	STATE = {
@@ -299,7 +307,7 @@ local function render_init(arg)
 	STATE.drawmgr = drawmgr.new(arg.bank_ptr, setting.draw_instance)
 
 	STATE.uniform = render.uniform {
-		12, -- size
+		16, -- size
 		framesize = {
 			offset = 0,
 			type = "float",
@@ -308,10 +316,10 @@ local function render_init(arg)
 		tex_size = {
 			offset = 8,
 			type = "float",
+			n = 2,
 		},
 	}
 	STATE.uniform.framesize = { 2 / arg.width, -2 / arg.height }
-	STATE.uniform.tex_size = 1 / texture_size
 	STATE.transient_buffer = render.transient_buffer(setting.transient_buffer, setting.tmpbuffer_size)
 	STATE.materials = create_materials {
 		state = STATE,

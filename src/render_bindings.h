@@ -13,6 +13,14 @@ struct view {
 	int type;
 };
 
+struct texture_view {
+	sg_view view;
+	int width;
+	int height;
+	float inv_width;
+	float inv_height;
+};
+
 #define DRAWFUNC(name) (sg_query_features().draw_base_instance ? name##_ex : name)
 
 #endif
