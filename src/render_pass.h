@@ -5,8 +5,10 @@
 
 struct render_pass {
 	sg_pass pass;
-	int frame_width;
-	int frame_hegith;
+	int width;
+	int height;
+	float inv_width;
+	float inv_height;
 };
 
 #endif

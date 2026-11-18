@@ -2,42 +2,30 @@ local render = require "soluna.render"
 local quadmat = require "soluna.material.quad"
 
 local ctx = ...
-local state = ctx.state
+
 quadmat.set_material_id(ctx.id)
 
-state.quad_inst = render.buffer {
+local quad_inst = render.buffer {
 	type = "vertex",
 	label = "quad-instance",
 	size = quadmat.instance_size * ctx.settings.draw_instance,
 }
 
 local quad_bindings = render.bindings()
-quad_bindings:vbuffer(0, state.quad_inst)
-quad_bindings:view(0, state.views.storage)
+quad_bindings:vbuffer(0, quad_inst)
+quad_bindings:view(0, ctx.views.storage)
 
-state.quad_bindings = quad_bindings
-state.material_quad = quadmat.new {
-	inst_buffer = state.quad_inst,
-	bindings = state.quad_bindings,
-	uniform = state.uniform,
-	sr_buffer = state.srbuffer_mem,
-	tmp_buffer = ctx.tmp_buffer,
-	transient_buffer = ctx.transient_buffer,
+local material = {
+	cobj = quadmat.new {
+		inst_buffer = quad_inst,
+		bindings = quad_bindings,
+		sr_buffer = ctx.sr_buffer,
+		transient_buffer = ctx.transient_buffer,
+	}
 }
-
-local material = {}
 
 function material.reset()
 	quad_bindings:base(0)
-	state.material_quad:reset()
-end
-
-function material.submit(ptr, n)
-	state.material_quad:submit(ptr, n)
-end
-
-function material.draw(ptr, n)
-	state.material_quad:draw(ptr, n)
 end
 
 return material

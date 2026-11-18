@@ -17,6 +17,7 @@
 #include "render_bindings.h"
 #include "tmpbuffer.h"
 #include "transient.h"
+#include "render_pass.h"
 
 #define PIXEL_SCALE 256
 
@@ -42,11 +43,10 @@ struct material_text {
 	int submit_n;
 	struct transient_buffer *tb;
 	struct render_bindings *bind;
-	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct font_manager *font;
-	fs_params_t fs_uniform;
 	struct tmp_buffer tmp;
+	fs_params_t fs_uniform;
 };
 
 static int material_id = 0;
@@ -98,9 +98,9 @@ lmateraial_text_submit(lua_State *L) {
 }
 
 static inline void
-draw_text(struct material_text *m, uint32_t color, int count, int ex) {
+draw_text(struct material_text *m, uint32_t color, int count, int ex, vs_params_t *uniform) {
 	m->fs_uniform.color = color;
-	sg_apply_uniforms(UB_vs_params, &(sg_range){ m->uniform, sizeof(vs_params_t) });
+	sg_apply_uniforms(UB_vs_params, &(sg_range){ uniform, sizeof(vs_params_t) });
 	sg_apply_uniforms(UB_fs_params, &(sg_range){ &m->fs_uniform, sizeof(fs_params_t) });
 	if (ex) {
 		sg_apply_bindings(&m->bind->bindings);
@@ -126,11 +126,14 @@ lmateraial_text_draw_(lua_State *L, int ex) {
 	struct texture_view *tv = (struct texture_view *)lua_touserdata(L, 4);
 	m->bind->bindings.views[VIEW_tex] = tv->view;
 	// tv->inv_width == tv->inv_height
-	m->uniform->texsize = tv->inv_width;
-	
+	vs_params_t uniform;
+	uniform.texsize = tv->inv_width;
+	struct render_pass *pass = (struct render_pass *)lua_touserdata(L, 5);
+	uniform.framesize[0] = 2 * pass->inv_width;
+	uniform.framesize[1] = -2 * pass->inv_height;
+
 	int i;
 	sg_apply_pipeline(m->pip);
-	sg_apply_uniforms(UB_vs_params, &(sg_range){ m->uniform, sizeof(vs_params_t) });
 	
 	int count = -1;
 	uint32_t color = 0;
@@ -141,7 +144,7 @@ lmateraial_text_draw_(lua_State *L, int ex) {
 				color = t->color;
 				count = 1;
 			} else if (t->color != color) {
-				draw_text(m, color, count, ex);
+				draw_text(m, color, count, ex, &uniform);
 				color = t->color;
 				count = 1;
 			} else {
@@ -149,7 +152,7 @@ lmateraial_text_draw_(lua_State *L, int ex) {
 			}
 		}
 	}
-	draw_text(m, color, count, ex);
+	draw_text(m, color, count, ex, &uniform);
 
 	return 0;
 }
@@ -187,13 +190,12 @@ lmateraial_text_reset(lua_State *L) {
 static int
 lnew_material_text_normal(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
-	struct material_text *m = (struct material_text *)lua_newuserdatauv(L, sizeof(*m), 5);
+	struct material_text *m = (struct material_text *)lua_newuserdatauv(L, sizeof(*m), 4);
 	m->submit_n = 0;
 	util_ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	util_ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
-	util_ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
-	util_ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
-	util_ref_object(L, &m->tb, 5, "transient_buffer", "SOKOL_TRANSIENT", 0);
+	util_ref_object(L, &m->srbuffer, 3, "sr_buffer", "SOLUNA_SRBUFFER", 1);
+	util_ref_object(L, &m->tb, 4, "transient_buffer", "SOKOL_TRANSIENT", 0);
 	tmp_buffer_init(&m->tmp, m->tb);
 	init_pipeline(m);
 

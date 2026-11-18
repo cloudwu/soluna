@@ -12,6 +12,7 @@
 #include "render_bindings.h"
 #include "tmpbuffer.h"
 #include "transient.h"
+#include "render_pass.h"
 
 struct color {
 	unsigned char channel[4];
@@ -37,7 +38,6 @@ struct material_quad {
 	int submit_n;
 	struct transient_buffer *tb;
 	struct render_bindings *bind;
-	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct tmp_buffer tmp;
 };
@@ -88,9 +88,14 @@ lmateraial_quad_draw_(lua_State *L, int ex) {
 	int prim_n = luaL_checkinteger(L, 3);
 	if (prim_n <= 0)
 		return 0;
+	// ignore texture (4)	
+	vs_params_t uniform;
+	struct render_pass *pass = (struct render_pass *)lua_touserdata(L, 5);
+	uniform.framesize[0] = 2 * pass->inv_width;
+	uniform.framesize[1] = -2 * pass->inv_height;
 	
 	sg_apply_pipeline(m->pip);
-	sg_apply_uniforms(UB_vs_params, &(sg_range){ m->uniform, sizeof(vs_params_t) });
+	sg_apply_uniforms(UB_vs_params, &(sg_range){ &uniform, sizeof(vs_params_t) });
 	if (ex) {
 		sg_apply_bindings(&m->bind->bindings);
 		sg_draw_ex(0, 4, prim_n, 0, m->bind->base);
@@ -149,13 +154,12 @@ lmateraial_quad_reset(lua_State *L) {
 static int
 lnew_material_quad(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
-	struct material_quad *m = (struct material_quad *)lua_newuserdatauv(L, sizeof(*m), 5);
+	struct material_quad *m = (struct material_quad *)lua_newuserdatauv(L, sizeof(*m), 4);
 	m->submit_n = 0;
 	util_ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	util_ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
-	util_ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
-	util_ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
-	util_ref_object(L, &m->tb, 5, "transient_buffer", "SOKOL_TRANSIENT", 0);
+	util_ref_object(L, &m->srbuffer, 3, "sr_buffer", "SOLUNA_SRBUFFER", 1);
+	util_ref_object(L, &m->tb, 4, "transient_buffer", "SOKOL_TRANSIENT", 0);
 	tmp_buffer_init(&m->tmp, m->tb);
 	init_pipeline(m);
 

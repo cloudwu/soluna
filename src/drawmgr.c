@@ -184,6 +184,18 @@ begin_pass(struct render_pass *p) {
 		p->pass.swapchain = sglue_swapchain();
 		sg_begin_pass(&p->pass);
 		p->pass.swapchain.invalid = true;
+		p->width = p->pass.swapchain.width;
+		p->height = p->pass.swapchain.height;
+		if (p->width) {
+			p->inv_width = 1.0f / p->width;
+		} else {
+			p->inv_width = 0;
+		}
+		if (p->height) {
+			p->inv_height = 1.0f / p->height;
+		} else {
+			p->inv_height = 0;
+		}
 	} else {
 		sg_begin_pass(&p->pass);
 	}

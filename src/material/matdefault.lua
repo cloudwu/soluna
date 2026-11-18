@@ -2,43 +2,28 @@ local render = require "soluna.render"
 local defmat = require "soluna.material.default"
 
 local ctx = ...
-local state = ctx.state
-local setting = ctx.settings
 local inst_buffer = render.buffer {
 	type = "vertex",
 	label = "texquad-instance",
-	size = defmat.instance_size * setting.draw_instance,
+	size = defmat.instance_size * ctx.settings.draw_instance,
 }
 local bindings = render.bindings()
 bindings:vbuffer(0, inst_buffer)
-bindings:view(0, state.views.storage)
-bindings:sampler(0, state.default_sampler)
+bindings:view(0, ctx.views.storage)
+bindings:sampler(0, ctx.default_sampler)
 
-state.inst = assert(inst_buffer)
-state.bindings = bindings
-state.material = defmat.new {
-	inst_buffer = state.inst,
-	bindings = state.bindings,
-	uniform = state.uniform,
-	sr_buffer = state.srbuffer_mem,
-	sprite_bank = ctx.arg.bank_ptr,
-	tmp_buffer = ctx.tmp_buffer,
-	transient_buffer = ctx.transient_buffer,
+local material = {
+	cobj = defmat.new {
+		inst_buffer = inst_buffer,
+		bindings = bindings,
+		sr_buffer = ctx.sr_buffer,
+		sprite_bank = ctx.bank_ptr,
+		transient_buffer = ctx.transient_buffer,
+	}
 }
-
-local material = {}
 
 function material.reset()
 	bindings:base(0)
-	state.material:reset()
-end
-
-function material.submit(ptr, n)
-	state.material:submit(ptr, n)
-end
-
-function material.draw(ptr, n, tex)
-	state.material:draw(ptr, n, state.views[tex + 1])
 end
 
 return material

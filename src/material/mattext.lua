@@ -2,52 +2,42 @@ local render = require "soluna.render"
 local textmat = require "soluna.material.text"
 
 local ctx = ...
-local state = ctx.state
-local setting = ctx.settings
 textmat.set_material_id(ctx.id)
 
-local text_bindings
-local text_sampler_desc = setting.text_sampler
-if text_sampler_desc then
-	text_sampler_desc.label = text_sampler_desc.label or "text-sampler"
-	state.text_sampler = render.sampler(text_sampler_desc)
-	state.text_inst = render.buffer {
-		type = "vertex",
-		label = "text-instance",
-		size = textmat.instance_size * setting.draw_instance,
-	}
-	text_bindings = render.bindings()
-	text_bindings:vbuffer(0, state.text_inst)
-	text_bindings:view(0, state.views.storage)
-	text_bindings:sampler(0, state.text_sampler)
+local text_bindings = render.bindings()
+local text_inst = render.buffer {
+	type = "vertex",
+	label = "text-instance",
+	size = textmat.instance_size * ctx.settings.draw_instance,
+}
+text_bindings:vbuffer(0, text_inst)
+text_bindings:view(0, ctx.views.storage)
+local text_sampler
+if ctx.settings.text_sampler then
+	text_sampler = render.sampler(ctx.settings.text_sampler or "text-sampler")
+	text_bindings:sampler(0, text_sampler)
 else
-	state.text_inst = state.inst
-	text_bindings = state.bindings
+	text_bindings:sampler(0, ctx.default_sampler)
 end
-state.text_bindings = text_bindings
-state.material_text = textmat.normal {
-	inst_buffer = state.text_inst,
-	bindings = state.text_bindings,
-	uniform = state.uniform,
-	sr_buffer = state.srbuffer_mem,
-	font_manager = ctx.font.cobj,
-	tmp_buffer = ctx.tmp_buffer,
-	transient_buffer = ctx.transient_buffer,
+
+local material = {
+	name = "text",
+	sampler = text_sampler,
+	cobj = textmat.normal {
+		inst_buffer = text_inst,
+		bindings = text_bindings,
+		sr_buffer = ctx.sr_buffer,
+		font_manager = ctx.font.cobj,
+		transient_buffer = ctx.transient_buffer,
+	},
 }
 
-local material = {}
+function material.set_texture_view(v)
+	material.texture_view = v
+end
 
 function material.reset()
 	text_bindings:base(0)
-	state.material_text:reset()
-end
-
-function material.submit(ptr, n)
-	state.material_text:submit(ptr, n)
-end
-
-function material.draw(ptr, n)
-	state.material_text:draw(ptr, n, state.views.font)
 end
 
 return material

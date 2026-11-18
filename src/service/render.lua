@@ -25,17 +25,16 @@ local function create_materials(ctx)
 		local chunk = assert(load(source, chunkname))
 		local mctx = {
 			id = id,
-			state = ctx.state,
-			arg = ctx.arg,
-			tmp_buffer = ctx.tmp_buffer,
+			bank_ptr = ctx.arg.bank_ptr,
+			views = ctx.views,
 			settings = ctx.settings,
 			font = ctx.font,
 			render = ctx.render,
 			transient_buffer = ctx.transient_buffer,
+			default_sampler = ctx.default_sampler,
+			sr_buffer = ctx.sr_buffer,
 		}
 		local material = assert(chunk(mctx), chunkname .. " : no material returned")
-		assert(type(material.submit) == "function", chunkname .. " : missing submit function")
-		assert(type(material.draw) == "function", chunkname .. " : missing draw function")
 		materials[id] = material
 	end
 
@@ -65,6 +64,14 @@ local function create_materials(ctx)
 		end
 	end
 	return materials
+end
+
+local function find_material(materials, name)
+	for _, v in pairs(materials) do
+		if v.name == name then
+			return v
+		end
+	end
 end
 
 do
@@ -187,6 +194,7 @@ local function frame(count)
 	STATE.drawmgr:reset()
 	for _, obj in pairs(STATE.materials) do
 		obj.reset()
+		obj.cobj:reset()
 	end
 
 	for i = 1, batch_n do
@@ -197,6 +205,7 @@ local function frame(count)
 		end
 	end
 	local materials = STATE.materials
+	local views = STATE.views
 	local from
 	while true do
 		local to, pass
@@ -206,7 +215,7 @@ local function frame(count)
 		end
 		for i = from , to do
 			local mat, ptr, n, tex = STATE.drawmgr(i)
-			materials[mat].submit(ptr, n)
+			materials[mat].cobj:submit(ptr, n)
 		end
 		STATE.drawmgr:endpass()
 		from = to + 1
@@ -225,7 +234,7 @@ local function frame(count)
 		end
 		for i = from , to do
 			local mat, ptr, n, tex = STATE.drawmgr(i)
-			materials[mat].draw(ptr, n, tex)
+			materials[mat].cobj:draw(ptr, n, tex and views[tex+1] or materials[mat].texture_view, pass)
 		end
 		STATE.drawmgr:endpass()
 		from = to + 1
@@ -307,7 +316,6 @@ local function render_init(arg)
 	}
 	local views = {
 		storage = render.view { storage = sr_buffer },
-		font = create_texture_view (font_texture, font.texture_size, font.texture_size),
 	}
 
 	STATE = {
@@ -325,20 +333,6 @@ local function render_init(arg)
 
 	STATE.drawmgr = drawmgr.new(arg.bank_ptr, setting.draw_instance)
 
-	STATE.uniform = render.uniform {
-		16, -- size
-		framesize = {
-			offset = 0,
-			type = "float",
-			n = 2,
-		},
-		tex_size = {
-			offset = 8,
-			type = "float",
-			n = 2,
-		},
-	}
-	STATE.uniform.framesize = { 2 / arg.width, -2 / arg.height }
 	STATE.transient_buffer = render.transient_buffer(setting.transient_buffer, setting.tmpbuffer_size)
 	STATE.materials = create_materials {
 		state = STATE,
@@ -347,15 +341,18 @@ local function render_init(arg)
 		font = font,
 		render = render,
 		transient_buffer = STATE.transient_buffer,
+		views = views,
+		sr_buffer = STATE.srbuffer_mem,
+		default_sampler = STATE.default_sampler,
 	}
+	local textmat = find_material(STATE.materials, "text")
+	if textmat then
+		textmat.set_texture_view( create_texture_view (font_texture, font.texture_size, font.texture_size) )
+	end
 end
 
 function S.init(arg)
 	ltask.mainthread_run(render_init, arg)
-end
-
-function S.resize(w, h)
-	STATE.uniform.framesize = { 2 / w, -2 / h }
 end
 
 return S

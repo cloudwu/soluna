@@ -12,6 +12,7 @@
 #include "render_bindings.h"
 #include "tmpbuffer.h"
 #include "transient.h"
+#include "render_pass.h"
 
 struct color {
 	unsigned char channel[4];
@@ -37,7 +38,6 @@ struct material_mask {
 	int submit_n;
 	struct transient_buffer *tb;
 	struct render_bindings *bind;
-	vs_params_t *uniform;
 	struct sr_buffer *srbuffer;
 	struct sprite_bank *bank;
 	struct tmp_buffer tmp;
@@ -94,11 +94,15 @@ lmaterial_mask_draw_(lua_State *L, int ex) {
 	int prim_n = luaL_checkinteger(L, 3);
 	struct texture_view *tv = (struct texture_view *)lua_touserdata(L, 4);
 	m->bind->bindings.views[VIEW_tex] = tv->view;
-	m->uniform->texsize[0] = tv->inv_width;
-	m->uniform->texsize[1] = tv->inv_height;
+	vs_params_t uniform;
+	uniform.texsize[0] = tv->inv_width;
+	uniform.texsize[1] = tv->inv_height;
+	struct render_pass *pass = (struct render_pass *)lua_touserdata(L, 5);
+	uniform.framesize[0] = 2 * pass->inv_width;
+	uniform.framesize[1] = -2 * pass->inv_height;
 
 	sg_apply_pipeline(m->pip);
-	sg_apply_uniforms(UB_vs_params, &(sg_range){ m->uniform, sizeof(vs_params_t) });
+	sg_apply_uniforms(UB_vs_params, &(sg_range){ &uniform, sizeof(vs_params_t) });
 	
 	if (ex) {
 		sg_apply_bindings(&m->bind->bindings);
@@ -160,14 +164,13 @@ lmaterial_mask_reset(lua_State *L) {
 static int
 lnew_material_mask(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
-	struct material_mask *m = (struct material_mask *)lua_newuserdatauv(L, sizeof(*m), 5);
+	struct material_mask *m = (struct material_mask *)lua_newuserdatauv(L, sizeof(*m), 4);
 	m->submit_n = 0;
 	init_pipeline(m);
 	util_ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	util_ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
-	util_ref_object(L, &m->uniform, 3, "uniform", "SOKOL_UNIFORM", 1);
-	util_ref_object(L, &m->srbuffer, 4, "sr_buffer", "SOLUNA_SRBUFFER", 1);
-	util_ref_object(L, &m->tb, 5, "transient_buffer", "SOKOL_TRANSIENT", 0);
+	util_ref_object(L, &m->srbuffer, 3, "sr_buffer", "SOLUNA_SRBUFFER", 1);
+	util_ref_object(L, &m->tb, 4, "transient_buffer", "SOKOL_TRANSIENT", 0);
 	tmp_buffer_init(&m->tmp, m->tb);
 	if (lua_getfield(L, 1, "sprite_bank") != LUA_TLIGHTUSERDATA) {
 		return luaL_error(L, "Missing .sprite_bank");

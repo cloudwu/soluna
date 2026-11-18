@@ -17,7 +17,6 @@ local S = {}
 
 local app = {}
 local app_event = {}
-local prehook = {}
 
 function app.cleanup()
 	ltask.send(1, "quit_ltask")
@@ -42,17 +41,6 @@ function app.frame()
 	end
 end
 
-local render_service = ltask.self()
-local pre_size
-
-function prehook.window_resize(w, h)
-	if render_service then
-		ltask.call(render_service, "resize", w, h)
-	else
-		pre_size = { width = w, height = h }
-	end
-end
-
 S.event = skip
 
 -- external message from soluna host
@@ -62,10 +50,6 @@ function S.external(p)
 	if f then
 		f(arg1, arg2)
 		return
-	end
-	local pre = prehook[what]
-	if pre then
-		pre(arg1, arg2)
 	end
 	local f = app_event[what]
 	if f then
@@ -109,14 +93,6 @@ local function init(arg)
 	
 	local function init_render()
 		ltask.call(render, "init", arg.app)
-		render_service = render
-		if pre_size then
-			ltask.call(render, "resize", pre_size.width, pre_size.height)
-			arg.app.width = pre_size.width
-			arg.app.height = pre_size.height
-			pre_size = nil
-		end
-		
 		local batch = spritemgr.newbatch()
 		cleanup:add(function()
 			batch:release()
