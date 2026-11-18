@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "sprite_submit.h"
-#include "sprite_batch.h"
+#include "render_batch.h"
 
 static int
 lbatch_reset(lua_State *L) {

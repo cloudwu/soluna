@@ -4,6 +4,7 @@ local spritemgr = require "soluna.spritemgr"
 local soluna = require "soluna"
 local soluna_app = require "soluna.app"
 local util = require "soluna.util"
+local render = require "soluna.render"
 local table = table
 local debug = debug
 
@@ -89,11 +90,11 @@ local function init(arg)
 	end
 	local f = assert(load(source, "@"..entry, "t"))
 
-	local render = ltask.uniqueservice "render"
+	local render_service = ltask.uniqueservice "render"
 	
 	local function init_render()
-		ltask.call(render, "init", arg.app)
-		local batch = spritemgr.newbatch(setting.pass_max)
+		ltask.call(render_service, "init", arg.app)
+		local batch = render.batch(setting.pass_max)
 		cleanup:add(function()
 			batch:release()
 		end)
@@ -128,14 +129,14 @@ local function init(arg)
 			end
 		end
 		
-		local batch_id = ltask.call(render, "register_batch", ltask.self())
+		local batch_id = ltask.call(render_service, "register_batch", ltask.self())
 
 		local function frame(count)
 			batch:reset()
 			batch:pass(1)	-- swapchain (pass 1)
 			frame_cb(count)
-			ltask.send(render, "submit_batch", batch_id, batch:ptr())
-			ltask.call(render, "frame", count)
+			ltask.send(render_service, "submit_batch", batch_id, batch:ptr())
+			ltask.call(render_service, "frame", count)
 		end
 		
 		local traceback = debug.traceback

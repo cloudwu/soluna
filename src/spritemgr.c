@@ -1,5 +1,5 @@
 #include "spritemgr.h"
-#include "sprite_batch.h"
+#include "transform.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -200,7 +200,6 @@ luaopen_spritemgr(lua_State *L) {
 	luaL_checkversion(L);
 	luaL_Reg l[] = {
 		{ "newbank", lsprite_newbank },
-		{ "newbatch", lsprite_newbatch },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);

@@ -650,6 +650,7 @@ int ltexture_view_new(lua_State *L);
 int lpass_new(lua_State *L);
 int lpass_begin(lua_State *L);
 int lpass_end(lua_State *L);
+int lsprite_newbatch(lua_State *L);
 
 int
 luaopen_render(lua_State *L) {
@@ -671,6 +672,7 @@ luaopen_render(lua_State *L) {
 		{ "texture_view", ltexture_view_new },
 		{ "begin_pass", lpass_begin },
 		{ "end_pass", lpass_end },
+		{ "batch", lsprite_newbatch },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);
