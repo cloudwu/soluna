@@ -6,8 +6,8 @@
 
 #include "batch.h"
 #include "spritemgr.h"
-#include "render_pass.h"
-#include "sprite_batch.h"
+#include "render_target.h"
+#include "render_batch.h"
 
 #define PASS_TAG (-1)
 
@@ -19,7 +19,7 @@ struct draw_element {
 };
 
 struct draw_pass {
-	struct render_pass *pass;
+	struct render_target *rt;
 	int pass_tag;	// PASS_TAG (-1)
 	int pass_n;		// n elements
 };
@@ -162,7 +162,7 @@ ldrawmgr_append(lua_State *L) {
 		if (lua_geti(L, 3, pass_id) != LUA_TUSERDATA) {
 			return luaL_error(L, "pass %d is missing", pass_id);
 		}
-		p->pass = lua_touserdata(L, -1);
+		p->rt = lua_touserdata(L, -1);
 		lua_pop(L, 1);
 		p->pass_tag = PASS_TAG;
 		p->pass_n = -1;
@@ -194,7 +194,7 @@ ldrawmgr_nextpass(lua_State *L) {
 	if (p->pass_tag != PASS_TAG) {
 		return luaL_error(L, "[%d] is not a draw_pass", offset);
 	}
-	lua_pushlightuserdata(L, p->pass);
+	lua_pushlightuserdata(L, p->rt);
 	lua_pushinteger(L, offset + 1);
 	int to;
 	if (p->pass_n < 0) {

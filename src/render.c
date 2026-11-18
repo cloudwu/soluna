@@ -11,9 +11,6 @@
 #include "spritemgr.h"
 #include "transient.h"
 
-#define UNIFORM_MAX 4
-#define BINDINGNAME_MAX 32
-
 struct buffer {
 	sg_buffer handle;
 	struct sg_buffer_usage usage;
@@ -645,12 +642,11 @@ ltransient_index_buffer(lua_State *L) {
 
 int lbindings_new(lua_State *L);
 int lview_new(lua_State *L);
-int luniform_new(lua_State *L);
 int ltexture_view_new(lua_State *L);
 int lpass_new(lua_State *L);
 int lpass_begin(lua_State *L);
 int lpass_end(lua_State *L);
-int lsprite_newbatch(lua_State *L);
+int lrender_batch(lua_State *L);
 
 int
 luaopen_render(lua_State *L) {
@@ -666,13 +662,12 @@ luaopen_render(lua_State *L) {
 		{ "buffer_size", lbuffer_size },
 		{ "bindings", lbindings_new },
 		{ "view", lview_new },
-		{ "uniform", luniform_new },
 		{ "transient_buffer", ltransient_buffer },
 		{ "transient_index_buffer", ltransient_index_buffer },
 		{ "texture_view", ltexture_view_new },
 		{ "begin_pass", lpass_begin },
 		{ "end_pass", lpass_end },
-		{ "batch", lsprite_newbatch },
+		{ "batch", lrender_batch },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);

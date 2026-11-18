@@ -5,7 +5,7 @@
 #include "sokol/sokol_glue.h"
 #include "sokol/sokol_app.h"
 
-#include "render_pass.h"
+#include "render_target.h"
 #include <string.h>
 
 static int
@@ -77,7 +77,7 @@ read_attachments(lua_State *L, sg_attachments *attachments) {
 
 int
 lpass_begin(lua_State *L) {
-	struct render_pass * p = (struct render_pass *)lua_touserdata(L, 1);
+	struct render_target * p = (struct render_target *)lua_touserdata(L, 1);
 	if (p->pass.swapchain.invalid) {
 		p->pass.swapchain = sglue_swapchain();
 		sg_begin_pass(&p->pass);
@@ -108,7 +108,7 @@ lpass_end(lua_State *L) {
 
 int
 lpass_new(lua_State *L) {
-	struct render_pass * p = lua_newuserdatauv(L, sizeof(*p), 0);
+	struct render_target * p = lua_newuserdatauv(L, sizeof(*p), 0);
 	memset(p, 0, sizeof(*p));
 	luaL_checktype(L, 1, LUA_TTABLE);
 	if (lua_getfield(L, 1, "swapchain") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {

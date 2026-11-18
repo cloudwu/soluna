@@ -17,7 +17,7 @@
 #include "render_bindings.h"
 #include "tmpbuffer.h"
 #include "transient.h"
-#include "render_pass.h"
+#include "render_target.h"
 
 #define PIXEL_SCALE 256
 
@@ -128,9 +128,9 @@ lmateraial_text_draw_(lua_State *L, int ex) {
 	// tv->inv_width == tv->inv_height
 	vs_params_t uniform;
 	uniform.texsize = tv->inv_width;
-	struct render_pass *pass = (struct render_pass *)lua_touserdata(L, 5);
-	uniform.framesize[0] = 2 * pass->inv_width;
-	uniform.framesize[1] = -2 * pass->inv_height;
+	struct render_target *rt = (struct render_target *)lua_touserdata(L, 5);
+	uniform.framesize[0] = 2 * rt->inv_width;
+	uniform.framesize[1] = -2 * rt->inv_height;
 
 	int i;
 	sg_apply_pipeline(m->pip);

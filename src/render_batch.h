@@ -2,7 +2,6 @@
 #define soluna_sprite_batch_h
 
 #include <lua.h>
-#include "render_pass.h"
 #include "transform.h"
 #include "batch.h"
 

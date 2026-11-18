@@ -281,7 +281,7 @@ lbatch_pass(lua_State *L) {
 }
 
 int
-lsprite_newbatch(lua_State *L) {
+lrender_batch(lua_State *L) {
 	int size = luaL_checkinteger(L, 1);
 	struct render_command_buffer *cb = (struct render_command_buffer *)lua_newuserdatauv(L, sizeof(*cb) + (size-1)*sizeof(cb->command[0]), 1);
 	cb->command_n = 0;

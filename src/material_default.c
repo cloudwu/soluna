@@ -12,7 +12,7 @@
 #include "render_bindings.h"
 #include "tmpbuffer.h"
 #include "transient.h"
-#include "render_pass.h"
+#include "render_target.h"
 
 struct inst_object {
 	float x, y;
@@ -81,9 +81,9 @@ lmaterial_default_draw_(lua_State *L, int ex) {
 	vs_params_t uniform;
 	uniform.texsize[0] = tv->inv_width;
 	uniform.texsize[1] = tv->inv_height;
-	struct render_pass *pass = (struct render_pass *)lua_touserdata(L, 5);
-	uniform.framesize[0] = 2 * pass->inv_width;
-	uniform.framesize[1] = -2 * pass->inv_height;
+	struct render_target *rt = (struct render_target *)lua_touserdata(L, 5);
+	uniform.framesize[0] = 2 * rt->inv_width;
+	uniform.framesize[1] = -2 * rt->inv_height;
 
 	sg_apply_pipeline(m->pip);
 	sg_apply_uniforms(UB_vs_params, &(sg_range){ &uniform, sizeof(vs_params_t) });

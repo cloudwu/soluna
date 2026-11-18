@@ -9,7 +9,7 @@
 #include "sokol/sokol_gfx.h"
 #include "batch.h"
 #include "material_util.h"
-#include "render_pass.h"
+#include "render_target.h"
 
 #define PIXEL_SCALE 256.0f
 #define CLIP_STACK_MAX 64
@@ -49,9 +49,9 @@ struct material_clip {
 static int material_id = 0;
 
 static struct scissor_rect
-full_scissor(struct material_clip *m, struct render_pass *rp) {
-	int w = rp->width;
-	int h = rp->height;
+full_scissor(struct material_clip *m, struct render_target *rt) {
+	int w = rt->width;
+	int h = rt->height;
 	struct scissor_rect r = { 0, 0, w, h };
 	return r;
 }
@@ -165,7 +165,7 @@ lmaterial_clip_draw(lua_State *L) {
 	struct material_clip *m = (struct material_clip *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_CLIP");
 	struct draw_primitive *prim = lua_touserdata(L, 2);
 	int prim_n = luaL_checkinteger(L, 3);
-	struct render_pass *pass = (struct render_pass *)lua_touserdata(L, 5);
+	struct render_target *rt = (struct render_target *)lua_touserdata(L, 5);
 	int i;
 	for (i=0;i<prim_n;i++) {
 		struct draw_primitive *pos = &prim[i*2];
@@ -175,7 +175,7 @@ lmaterial_clip_draw(lua_State *L) {
 		case SCISSOR_PUSH: {
 			if (m->stack_n >= CLIP_STACK_MAX)
 				return luaL_error(L, "Too many nested clip commands");
-			struct scissor_rect current = m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m, pass);
+			struct scissor_rect current = m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m, rt);
 			struct scissor_rect next = intersect_scissor(current, primitive_scissor(pos, payload));
 			m->stack[m->stack_n++] = next;
 			apply_scissor(next);
@@ -185,7 +185,7 @@ lmaterial_clip_draw(lua_State *L) {
 			if (m->stack_n <= 0)
 				return luaL_error(L, "Clip close without open");
 			--m->stack_n;
-			apply_scissor(m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m, pass));
+			apply_scissor(m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m, rt));
 			break;
 		default:
 			return luaL_error(L, "Invalid clip command %d", payload->command);
