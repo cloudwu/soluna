@@ -157,6 +157,7 @@ init_pipeline(struct material_mask *p) {
 static int
 lmaterial_mask_reset(lua_State *L) {
 	struct material_mask *m = (struct material_mask *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_MASK");
+	m->bind->base = 0;
 	m->submit_n = 0;
 	return 0;
 }

@@ -36,8 +36,4 @@ function material.set_texture_view(v)
 	material.texture_view = v
 end
 
-function material.reset()
-	text_bindings:base(0)
-end
-
 return material

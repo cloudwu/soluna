@@ -24,8 +24,4 @@ local material = {
 	}
 }
 
-function material.reset()
-	quad_bindings:base(0)
-end
-
 return material

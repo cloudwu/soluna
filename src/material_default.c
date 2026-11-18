@@ -129,6 +129,7 @@ init_pipeline(struct material_default *p) {
 static int
 lmaterial_default_reset(lua_State *L) {
 	struct material_default *m = (struct material_default *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_DEFAULT");
+	m->bind->base = 0;
 	m->submit_n = 0;
 	return 0;
 }

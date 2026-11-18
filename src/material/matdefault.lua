@@ -22,8 +22,4 @@ local material = {
 	}
 }
 
-function material.reset()
-	bindings:base(0)
-end
-
 return material

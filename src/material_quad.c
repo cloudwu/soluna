@@ -147,6 +147,7 @@ init_pipeline(struct material_quad *p) {
 static int
 lmateraial_quad_reset(lua_State *L) {
 	struct material_quad *m = (struct material_quad *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_QUAD");
+	m->bind->base = 0;
 	m->submit_n = 0;
 	return 0;
 }

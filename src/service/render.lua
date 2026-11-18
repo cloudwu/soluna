@@ -193,7 +193,6 @@ local function frame(count)
 	if update_image then update_image() end
 	STATE.drawmgr:reset()
 	for _, obj in pairs(STATE.materials) do
-		obj.reset()
 		obj.cobj:reset()
 	end
 

@@ -183,6 +183,7 @@ init_pipeline(struct material_text *p) {
 static int
 lmateraial_text_reset(lua_State *L) {
 	struct material_text *m = (struct material_text *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_TEXT");
+	m->bind->base = 0;
 	m->submit_n = 0;
 	return 0;
 }

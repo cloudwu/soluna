@@ -27,8 +27,4 @@ local material = {
 	}
 }
 
-function material.reset()
-	mask_bindings:base(0)
-end
-
 return material
