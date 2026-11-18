@@ -1,0 +1,5 @@
+entry : target.lua
+sprite_sampler :
+	max_anisotropy : 0
+	min_filter : nearest
+	mag_filter : nearest
