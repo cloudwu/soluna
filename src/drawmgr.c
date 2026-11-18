@@ -3,12 +3,11 @@
 #include <stdint.h>
 
 #include "sokol/sokol_gfx.h"
-#include "sokol/sokol_glue.h"
-#include "sokol/sokol_app.h"
 
 #include "batch.h"
 #include "spritemgr.h"
 #include "render_pass.h"
+#include "sprite_batch.h"
 
 #define PASS_TAG (-1)
 
@@ -112,27 +111,21 @@ append_default_material(struct drawmgr * d, struct draw_primitive *base, int n, 
 	return i;
 }
 
-static int
-ldrawmgr_append(lua_State *L) {
-	struct drawmgr * d = (struct drawmgr *)luaL_checkudata(L, 1, "SOLUNA_DRAWMGR");
-	
-	struct draw_primitive *prim = (struct draw_primitive *)lua_touserdata(L, 2);
-	int prim_n = luaL_checkinteger(L, 3);
-	
-	struct sprite_rect * rect = d->bank->rect;
-	int rect_n = d->bank_n;
-
+static void
+append_draw(lua_State *L, struct drawmgr * d, struct draw_primitive *prim, int prim_n) {
 	int i;
+	struct sprite_rect *rect = d->bank->rect;
+	int rect_n = d->bank_n;
 	struct draw_primitive *end_ptr = &prim[prim_n];
 	for (i=0;i<prim_n;) {
 		struct draw_primitive *p = &prim[i];
 		int index = p->sprite;
 		if (d->n >= d->cap) {
-			return luaL_error(L, "Too many draw");
+			luaL_error(L, "Too many draw");
 		}
 		if (index <= 0) {
 			if (i == prim_n || index == 0) {
-				return luaL_error(L, "Invalid batch stream");
+				luaL_error(L, "Invalid batch stream");
 			}
 			struct draw_primitive_external * ext = (struct draw_primitive_external *)&prim[i+1];
 			int sprite = ext->sprite;
@@ -144,65 +137,54 @@ ldrawmgr_append(lua_State *L) {
 		} else {
 			--index;
 			if (index >= rect_n)
-				return luaL_error(L, "Invalid sprite id %d", index);
+				luaL_error(L, "Invalid sprite id %d", index);
 			int texid = rect[index].texid;
 			i += append_default_material(d, p, end_ptr - p, texid);
 		}
 	}
-
-	return 0;
 }
 
 static int
-ldrawmgr_newpass(lua_State *L) {
+ldrawmgr_append(lua_State *L) {
 	struct drawmgr * d = (struct drawmgr *)luaL_checkudata(L, 1, "SOLUNA_DRAWMGR");
-	if (d->n >= d->cap) {
-		return luaL_error(L, "Too many draw");
+	struct render_command_buffer *cb = (struct render_command_buffer *)lua_touserdata(L, 2);
+	luaL_checktype(L, 3, LUA_TTABLE);	// pass table
+	struct batch *b = &cb->b;
+	struct draw_primitive * prim = batch_reserve(b->b, 0);
+	int i;
+	int n = cb->command_n;
+	for (i=0;i<n;i++) {
+		if (d->n >= d->cap) {
+			return luaL_error(L, "Too many draw");
+		}
+		struct draw_pass *p = &d->data[d->n].pass;
+		int pass_id = cb->command[i].pass_id;
+		if (lua_geti(L, 3, pass_id) != LUA_TUSERDATA) {
+			return luaL_error(L, "pass %d is missing", pass_id);
+		}
+		p->pass = lua_touserdata(L, -1);
+		lua_pop(L, 1);
+		p->pass_tag = PASS_TAG;
+		p->pass_n = -1;
+		++d->n;
+		if (d->n > 1) {
+			if (d->last_pass >= d->n)
+				return luaL_error(L, "Invalid last pass index %d", d->last_pass);
+			struct draw_pass *last_p = &d->data[d->last_pass].pass;
+			if (last_p->pass_tag != PASS_TAG)
+				return luaL_error(L, "Invalid last pass");
+			last_p->pass_n = d->n - d->last_pass - 2;
+			d->last_pass = d->n - 1;
+		}
+		int start = cb->command[i].batch_start;
+		int endindex = (i+1 >= n) ? b->n : cb->command[i+1].batch_start;
+		append_draw(L, d, prim + start, endindex - start);
 	}
-	struct draw_pass *p = &d->data[d->n].pass;
-	p->pass = lua_touserdata(L, 2);
-	p->pass_tag = PASS_TAG;
-	p->pass_n = -1;
-	++d->n;
-	if (d->last_pass == 0 && d->n == 1) {
-		// the first pass
-		return 0;
-	}
-	if (d->last_pass >= d->n)
-		return luaL_error(L, "Invalid last pass index %d", d->last_pass);
-	struct draw_pass *last_p = &d->data[d->last_pass].pass;
-	if (last_p->pass_tag != PASS_TAG)
-		return luaL_error(L, "Invalid last pass");
-	last_p->pass_n = d->n - d->last_pass - 2;
-	d->last_pass = d->n - 1;
 	return 0;
 }
 
-static void
-begin_pass(struct render_pass *p) {
-	if (p->pass.swapchain.invalid) {
-		p->pass.swapchain = sglue_swapchain();
-		sg_begin_pass(&p->pass);
-		p->pass.swapchain.invalid = true;
-		p->width = p->pass.swapchain.width;
-		p->height = p->pass.swapchain.height;
-		if (p->width) {
-			p->inv_width = 1.0f / p->width;
-		} else {
-			p->inv_width = 0;
-		}
-		if (p->height) {
-			p->inv_height = 1.0f / p->height;
-		} else {
-			p->inv_height = 0;
-		}
-	} else {
-		sg_begin_pass(&p->pass);
-	}
-}
-
 static int
-ldrawmgr_beginpass(lua_State *L) {
+ldrawmgr_nextpass(lua_State *L) {
 	struct drawmgr * d = (struct drawmgr *)luaL_checkudata(L, 1, "SOLUNA_DRAWMGR");
 	int offset = luaL_optinteger(L, 2, 0);
 	if (offset >= d->n) {
@@ -212,7 +194,6 @@ ldrawmgr_beginpass(lua_State *L) {
 	if (p->pass_tag != PASS_TAG) {
 		return luaL_error(L, "[%d] is not a draw_pass", offset);
 	}
-	begin_pass(p->pass);
 	lua_pushlightuserdata(L, p->pass);
 	lua_pushinteger(L, offset + 1);
 	int to;
@@ -223,12 +204,6 @@ ldrawmgr_beginpass(lua_State *L) {
 	}
 	lua_pushinteger(L, to);
 	return 3;
-}
-
-static int
-ldrawmgr_endpass(lua_State *L) {
-	sg_end_pass();
-	return 0;
 }
 
 static int
@@ -247,9 +222,7 @@ ldrawmgr_new(lua_State *L) {
 			{ "__call", ldrawmgr_index },
 			{ "reset", ldrawmgr_reset },
 			{ "append", ldrawmgr_append },
-			{ "newpass", ldrawmgr_newpass },
-			{ "beginpass", ldrawmgr_beginpass },
-			{ "endpass", ldrawmgr_endpass },
+			{ "nextpass", ldrawmgr_nextpass },
 			{ NULL, NULL },
 		};
 		luaL_setfuncs(L, l, 0);

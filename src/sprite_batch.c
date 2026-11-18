@@ -7,7 +7,9 @@
 
 static int
 lbatch_reset(lua_State *L) {
-	struct batch *b = (struct batch *)luaL_checkudata(L, 1, "SOLUNA_BATCH");
+	struct render_command_buffer *cb = luaL_checkudata(L, 1,  "SOLUNA_BATCH");
+	cb->command_n = 0;
+	struct batch *b = &cb->b;
 	b->n = 0;
 	b->layer = 0;
 	sprite_transform_identity(&b->trans);
@@ -16,7 +18,9 @@ lbatch_reset(lua_State *L) {
 
 static int
 lbatch_release(lua_State *L) {
-	struct batch *b = (struct batch *)luaL_checkudata(L, 1, "SOLUNA_BATCH");
+	struct render_command_buffer *cb = luaL_checkudata(L, 1,  "SOLUNA_BATCH");
+	cb->command_n = 0;
+	struct batch *b = &cb->b;
 	b->n = 0;
 	b->n = 0;
 	batch_delete(b->b);
@@ -100,7 +104,8 @@ batch_add_stream(lua_State *L, struct batch *b, int *count) {
 
 static int
 lbatch_add(lua_State *L) {
-	struct batch *b = (struct batch *)luaL_checkudata(L, 1, "SOLUNA_BATCH");
+	struct render_command_buffer *cb = luaL_checkudata(L, 1,  "SOLUNA_BATCH");
+	struct batch *b = &cb->b;
 	struct draw_primitive *p;
 	int n = 1;
 	switch (lua_type(L, 2)) {
@@ -133,16 +138,9 @@ lbatch_add(lua_State *L) {
 
 static int
 lbatch_ptr(lua_State *L) {
-	struct batch *b = (struct batch *)luaL_checkudata(L, 1, "SOLUNA_BATCH");
-	int offset = luaL_optinteger(L, 2, 0);
-	struct draw_primitive * p = batch_reserve(b->b, 0);
-	if (offset >= b->n)
-		return 0;
-	p += offset;
-	int n = b->n - offset;
-	lua_pushlightuserdata(L, p);
-	lua_pushinteger(L, n);
-	return 2;
+	struct render_command_buffer *cb = luaL_checkudata(L, 1,  "SOLUNA_BATCH");
+	lua_pushlightuserdata(L, cb);
+	return 1;
 }
 
 static void
@@ -198,7 +196,8 @@ layer_merge(struct layer *current, struct layer *last) {
 
 static int
 lbatch_layer(lua_State *L) {
-	struct batch *b = (struct batch *)luaL_checkudata(L, 1, "SOLUNA_BATCH");
+	struct render_command_buffer *cb = luaL_checkudata(L, 1,  "SOLUNA_BATCH");
+	struct batch *b = &cb->b;
 	struct layer *new_layer = layer_new(L, b);
 	switch (lua_gettop(L)) {
 	case 1:
@@ -248,7 +247,8 @@ lbatch_layer(lua_State *L) {
 
 static int
 lbatch_point(lua_State *L) {
-	struct batch *b = (struct batch *)luaL_checkudata(L, 1, "SOLUNA_BATCH");
+	struct render_command_buffer *cb = luaL_checkudata(L, 1,  "SOLUNA_BATCH");
+	struct batch *b = &cb->b;
 	if (b->layer == 0) {
 		lua_settop(L, 3);
 		return 2;
@@ -267,9 +267,26 @@ lbatch_point(lua_State *L) {
 	return 2;
 }
 
+static int
+lbatch_pass(lua_State *L) {
+	struct render_command_buffer *cb = luaL_checkudata(L, 1,  "SOLUNA_BATCH");
+	if (cb->command_n >= cb->command_cap)
+		return luaL_error(L, "Too many command %d/%d", cb->command_n, cb->command_cap);
+	int n = cb->command_n;
+	struct render_command *c = &cb->command[n];
+	c->pass_id = luaL_checkinteger(L, 2);
+	c->batch_start = cb->b.n;
+	++cb->command_n;
+	return 0;
+}
+
 int
 lsprite_newbatch(lua_State *L) {
-	struct batch *b = (struct batch *)lua_newuserdatauv(L, sizeof(*b), 1);
+	int size = luaL_checkinteger(L, 1);
+	struct render_command_buffer *cb = (struct render_command_buffer *)lua_newuserdatauv(L, sizeof(*cb) + (size-1)*sizeof(cb->command[0]), 1);
+	cb->command_n = 0;
+	cb->command_cap = size;
+	struct batch *b = &cb->b;
 	b->n = 0;
 	b->b = batch_new(0);
 	if (b->b == NULL)
@@ -282,6 +299,7 @@ lsprite_newbatch(lua_State *L) {
 	if (luaL_newmetatable(L, "SOLUNA_BATCH")) {
 		luaL_Reg l[] = {
 			{ "__index", NULL },
+			{ "pass", lbatch_pass },
 			{ "reset", lbatch_reset },
 			{ "add", lbatch_add },
 			{ "ptr", lbatch_ptr },

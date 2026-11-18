@@ -3,6 +3,7 @@ texture_size : 2048
 srbuffer_size : 0x10000
 batch_size : 65536
 draw_instance : 65536
+pass_max : 1024
 entry : main.lua
 project : soluna
 service_path : "./?.lua"

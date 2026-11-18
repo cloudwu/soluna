@@ -116,11 +116,11 @@ local batch = {}; do
 		submit_n = 0
 	end
 
-	function batch.submit(id, ptr, size)
+	function batch.submit(id, ptr)
 		local q = batch[id]
 		local token = ltask.current_token()
 		local function func()
-			return ptr, size, token
+			return ptr, token
 		end
 		if q[1] == nil then
 			submit_n = submit_n + 1
@@ -198,10 +198,9 @@ local function frame(count)
 	end
 
 	for i = 1, batch_n do
-		STATE.drawmgr:newpass(STATE.pass)	-- default swapchain pass
-		local ptr, size = batch[i][1]()
+		local ptr = batch[i][1]()
 		if ptr then
-			STATE.drawmgr:append(ptr, size)
+			STATE.drawmgr:append(ptr, STATE.pass)
 		end
 	end
 	local materials = STATE.materials
@@ -209,7 +208,7 @@ local function frame(count)
 	local from
 	while true do
 		local to, pass
-		pass, from, to = STATE.drawmgr:beginpass(from)
+		pass, from, to = STATE.drawmgr:nextpass(from)
 		if pass == nil then
 			break
 		end
@@ -217,7 +216,6 @@ local function frame(count)
 			local mat, ptr, n, tex = STATE.drawmgr(i)
 			materials[mat].cobj:submit(ptr, n)
 		end
-		STATE.drawmgr:endpass()
 		from = to + 1
 	end
 
@@ -228,15 +226,16 @@ local function frame(count)
 	local from
 	while true do
 		local to, pass
-		pass, from, to = STATE.drawmgr:beginpass(from)
+		pass, from, to = STATE.drawmgr:nextpass(from)
 		if pass == nil then
 			break
 		end
+		render.begin_pass(pass)
 		for i = from , to do
 			local mat, ptr, n, tex = STATE.drawmgr(i)
 			materials[mat].cobj:draw(ptr, n, tex and views[tex+1] or materials[mat].texture_view, pass)
 		end
-		STATE.drawmgr:endpass()
+		render.end_pass(pass)
 		from = to + 1
 	end
 	render.submit()
@@ -249,7 +248,7 @@ function S.frame(count)
 		print("RENDER ERR", err)
 	end
 	for i = 1, #batch do
-		local ptr, size, token = batch.consume(i)
+		local ptr, token = batch.consume(i)
 		ltask.wakeup(token)
 	end
 	assert(ok, err)
@@ -268,7 +267,7 @@ function S.quit()
 
 	for _, v in ipairs(batch) do
 		for _, resp in ipairs(v) do
-			local _, _, token = resp()
+			local _, token = resp()
 			ltask.wakeup(token)
 		end
 	end
@@ -319,9 +318,9 @@ local function render_init(arg)
 	}
 
 	STATE = {
-		pass = render.pass {
-			color0 = setting.background,
-			swapchain = true,
+		pass = {
+			-- 1. default pass
+			render.pass { color0 = setting.background, swapchain = true },
 		},
 		default_sampler = render.sampler { label = "texquad-sampler", max_anisotropy = 16 },
 		textures = {},

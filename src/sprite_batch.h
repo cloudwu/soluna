@@ -2,6 +2,7 @@
 #define soluna_sprite_batch_h
 
 #include <lua.h>
+#include "render_pass.h"
 #include "transform.h"
 #include "batch.h"
 
@@ -21,6 +22,16 @@ struct batch {
 	struct layer *stack;
 };
 
-int lsprite_newbatch(lua_State *L);
+struct render_command {
+	int pass_id;
+	int batch_start;
+};
+
+struct render_command_buffer {
+	struct batch b;
+	int command_n;
+	int command_cap;
+	struct render_command command[1];
+};
 
 #endif

@@ -9,6 +9,7 @@
 #include "sokol/sokol_gfx.h"
 #include "batch.h"
 #include "material_util.h"
+#include "render_pass.h"
 
 #define PIXEL_SCALE 256.0f
 #define CLIP_STACK_MAX 64
@@ -41,7 +42,6 @@ struct scissor_primitive {
 };
 
 struct material_clip {
-	float *uniform;
 	int stack_n;
 	struct scissor_rect stack[CLIP_STACK_MAX];
 };
@@ -49,11 +49,9 @@ struct material_clip {
 static int material_id = 0;
 
 static struct scissor_rect
-full_scissor(struct material_clip *m) {
-	float sx = m->uniform[0];
-	float sy = m->uniform[1];
-	int w = sx == 0.0f ? 0 : (int)floorf(2.0f / sx + 0.5f);
-	int h = sy == 0.0f ? 0 : (int)floorf(-2.0f / sy + 0.5f);
+full_scissor(struct material_clip *m, struct render_pass *rp) {
+	int w = rp->width;
+	int h = rp->height;
 	struct scissor_rect r = { 0, 0, w, h };
 	return r;
 }
@@ -167,6 +165,7 @@ lmaterial_clip_draw(lua_State *L) {
 	struct material_clip *m = (struct material_clip *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_CLIP");
 	struct draw_primitive *prim = lua_touserdata(L, 2);
 	int prim_n = luaL_checkinteger(L, 3);
+	struct render_pass *pass = (struct render_pass *)lua_touserdata(L, 5);
 	int i;
 	for (i=0;i<prim_n;i++) {
 		struct draw_primitive *pos = &prim[i*2];
@@ -176,7 +175,7 @@ lmaterial_clip_draw(lua_State *L) {
 		case SCISSOR_PUSH: {
 			if (m->stack_n >= CLIP_STACK_MAX)
 				return luaL_error(L, "Too many nested clip commands");
-			struct scissor_rect current = m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m);
+			struct scissor_rect current = m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m, pass);
 			struct scissor_rect next = intersect_scissor(current, primitive_scissor(pos, payload));
 			m->stack[m->stack_n++] = next;
 			apply_scissor(next);
@@ -186,7 +185,7 @@ lmaterial_clip_draw(lua_State *L) {
 			if (m->stack_n <= 0)
 				return luaL_error(L, "Clip close without open");
 			--m->stack_n;
-			apply_scissor(m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m));
+			apply_scissor(m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m, pass));
 			break;
 		default:
 			return luaL_error(L, "Invalid clip command %d", payload->command);
@@ -200,7 +199,6 @@ lnew_material_clip(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
 	struct material_clip *m = (struct material_clip *)lua_newuserdatauv(L, sizeof(*m), 1);
 	memset(m, 0, sizeof(*m));
-	util_ref_object(L, &m->uniform, 1, "uniform", "SOKOL_UNIFORM", 1);
 
 	if (luaL_newmetatable(L, "SOLUNA_MATERIAL_CLIP")) {
 		luaL_Reg l[] = {

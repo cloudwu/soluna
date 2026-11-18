@@ -2,6 +2,9 @@
 #include <lauxlib.h>
 
 #include "sokol/sokol_gfx.h"
+#include "sokol/sokol_glue.h"
+#include "sokol/sokol_app.h"
+
 #include "render_pass.h"
 #include <string.h>
 
@@ -70,6 +73,37 @@ read_attachments(lua_State *L, sg_attachments *attachments) {
 		attachments->depth_stencil = *ds_v;
 	}
 	lua_pop(L, 1);
+}
+
+int
+lpass_begin(lua_State *L) {
+	struct render_pass * p = (struct render_pass *)lua_touserdata(L, 1);
+	if (p->pass.swapchain.invalid) {
+		p->pass.swapchain = sglue_swapchain();
+		sg_begin_pass(&p->pass);
+		p->pass.swapchain.invalid = true;
+		p->width = p->pass.swapchain.width;
+		p->height = p->pass.swapchain.height;
+		if (p->width) {
+			p->inv_width = 1.0f / p->width;
+		} else {
+			p->inv_width = 0;
+		}
+		if (p->height) {
+			p->inv_height = 1.0f / p->height;
+		} else {
+			p->inv_height = 0;
+		}
+	} else {
+		sg_begin_pass(&p->pass);
+	}
+	return 0;
+}
+
+int
+lpass_end(lua_State *L) {
+	sg_end_pass();
+	return 0;
 }
 
 int

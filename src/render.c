@@ -648,6 +648,8 @@ int lview_new(lua_State *L);
 int luniform_new(lua_State *L);
 int ltexture_view_new(lua_State *L);
 int lpass_new(lua_State *L);
+int lpass_begin(lua_State *L);
+int lpass_end(lua_State *L);
 
 int
 luaopen_render(lua_State *L) {
@@ -667,6 +669,8 @@ luaopen_render(lua_State *L) {
 		{ "transient_buffer", ltransient_buffer },
 		{ "transient_index_buffer", ltransient_index_buffer },
 		{ "texture_view", ltexture_view_new },
+		{ "begin_pass", lpass_begin },
+		{ "end_pass", lpass_end },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);
