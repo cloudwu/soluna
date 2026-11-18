@@ -2,8 +2,7 @@
 #include <lauxlib.h>
 
 #include "sokol/sokol_gfx.h"
-#include "sokol/sokol_glue.h"
-#include "sokol/sokol_app.h"
+#include "render_pass.h"
 #include <string.h>
 
 static int
@@ -41,25 +40,6 @@ read_color_action(lua_State *L, int index, sg_pass_action *action, int idx) {
 	return 1;
 }
 
-static int
-lpass_begin(lua_State *L) {
-	struct sg_pass * p = (struct sg_pass *)luaL_checkudata(L, 1, "SOKOL_PASS");
-	if (p->swapchain.invalid) {
-		p->swapchain = sglue_swapchain();
-		sg_begin_pass(p);
-		p->swapchain.invalid = true;
-	} else {
-		sg_begin_pass(p);
-	}
-	return 0;
-}
-
-static int
-lpass_end(lua_State *L) {
-	sg_end_pass();
-	return 0;
-}
-
 static void
 read_attachments(lua_State *L, sg_attachments *attachments) {
 	luaL_checktype(L, -1, LUA_TTABLE);
@@ -94,15 +74,15 @@ read_attachments(lua_State *L, sg_attachments *attachments) {
 
 int
 lpass_new(lua_State *L) {
-	struct sg_pass * p = lua_newuserdatauv(L, sizeof(*p), 0);
+	struct render_pass * p = lua_newuserdatauv(L, sizeof(*p), 0);
 	memset(p, 0, sizeof(*p));
 	luaL_checktype(L, 1, LUA_TTABLE);
 	if (lua_getfield(L, 1, "swapchain") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
-		p->swapchain.invalid = true;
+		p->pass.swapchain.invalid = true;
 	}
 	lua_pop(L, 1);
 
-	sg_pass_action *action = &p->action;
+	sg_pass_action *action = &p->pass.action;
 	
 	int i = 0;
 	while (read_color_action(L, 1, action, i)) {
@@ -127,26 +107,13 @@ lpass_new(lua_State *L) {
 	}
 	lua_pop(L, 1);
 	if (lua_getfield(L, 1, "attachment") != LUA_TNIL) {
-		if (p->swapchain.invalid) {
+		if (p->pass.swapchain.invalid) {
 			return luaL_error(L, "swapchain not allows with attachment");
 		}
-		read_attachments(L, &p->attachments);
-	} else if (!p->swapchain.invalid) {
+		read_attachments(L, &p->pass.attachments);
+	} else if (!p->pass.swapchain.invalid) {
 		return luaL_error(L, "missing swapchain");
 	}
 	lua_pop(L, 1);
-	if (luaL_newmetatable(L, "SOKOL_PASS")) {
-		luaL_Reg l[] = {
-			{ "__index", NULL },
-			{ "begin", lpass_begin },
-			{ "finish", lpass_end },	// end is a reserved keyword in lua, use finish instead
-			{ NULL, NULL },
-		};
-		luaL_setfuncs(L, l, 0);
-		
-		lua_pushvalue(L, -1);
-		lua_setfield(L, -2, "__index");
-	}
-	lua_setmetatable(L, -2);
 	return 1;
 }

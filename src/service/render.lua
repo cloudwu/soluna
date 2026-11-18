@@ -190,27 +190,46 @@ local function frame(count)
 	end
 
 	for i = 1, batch_n do
+		STATE.drawmgr:newpass(STATE.pass)	-- default swapchain pass
 		local ptr, size = batch[i][1]()
 		if ptr then
 			STATE.drawmgr:append(ptr, size)
 		end
 	end
-	local draw_n = #STATE.drawmgr
-	for i = 1, draw_n do
-		local mat, ptr, n, tex = STATE.drawmgr(i)
-		local obj = assert(STATE.materials[mat])
-		obj.submit(ptr, n)
+	local materials = STATE.materials
+	local from
+	while true do
+		local to, pass
+		pass, from, to = STATE.drawmgr:beginpass(from)
+		if pass == nil then
+			break
+		end
+		for i = from , to do
+			local mat, ptr, n, tex = STATE.drawmgr(i)
+			materials[mat].submit(ptr, n)
+		end
+		STATE.drawmgr:endpass()
+		from = to + 1
 	end
+
 	STATE.srbuffer:update(STATE.transient_buffer, STATE.srbuffer_mem:ptr())
 	font.submit(STATE.font_texture)
 	STATE.transient_buffer:copy()
-	STATE.pass:begin()
-	for i = 1, draw_n do
-		local mat, ptr, n, tex = STATE.drawmgr(i)
-		local obj = assert(STATE.materials[mat])
-		obj.draw(ptr, n, tex)
+
+	local from
+	while true do
+		local to, pass
+		pass, from, to = STATE.drawmgr:beginpass(from)
+		if pass == nil then
+			break
+		end
+		for i = from , to do
+			local mat, ptr, n, tex = STATE.drawmgr(i)
+			materials[mat].draw(ptr, n, tex)
+		end
+		STATE.drawmgr:endpass()
+		from = to + 1
 	end
-	STATE.pass:finish()
 	render.submit()
 end
 
