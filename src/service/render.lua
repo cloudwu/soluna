@@ -66,14 +66,6 @@ local function create_materials(ctx)
 	return materials
 end
 
-local function find_material(materials, name)
-	for _, v in pairs(materials) do
-		if v.name == name then
-			return v
-		end
-	end
-end
-
 do
 	local mgr = require "soluna.font.manager"
 	local fontapi = require "soluna.font"
@@ -189,8 +181,8 @@ local function frame(count)
 	local batch_n = #batch
 	if update_image then update_image() end
 	STATE.drawmgr:reset()
-	for _, obj in pairs(STATE.materials) do
-		obj.cobj:reset()
+	for _, mat in pairs(STATE.materials_cobj) do
+		mat:reset()
 	end
 
 	for i = 1, batch_n do
@@ -199,7 +191,7 @@ local function frame(count)
 			STATE.drawmgr:append(ptr, STATE.pass)
 		end
 	end
-	local materials = STATE.materials
+	local materials = STATE.materials_cobj
 	local views = STATE.views
 	local from
 	while true do
@@ -210,7 +202,7 @@ local function frame(count)
 		end
 		for i = from , to do
 			local mat, ptr, n, tex = STATE.drawmgr(i)
-			materials[mat].cobj:submit(ptr, n)
+			materials[mat]:submit(ptr, n)
 		end
 		from = to + 1
 	end
@@ -228,8 +220,9 @@ local function frame(count)
 		end
 		render.begin_pass(pass)
 		for i = from , to do
-			local mat, ptr, n, tex = STATE.drawmgr(i)
-			materials[mat].cobj:draw(ptr, n, tex and views[tex+1] or materials[mat].texture_view, pass)
+			local mat_id, ptr, n, tex = STATE.drawmgr(i)
+			local mat = materials[mat_id]
+			mat:draw(ptr, n, tex and views[tex+1] or views[mat], pass)
 		end
 		render.end_pass(pass)
 		from = to + 1
@@ -341,9 +334,13 @@ local function render_init(arg)
 		sr_buffer = STATE.srbuffer_mem,
 		default_sampler = STATE.default_sampler,
 	}
-	local textmat = find_material(STATE.materials, "text")
-	if textmat then
-		textmat.set_texture_view( create_texture_view (font_texture, font.texture_size, font.texture_size) )
+	local materials_cobj = {}
+	STATE.materials_cobj = materials_cobj
+	for k,v in pairs(STATE.materials) do
+		materials_cobj[k] = v.cobj
+		if v.name == "text" then
+			views[v.cobj] = create_texture_view (font_texture, font.texture_size, font.texture_size)
+		end
 	end
 end
 

@@ -32,8 +32,4 @@ local material = {
 	},
 }
 
-function material.set_texture_view(v)
-	material.texture_view = v
-end
-
 return material
