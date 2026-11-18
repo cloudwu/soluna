@@ -150,6 +150,7 @@ end
 
 -- todo: update mutiple images
 local update_image
+local new_targets = {}
 
 local function delay_update_image(imgmem)
 	function update_image()
@@ -180,6 +181,12 @@ local function frame(count)
 	-- todo: do not wait all batch commits
 	local batch_n = #batch
 	if update_image then update_image() end
+	if new_targets[1] then
+		for _, f in ipairs(new_targets) do
+			f()
+		end
+		new_targets = {}
+	end
 	local mgr = STATE.drawmgr
 	mgr:reset()
 	for _, mat in pairs(STATE.materials_cobj) do
@@ -269,6 +276,34 @@ function S.quit()
 	font.shutdown()
 end
 
+local function new_target(id, texid, w, h, color)
+	local img = render.image { width = w, height = h, color_attachment = true }
+	STATE.textures[texid + 1] = img
+	STATE.views[texid + 1] = render.texture_view {
+		width = w,
+		height = h,
+		view = render.view { texture = img },
+		premultiplied = true,
+	}
+	STATE.pass[id] = STATE.drawmgr:newpass {
+		color0 = color or "clear",
+		attachment = { color0 = render.view { color_attachment = img } },
+		width = w,
+		height = h,
+	}
+end
+
+function S.target(w, h, color)
+	local loader = ltask.uniqueservice "loader"
+	local sprite, texid = ltask.call(loader, "target", w, h)
+	STATE.pass_n = STATE.pass_n + 1
+	local id = STATE.pass_n
+	new_targets[#new_targets + 1] = function()
+		new_target(id, texid, w, h, color)
+	end
+	return id, sprite
+end
+
 function S.load_sprites(name)
 	local loader = ltask.uniqueservice "loader"
 	local spr = ltask.call(loader, "loadbundle", name)
@@ -309,13 +344,16 @@ local function render_init(arg)
 	}
 
 	local mgr = drawmgr.new(arg.bank_ptr, setting.draw_instance)
+	local sprite_sampler = setting.sprite_sampler
+	sprite_sampler.label = sprite_sampler.label or "texquad-sampler"
 
 	STATE = {
 		pass = {
 			-- 1. swapchain pass
 			mgr:newpass { color0 = setting.background, swapchain = true },
 		},
-		default_sampler = render.sampler { label = "texquad-sampler", max_anisotropy = 16 },
+		pass_n = 1,
+		default_sampler = render.sampler(sprite_sampler),
 		textures = {},
 		font_texture = font_texture,
 		views = views,

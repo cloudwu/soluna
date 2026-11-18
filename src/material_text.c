@@ -129,8 +129,7 @@ lmateraial_text_draw_(lua_State *L, int ex) {
 	vs_params_t uniform;
 	uniform.texsize = tv->inv_width;
 	struct render_target *rt = (struct render_target *)lua_touserdata(L, 5);
-	uniform.framesize[0] = 2 * rt->inv_width;
-	uniform.framesize[1] = -2 * rt->inv_height;
+	memcpy(uniform.framesize, rt->framesize, sizeof(uniform.framesize));
 
 	int i;
 	sg_apply_pipeline(m->pip);

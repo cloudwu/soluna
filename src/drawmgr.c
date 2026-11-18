@@ -345,28 +345,18 @@ ldrawmgr_passbegin(lua_State *L) {
 			for (i = 0; i < SG_MAX_COLOR_ATTACHMENTS; i++) {
 				p->pass.action.colors[i].load_action = load_action[i];
 			}
+			if (p->clip_n > 0)
+				render_target_scissor(p);
 		}
 		return 0;
 	}
 	p->frame_count = p->frame->frame_count;
+	p->clip_n = 0;
 	if (p->swapchain) {
 		p->pass.swapchain = sglue_swapchain();
-		p->width = p->pass.swapchain.width;
-		p->height = p->pass.swapchain.height;
-		if (p->width) {
-			p->inv_width = 1.0f / p->width;
-		} else {
-			p->inv_width = 0;
-		}
-		if (p->height) {
-			p->inv_height = 1.0f / p->height;
-		} else {
-			p->inv_height = 0;
-		}
-		sg_begin_pass(&p->pass);
-	} else {
-		sg_begin_pass(&p->pass);
+		render_target_size(p, p->pass.swapchain.width, p->pass.swapchain.height, 0);
 	}
+	sg_begin_pass(&p->pass);
 	return 0;
 }
 

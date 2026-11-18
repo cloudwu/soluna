@@ -5,25 +5,16 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "sokol/sokol_app.h"
 #include "sokol/sokol_gfx.h"
 #include "batch.h"
 #include "material_util.h"
 #include "render_target.h"
 
 #define PIXEL_SCALE 256.0f
-#define CLIP_STACK_MAX 64
 
 enum scissor_command {
 	SCISSOR_PUSH = 1,
 	SCISSOR_POP = 2,
-};
-
-struct scissor_rect {
-	int x;
-	int y;
-	int w;
-	int h;
 };
 
 struct scissor_payload {
@@ -41,46 +32,21 @@ struct scissor_primitive {
 	} u;
 };
 
-struct material_clip {
-	int stack_n;
-	struct scissor_rect stack[CLIP_STACK_MAX];
-};
-
 static int material_id = 0;
 
-static struct scissor_rect
-full_scissor(struct material_clip *m, struct render_target *rt) {
-	int w = rt->width;
-	int h = rt->height;
-	struct scissor_rect r = { 0, 0, w, h };
-	return r;
-}
-
-static struct scissor_rect
-intersect_scissor(struct scissor_rect a, struct scissor_rect b) {
+static struct render_clip
+intersect_scissor(struct render_clip a, struct render_clip b) {
 	int x0 = a.x > b.x ? a.x : b.x;
 	int y0 = a.y > b.y ? a.y : b.y;
 	int x1 = a.x + a.w < b.x + b.w ? a.x + a.w : b.x + b.w;
 	int y1 = a.y + a.h < b.y + b.h ? a.y + a.h : b.y + b.h;
-	struct scissor_rect r = {
+	struct render_clip r = {
 		x0,
 		y0,
 		x1 > x0 ? x1 - x0 : 0,
 		y1 > y0 ? y1 - y0 : 0,
 	};
 	return r;
-}
-
-static void
-apply_scissor(struct scissor_rect r) {
-	float scale = sapp_dpi_scale();
-	if (scale <= 0.0f)
-		scale = 1.0f;
-	int x0 = (int)floorf((float)r.x * scale);
-	int y0 = (int)floorf((float)r.y * scale);
-	int x1 = (int)ceilf((float)(r.x + r.w) * scale);
-	int y1 = (int)ceilf((float)(r.y + r.h) * scale);
-	sg_apply_scissor_rect(x0, y0, x1 > x0 ? x1 - x0 : 0, y1 > y0 ? y1 - y0 : 0, true);
 }
 
 static void
@@ -126,7 +92,7 @@ point_bounds(float base_x, float base_y, const float m[4], float x, float y, flo
 		*max_y = ty;
 }
 
-static struct scissor_rect
+static struct render_clip
 primitive_scissor(struct draw_primitive *pos, struct scissor_payload *payload) {
 	float base_x = (float)pos->x / PIXEL_SCALE;
 	float base_y = (float)pos->y / PIXEL_SCALE;
@@ -139,7 +105,7 @@ primitive_scissor(struct draw_primitive *pos, struct scissor_payload *payload) {
 	point_bounds(base_x, base_y, m, payload->w, 0.0f, &min_x, &min_y, &max_x, &max_y);
 	point_bounds(base_x, base_y, m, 0.0f, payload->h, &min_x, &min_y, &max_x, &max_y);
 	point_bounds(base_x, base_y, m, payload->w, payload->h, &min_x, &min_y, &max_x, &max_y);
-	struct scissor_rect r = {
+	struct render_clip r = {
 		(int)floorf(min_x),
 		(int)floorf(min_y),
 		(int)ceilf(max_x) - (int)floorf(min_x),
@@ -150,8 +116,6 @@ primitive_scissor(struct draw_primitive *pos, struct scissor_payload *payload) {
 
 static int
 lmaterial_clip_reset(lua_State *L) {
-	struct material_clip *m = (struct material_clip *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_CLIP");
-	m->stack_n = 0;
 	return 0;
 }
 
@@ -162,7 +126,6 @@ lmaterial_clip_submit(lua_State *L) {
 
 static int
 lmaterial_clip_draw(lua_State *L) {
-	struct material_clip *m = (struct material_clip *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_CLIP");
 	struct draw_primitive *prim = lua_touserdata(L, 2);
 	int prim_n = luaL_checkinteger(L, 3);
 	struct render_target *rt = (struct render_target *)lua_touserdata(L, 5);
@@ -173,19 +136,20 @@ lmaterial_clip_draw(lua_State *L) {
 		struct scissor_payload *payload = (struct scissor_payload *)&prim[i*2+1];
 		switch (payload->command) {
 		case SCISSOR_PUSH: {
-			if (m->stack_n >= CLIP_STACK_MAX)
+			if (rt->clip_n >= RENDER_CLIP_MAX)
 				return luaL_error(L, "Too many nested clip commands");
-			struct scissor_rect current = m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m, rt);
-			struct scissor_rect next = intersect_scissor(current, primitive_scissor(pos, payload));
-			m->stack[m->stack_n++] = next;
-			apply_scissor(next);
+			struct render_clip current = { 0, 0, rt->width, rt->height };
+			if (rt->clip_n > 0)
+				current = rt->clip[rt->clip_n - 1];
+			rt->clip[rt->clip_n++] = intersect_scissor(current, primitive_scissor(pos, payload));
+			render_target_scissor(rt);
 			break;
 		}
 		case SCISSOR_POP:
-			if (m->stack_n <= 0)
+			if (rt->clip_n <= 0)
 				return luaL_error(L, "Clip close without open");
-			--m->stack_n;
-			apply_scissor(m->stack_n > 0 ? m->stack[m->stack_n - 1] : full_scissor(m, rt));
+			--rt->clip_n;
+			render_target_scissor(rt);
 			break;
 		default:
 			return luaL_error(L, "Invalid clip command %d", payload->command);
@@ -197,8 +161,7 @@ lmaterial_clip_draw(lua_State *L) {
 static int
 lnew_material_clip(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
-	struct material_clip *m = (struct material_clip *)lua_newuserdatauv(L, sizeof(*m), 1);
-	memset(m, 0, sizeof(*m));
+	lua_newuserdatauv(L, 0, 0);
 
 	if (luaL_newmetatable(L, "SOLUNA_MATERIAL_CLIP")) {
 		luaL_Reg l[] = {

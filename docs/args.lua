@@ -39,6 +39,17 @@ end
 function batch:point(x, y)
 end
 
+---将后续绘制命令提交到指定的渲染通道。每帧开始时为屏幕（通道 1）。
+---离屏通道按提交顺序执行，屏幕的所有命令在离屏通道之后合成一个通道绘制；
+---同一帧内再次进入的离屏通道保留已有内容。
+---Submits subsequent draw commands to the given render pass. Each frame starts
+---with the screen (pass 1). Offscreen passes execute in submission order; all
+---screen commands are drawn afterwards in a single pass. An offscreen pass
+---entered again in the same frame keeps its contents.
+---@param id integer 通道 id，屏幕为 1，渲染目标的通道由 `soluna.target` 返回 / Pass id: 1 for the screen, render target passes are returned by `soluna.target`
+function batch:pass(id)
+end
+
 ---入口参数表
 ---Entry argument table passed to the game script.
 ---@class Args

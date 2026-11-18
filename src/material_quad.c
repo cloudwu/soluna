@@ -91,8 +91,7 @@ lmateraial_quad_draw_(lua_State *L, int ex) {
 	// ignore texture (4)	
 	vs_params_t uniform;
 	struct render_target *rt = (struct render_target *)lua_touserdata(L, 5);
-	uniform.framesize[0] = 2 * rt->inv_width;
-	uniform.framesize[1] = -2 * rt->inv_height;
+	memcpy(uniform.framesize, rt->framesize, sizeof(uniform.framesize));
 	
 	sg_apply_pipeline(m->pip);
 	sg_apply_uniforms(UB_vs_params, &(sg_range){ &uniform, sizeof(vs_params_t) });

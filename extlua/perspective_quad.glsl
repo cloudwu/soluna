@@ -1,6 +1,6 @@
 @vs vs
 layout(binding=0) uniform vs_params {
-	vec2 framesize;
+	vec4 framesize;
 	vec2 texsize;
 };
 
@@ -36,8 +36,7 @@ void main() {
 	float qx1 = mix(q.z, q.w, corner.x);
 	float qv = max(mix(qx0, qx1, corner.y), 1e-6);
 	uvq = vec3(uv * qv, qv);
-	vec2 clip = pos * framesize;
-	gl_Position = vec4(clip.x - 1.0, clip.y + 1.0, 0.0, 1.0);
+	gl_Position = vec4(pos * framesize.xy + framesize.zw, 0.0, 1.0);
 	frag_color = color;
 	tex_scale = texsize;
 }

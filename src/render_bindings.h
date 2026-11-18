@@ -19,6 +19,7 @@ struct texture_view {
 	int height;
 	float inv_width;
 	float inv_height;
+	int premultiplied;
 };
 
 #define DRAWFUNC(name) (sg_query_features().draw_base_instance ? name##_ex : name)

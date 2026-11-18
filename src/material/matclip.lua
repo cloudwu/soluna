@@ -7,7 +7,4 @@ local material = {
 	cobj = clipmat.new {}
 }
 
-function material.reset()
-end
-
 return material
