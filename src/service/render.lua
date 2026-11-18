@@ -5,7 +5,7 @@ local embedsource = require "soluna.embedsource"
 local drawmgr = require "soluna.drawmgr"
 local file = require "soluna.file"
 
-global require, assert, pairs, pcall, ipairs, print, load, type, tostring, print_r
+global require, assert, pairs, pcall, ipairs, print, load, type, tostring, print_r, table
 
 local setting = require "soluna".settings()
 local STATE
@@ -103,7 +103,8 @@ local batch = {}; do
 	function batch.register(addr)
 		local n = #batch + 1
 		batch[n] = {
-			source = addr
+			source = addr,
+			tokens = {},
 		}
 		return n
 	end
@@ -119,31 +120,27 @@ local batch = {}; do
 	function batch.submit(id, ptr)
 		local q = batch[id]
 		local token = ltask.current_token()
-		local function func()
-			return ptr, token
-		end
 		if q[1] == nil then
 			submit_n = submit_n + 1
 			if thread and submit_n == #batch then
 				ltask.wakeup(thread)
 				thread = nil
 			end
-			q[1] = func
+			q[1] = ptr
+			q.tokens[1] = token
 		else
-			q[#q + 1] = func
+			local n = #q + 1
+			q[n] = ptr
+			q.tokens[n] = token
 		end
 		ltask.wait()
 	end
 
 	function batch.consume(id)
 		local q = batch[id]
-		local r = assert(q[1])
-		local n = #q
-		for i = 1, n - 1 do
-			q[i] = q[i + 1]
-		end
-		q[n] = nil
-		return r()
+		local token = table.remove(q.tokens, 1)
+		table.remove(q, 1)
+		return token
 	end
 end
 
@@ -197,7 +194,7 @@ local function frame(count)
 	end
 
 	for i = 1, batch_n do
-		local ptr = batch[i][1]()
+		local ptr = batch[i][1]
 		if ptr then
 			STATE.drawmgr:append(ptr, STATE.pass)
 		end
@@ -247,8 +244,10 @@ function S.frame(count)
 		print("RENDER ERR", err)
 	end
 	for i = 1, #batch do
-		local ptr, token = batch.consume(i)
-		ltask.wakeup(token)
+		local token = batch.consume(i)
+		if token then
+			ltask.wakeup(token)
+		end
 	end
 	assert(ok, err)
 end
@@ -265,8 +264,7 @@ function S.quit()
 	S.submit_batch = function() end -- prevent submit
 
 	for _, v in ipairs(batch) do
-		for _, resp in ipairs(v) do
-			local _, token = resp()
+		for _, token in ipairs(v.tokens) do
 			ltask.wakeup(token)
 		end
 	end
