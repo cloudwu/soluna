@@ -12,6 +12,7 @@
 #include "material_util.h"
 #include "extlua/materialapi.h"
 #include "transient.h"
+#include "render_target.h"
 
 #define STREAM_FIX_INV_SCALE (1.0f / 256.0f)
 
@@ -31,14 +32,11 @@ struct material_external {
 	int uniform_slot;
 	int item_uniform_slot;
 	int texture_view_slot;
-	int has_texture_views;
 	int submit_n;
 	sg_pipeline pip;
 	sg_buffer inst;
 	struct transient_buffer *tb;
 	struct render_bindings *bind;
-	void *uniform;
-	size_t uniform_size;
 	void *item_uniform;
 	size_t item_uniform_size;
 	struct sr_buffer *srbuffer;
@@ -86,20 +84,6 @@ decode_item(lua_State *L, struct material_external *m, struct draw_primitive *pr
 		read_sprite_rect(&m->bank->rect[item->sprite], &item->rect);
 		item->texture = item->rect.texture;
 	}
-}
-
-static void
-set_texture_view(lua_State *L, struct material_external *m, int tex) {
-	if (!m->has_texture_views || m->texture_view_slot < 0 || tex < 0) {
-		return;
-	}
-	if (lua_getiuservalue(L, 1, 7) != LUA_TTABLE) {
-		luaL_error(L, "Missing material texture views");
-	}
-	lua_geti(L, -1, tex + 1);
-	struct view *v = (struct view *)luaL_checkudata(L, -1, "SOKOL_VIEW");
-	m->bind->bindings.views[m->texture_view_slot] = v->view;
-	lua_pop(L, 2);
 }
 
 static int
@@ -160,14 +144,23 @@ lmaterial_external_draw_(lua_State *L, int ex) {
 	struct material_external *m = (struct material_external *)luaL_checkudata(L, 1, "SOLUNA_MATERIAL_EXTERNAL");
 	struct draw_primitive *prim = (struct draw_primitive *)lua_touserdata(L, 2);
 	int prim_n = luaL_checkinteger(L, 3);
-	int tex = luaL_optinteger(L, 4, -1);
+	struct texture_view *tv = (struct texture_view *)lua_touserdata(L, 4);
+	struct render_target *rt = (struct render_target *)lua_touserdata(L, 5);
 	if (prim == NULL || prim_n <= 0) {
 		return 0;
 	}
-	set_texture_view(L, m, tex);
+	if (tv && m->texture_view_slot >= 0) {
+		m->bind->bindings.views[m->texture_view_slot] = tv->view;
+	}
 	sg_apply_pipeline(m->pip);
-	if (m->uniform != NULL) {
-		sg_apply_uniforms(m->uniform_slot, &(sg_range){ m->uniform, m->uniform_size });
+	if (m->uniform_slot >= 0) {
+		float uniform[4] = {
+			2 * rt->inv_width,
+			-2 * rt->inv_height,
+			tv ? tv->inv_width : 0,
+			tv ? tv->inv_height : 0,
+		};
+		sg_apply_uniforms(m->uniform_slot, &SG_RANGE(uniform));
 	}
 	int i;
 	for (i = 0; i < prim_n; i++) {
@@ -194,34 +187,6 @@ lmaterial_external_draw(lua_State *L) {
 static int
 lmaterial_external_draw_ex(lua_State *L) {
 	return lmaterial_external_draw_(L, 1);
-}
-
-static int
-lmaterial_external_reset_closure(lua_State *L) {
-	lua_pushvalue(L, lua_upvalueindex(1));
-	lua_insert(L, 1);
-	return lmaterial_external_reset(L);
-}
-
-static int
-lmaterial_external_submit_closure(lua_State *L) {
-	lua_pushvalue(L, lua_upvalueindex(1));
-	lua_insert(L, 1);
-	return lmaterial_external_submit(L);
-}
-
-static int
-lmaterial_external_draw_closure(lua_State *L) {
-	lua_pushvalue(L, lua_upvalueindex(1));
-	lua_insert(L, 1);
-	return lmaterial_external_draw(L);
-}
-
-static int
-lmaterial_external_draw_closure_ex(lua_State *L) {
-	lua_pushvalue(L, lua_upvalueindex(1));
-	lua_insert(L, 1);
-	return lmaterial_external_draw_ex(L);
 }
 
 static void *
@@ -331,7 +296,7 @@ ref_uniform(lua_State *L, int material_index, int uv_index, const char *key, voi
 static int
 lnew_material_external(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TTABLE);
-	struct material_external *m = (struct material_external *)lua_newuserdatauv(L, sizeof(*m), 7);
+	struct material_external *m = (struct material_external *)lua_newuserdatauv(L, sizeof(*m), 5);
 	memset(m, 0, sizeof(*m));
 	int material_index = lua_gettop(L);
 	m->material_id = checkinteger_field(L, 1, "id");
@@ -344,7 +309,7 @@ lnew_material_external(lua_State *L) {
 	}
 	m->vertex_count = optinteger_field(L, 1, "vertex_count", 4);
 	m->base_element = optinteger_field(L, 1, "base_element", 0);
-	m->uniform_slot = optinteger_field(L, 1, "uniform_slot", 0);
+	m->uniform_slot = optinteger_field(L, 1, "uniform_slot", -1);
 	m->item_uniform_slot = optinteger_field(L, 1, "item_uniform_slot", 1);
 	m->texture_view_slot = optinteger_field(L, 1, "texture_view_slot", -1);
 	int hooks_index = checktable_field(L, 1, "hooks");
@@ -361,9 +326,8 @@ lnew_material_external(lua_State *L) {
 	util_ref_object(L, &m->inst, 1, "inst_buffer", "SOKOL_BUFFER", 0);
 	util_ref_object(L, &m->bind, 2, "bindings", "SOKOL_BINDINGS", 1);
 	util_ref_object(L, &m->srbuffer, 3, "sr_buffer", "SOLUNA_SRBUFFER", 1);
-	ref_uniform(L, material_index, 4, "uniform", &m->uniform, &m->uniform_size);
-	ref_uniform(L, material_index, 5, "item_uniform", &m->item_uniform, &m->item_uniform_size);
-	util_ref_object(L, &m->tb, 6, "transient_buffer", "SOKOL_TRANSIENT", 0);
+	ref_uniform(L, material_index, 4, "item_uniform", &m->item_uniform, &m->item_uniform_size);
+	util_ref_object(L, &m->tb, 5, "transient_buffer", "SOKOL_TRANSIENT", 0);
 	if (m->uniform_one != NULL && m->item_uniform == NULL) {
 		return luaL_error(L, "Missing .item_uniform");
 	}
@@ -371,25 +335,20 @@ lnew_material_external(lua_State *L) {
 		m->bank = (struct sprite_bank *)lua_touserdata(L, -1);
 	}
 	lua_pop(L, 1);
-	if (lua_getfield(L, 1, "texture_views") == LUA_TTABLE) {
-		m->has_texture_views = 1;
-		lua_setiuservalue(L, material_index, 7);
-	} else {
-		lua_pop(L, 1);
+	if (luaL_newmetatable(L, "SOLUNA_MATERIAL_EXTERNAL")) {
+		luaL_Reg l[] = {
+			{ "__index", NULL },
+			{ "reset", lmaterial_external_reset },
+			{ "submit", lmaterial_external_submit },
+			{ "draw", DRAWFUNC(lmaterial_external_draw) },
+			{ NULL, NULL },
+		};
+		luaL_setfuncs(L, l, 0);
+
+		lua_pushvalue(L, -1);
+		lua_setfield(L, -2, "__index");
 	}
-	luaL_newmetatable(L, "SOLUNA_MATERIAL_EXTERNAL");
 	lua_setmetatable(L, -2);
-	lua_newtable(L);
-	int result_index = lua_gettop(L);
-	lua_pushvalue(L, material_index);
-	lua_pushcclosure(L, lmaterial_external_reset_closure, 1);
-	lua_setfield(L, result_index, "reset");
-	lua_pushvalue(L, material_index);
-	lua_pushcclosure(L, lmaterial_external_submit_closure, 1);
-	lua_setfield(L, result_index, "submit");
-	lua_pushvalue(L, material_index);
-	lua_pushcclosure(L, DRAWFUNC(lmaterial_external_draw_closure), 1);
-	lua_setfield(L, result_index, "draw");
 	return 1;
 }
 

@@ -1,7 +1,7 @@
 @vs vs
 layout(binding=0) uniform vs_params {
 	vec2 framesize;
-	float texsize;
+	vec2 texsize;
 };
 
 in vec3 pos_h0;
@@ -15,7 +15,7 @@ in vec4 color;
 
 out vec3 uvq;
 out vec4 frag_color;
-out flat float tex_scale;
+out flat vec2 tex_scale;
 
 struct sr_mat {
 	mat2 m;
@@ -50,7 +50,7 @@ layout(binding=0) uniform sampler smp;
 
 in vec3 uvq;
 in vec4 frag_color;
-in flat float tex_scale;
+in flat vec2 tex_scale;
 out vec4 out_color;
 
 void main() {
