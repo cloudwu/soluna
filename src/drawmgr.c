@@ -1,8 +1,10 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "sokol/sokol_gfx.h"
+#include "sokol/sokol_glue.h"
 
 #include "batch.h"
 #include "spritemgr.h"
@@ -30,6 +32,7 @@ union draw_union {
 };
 
 struct drawmgr {
+	struct render_frame frame;
 	struct sprite_bank *bank;
 	int cap;
 	int n;
@@ -63,6 +66,7 @@ ldrawmgr_reset(lua_State *L) {
 	d->n = 0;
 	d->bank_n = d->bank->n;
 	d->last_pass = 0;
+	d->frame.frame_count++;
 	return 0;
 }
 
@@ -206,12 +210,33 @@ ldrawmgr_nextpass(lua_State *L) {
 	return 3;
 }
 
+int lpass_new(lua_State *L);
+
+static int
+ldrawmgr_newpass(lua_State *L) {
+	struct drawmgr *d = luaL_checkudata(L, 1, "SOLUNA_DRAWMGR");
+	lua_remove(L, 1);
+	lpass_new(L);
+	struct render_target *rt = lua_touserdata(L, -1);
+	rt->frame = &d->frame;
+	rt->frame_count = d->frame.frame_count -1;
+	return 1;
+}
+
+int
+ldrawmgr_acquire_swapchain(lua_State *L) {
+	struct drawmgr *d = luaL_checkudata(L, 1, "SOLUNA_DRAWMGR");
+	d->frame.swapchain = sglue_swapchain();
+	return 0;
+}
+
 static int
 ldrawmgr_new(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TLIGHTUSERDATA);
 	void * bank = lua_touserdata(L, 1);
 	int cap = luaL_checkinteger(L, 2);
 	struct drawmgr * d = (struct drawmgr *)lua_newuserdatauv(L, sizeof(*d) + (cap-1)*sizeof(d->data[0]), 0);
+	memset(&d->frame, 0, sizeof(d->frame));
 	d->bank = (struct sprite_bank *)bank;
 	d->cap = cap;
 	d->n = 0;
@@ -223,6 +248,8 @@ ldrawmgr_new(lua_State *L) {
 			{ "reset", ldrawmgr_reset },
 			{ "append", ldrawmgr_append },
 			{ "nextpass", ldrawmgr_nextpass },
+			{ "newpass", ldrawmgr_newpass },
+			{ "acquire_swapchain", ldrawmgr_acquire_swapchain },
 			{ NULL, NULL },
 		};
 		luaL_setfuncs(L, l, 0);

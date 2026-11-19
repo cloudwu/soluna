@@ -2,7 +2,6 @@
 #include <lauxlib.h>
 
 #include "sokol/sokol_gfx.h"
-#include "sokol/sokol_glue.h"
 #include "sokol/sokol_app.h"
 
 #include "render_target.h"
@@ -78,10 +77,24 @@ read_attachments(lua_State *L, sg_attachments *attachments) {
 int
 lpass_begin(lua_State *L) {
 	struct render_target * p = (struct render_target *)lua_touserdata(L, 1);
-	if (p->pass.swapchain.invalid) {
-		p->pass.swapchain = sglue_swapchain();
+	if (p->frame_count == p->frame->frame_count) {
+		// not the first time in current frame
+		int i;
+		int load_action[SG_MAX_COLOR_ATTACHMENTS];
+		for (i = 0; i < SG_MAX_COLOR_ATTACHMENTS; i++) {
+			load_action[i] = p->pass.action.colors[i].load_action;
+			p->pass.action.colors[i].load_action = SG_LOADACTION_LOAD;
+		}
 		sg_begin_pass(&p->pass);
-		p->pass.swapchain.invalid = true;
+		for (i = 0; i < SG_MAX_COLOR_ATTACHMENTS; i++) {
+			p->pass.action.colors[i].load_action = load_action[i];
+		}
+		return 0;
+	}
+	p->frame_count = p->frame->frame_count;
+	if (p->swapchain) {
+		p->pass.swapchain = p->frame->swapchain;
+		sg_begin_pass(&p->pass);
 		p->width = p->pass.swapchain.width;
 		p->height = p->pass.swapchain.height;
 		if (p->width) {
@@ -112,7 +125,7 @@ lpass_new(lua_State *L) {
 	memset(p, 0, sizeof(*p));
 	luaL_checktype(L, 1, LUA_TTABLE);
 	if (lua_getfield(L, 1, "swapchain") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
-		p->pass.swapchain.invalid = true;
+		p->swapchain = true;
 	}
 	lua_pop(L, 1);
 
@@ -141,11 +154,11 @@ lpass_new(lua_State *L) {
 	}
 	lua_pop(L, 1);
 	if (lua_getfield(L, 1, "attachment") != LUA_TNIL) {
-		if (p->pass.swapchain.invalid) {
+		if (p->swapchain) {
 			return luaL_error(L, "swapchain not allows with attachment");
 		}
 		read_attachments(L, &p->pass.attachments);
-	} else if (!p->pass.swapchain.invalid) {
+	} else if (!p->swapchain) {
 		return luaL_error(L, "missing swapchain");
 	}
 	lua_pop(L, 1);

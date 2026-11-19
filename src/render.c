@@ -643,7 +643,6 @@ ltransient_index_buffer(lua_State *L) {
 int lbindings_new(lua_State *L);
 int lview_new(lua_State *L);
 int ltexture_view_new(lua_State *L);
-int lpass_new(lua_State *L);
 int lpass_begin(lua_State *L);
 int lpass_end(lua_State *L);
 int lrender_batch(lua_State *L);
@@ -652,7 +651,6 @@ int
 luaopen_render(lua_State *L) {
 	luaL_checkversion(L);
 	luaL_Reg l[] = {
-		{ "pass", lpass_new },
 		{ "submit", lsubmit },
 		{ "image", limage },
 		{ "buffer", lbuffer },

@@ -211,6 +211,7 @@ local function frame(count)
 	font.submit(STATE.font_texture)
 	STATE.transient_buffer:copy()
 
+	STATE.drawmgr:acquire_swapchain()
 	local from
 	while true do
 		local to, pass
@@ -307,20 +308,21 @@ local function render_init(arg)
 		storage = render.view { storage = sr_buffer },
 	}
 
+	local mgr = drawmgr.new(arg.bank_ptr, setting.draw_instance)
+
 	STATE = {
 		pass = {
-			-- 1. default pass
-			render.pass { color0 = setting.background, swapchain = true },
+			-- 1. swapchain pass
+			mgr:newpass { color0 = setting.background, swapchain = true },
 		},
 		default_sampler = render.sampler { label = "texquad-sampler", max_anisotropy = 16 },
 		textures = {},
 		font_texture = font_texture,
 		views = views,
+		drawmgr = mgr,
 	}
 	STATE.srbuffer = assert(sr_buffer)
 	STATE.srbuffer_mem = render.srbuffer(setting.srbuffer_size)
-
-	STATE.drawmgr = drawmgr.new(arg.bank_ptr, setting.draw_instance)
 
 	STATE.transient_buffer = render.transient_buffer(setting.transient_buffer, setting.tmpbuffer_size)
 	STATE.materials = create_materials {
