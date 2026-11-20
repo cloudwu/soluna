@@ -163,6 +163,19 @@ end
 function soluna.preload(sprites)
 end
 
+---创建渲染目标，返回它的渲染通道和用于绘制其内容的 sprite。
+---渲染目标在每帧首次进入时清屏，纹理以预乘 alpha 存储颜色。
+---Creates a render target and returns its render pass and a sprite for drawing
+---its contents. The target is cleared the first time it is entered in a frame,
+---and its texture stores colors in premultiplied alpha.
+---@param w integer 宽度 / Width
+---@param h integer 高度 / Height
+---@param color? integer 清屏颜色，默认为透明 / Clear color; defaults to transparent
+---@return integer pass 用于 `batch:pass` / For `batch:pass`
+---@return integer sprite
+function soluna.target(w, h, color)
+end
+
 ---加载音频定义 bundle
 ---Loads an audio definition bundle.
 ---@param filename string `sounds.dl` 文件路径 / `sounds.dl` path

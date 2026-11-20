@@ -34,6 +34,7 @@ struct material_external {
 	int texture_view_slot;
 	int submit_n;
 	sg_pipeline pip;
+	sg_pipeline premultiplied;
 	sg_buffer inst;
 	struct transient_buffer *tb;
 	struct render_bindings *bind;
@@ -152,11 +153,13 @@ lmaterial_external_draw_(lua_State *L, int ex) {
 	if (tv && m->texture_view_slot >= 0) {
 		m->bind->bindings.views[m->texture_view_slot] = tv->view;
 	}
-	sg_apply_pipeline(m->pip);
+	sg_apply_pipeline(tv && tv->premultiplied ? m->premultiplied : m->pip);
 	if (m->uniform_slot >= 0) {
-		float uniform[4] = {
-			2 * rt->inv_width,
-			-2 * rt->inv_height,
+		float uniform[8] = {
+			rt->framesize[0],
+			rt->framesize[1],
+			rt->framesize[2],
+			rt->framesize[3],
 			tv ? tv->inv_width : 0,
 			tv ? tv->inv_height : 0,
 		};
@@ -274,7 +277,13 @@ init_pipeline(lua_State *L, struct material_external *m, int material_index, int
 		label = lua_tostring(L, -1);
 	}
 	lua_pop(L, 1);
-	m->pip = util_make_pipeline(&desc, shader.shader_desc, label != NULL ? label : "external-material-pipeline", optboolean_field(L, material_index, "blend", 1));
+	int blend = optboolean_field(L, material_index, "blend", 1);
+	m->pip = util_make_pipeline(&desc, shader.shader_desc, label != NULL ? label : "external-material-pipeline", blend);
+	m->premultiplied = m->pip;
+	if (blend) {
+		desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_ONE;
+		m->premultiplied = sg_make_pipeline(&desc);
+	}
 }
 
 static void

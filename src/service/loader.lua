@@ -5,6 +5,10 @@ local spritebundle = require "soluna.spritebundle"
 global setmetatable, ipairs, pairs, assert, type
 
 local sprite_bank
+local packed_n = 0
+
+-- texture ids of render targets count down from INVALID_TEXTUREID
+local target_texid = 0xffff
 
 -- todo: make weak table
 local filecache = setmetatable({ __missing = {}} , { __index = spritebundle.loadimage })
@@ -67,7 +71,8 @@ function S.loadbundle(filename)
 end
 
 function S.pack()
-	local texid, n = sprite_bank:pack()
+	local texid, n = sprite_bank:pack(target_texid)
+	packed_n = texid + n
 	-- upload rects into n textures, [texid, texid + n)
 	local results = {}
 	local texid_from = texid
@@ -96,6 +101,13 @@ function S.write(id, filename)
 	local img = image.new(obj.cw, obj.ch)
 	image.blit(img:canvas(), data)
 	img:write(filename)
+end
+
+function S.target(w, h)
+	local texid = target_texid - 1
+	assert(texid >= packed_n, "Too many textures")
+	target_texid = texid
+	return sprite_bank:add(w, h, 0, 0, target_texid), target_texid
 end
 
 function S.preload(filename, content, w, h)

@@ -2,6 +2,7 @@
 #include <lauxlib.h>
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "sokol/sokol_gfx.h"
 #include "maskquad.glsl.h"
@@ -98,8 +99,7 @@ lmaterial_mask_draw_(lua_State *L, int ex) {
 	uniform.texsize[0] = tv->inv_width;
 	uniform.texsize[1] = tv->inv_height;
 	struct render_target *rt = (struct render_target *)lua_touserdata(L, 5);
-	uniform.framesize[0] = 2 * rt->inv_width;
-	uniform.framesize[1] = -2 * rt->inv_height;
+	memcpy(uniform.framesize, rt->framesize, sizeof(uniform.framesize));
 
 	sg_apply_pipeline(m->pip);
 	sg_apply_uniforms(UB_vs_params, &(sg_range){ &uniform, sizeof(vs_params_t) });

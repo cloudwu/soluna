@@ -21,6 +21,8 @@ read_color_action(lua_State *L, int index, sg_pass_action *action, int idx) {
 		const char * key = lua_tostring(L, -1);
 		if (strcmp(key, "load") == 0) {
 			action->colors[idx].load_action = SG_LOADACTION_LOAD;
+		} else if (strcmp(key, "clear") == 0) {
+			action->colors[idx].load_action = SG_LOADACTION_CLEAR;
 		} else if (strcmp(key, "dontcare") == 0 ) {
 			action->colors[idx].load_action = SG_LOADACTION_DONTCARE;
 		} else {
@@ -33,9 +35,10 @@ read_color_action(lua_State *L, int index, sg_pass_action *action, int idx) {
 		} else {
 			action->colors[idx].clear_value.a = ((c & 0xff000000) >> 24) / 255.0f;
 		}
-		action->colors[idx].clear_value.r = ((c & 0xff0000) >> 16) / 255.0f;
-		action->colors[idx].clear_value.g = ((c & 0x00ff00) >> 8) / 255.0f;
-		action->colors[idx].clear_value.b = ((c & 0x0000ff)) / 255.0f;
+		float a = action->colors[idx].clear_value.a;
+		action->colors[idx].clear_value.r = ((c & 0xff0000) >> 16) / 255.0f * a;
+		action->colors[idx].clear_value.g = ((c & 0x00ff00) >> 8) / 255.0f * a;
+		action->colors[idx].clear_value.b = ((c & 0x0000ff)) / 255.0f * a;
 		action->colors[idx].load_action = SG_LOADACTION_CLEAR;
 	}
 	lua_pop(L, 1);
@@ -74,9 +77,29 @@ read_attachments(lua_State *L, sg_attachments *attachments) {
 	lua_pop(L, 1);
 }
 
+void
+render_target_size(struct render_target *p, int width, int height, int flip) {
+	p->width = width;
+	p->height = height;
+	p->inv_width = width ? 1.0f / width : 0;
+	p->inv_height = height ? 1.0f / height : 0;
+	p->framesize[0] = 2 * p->inv_width;
+	p->framesize[1] = flip ? 2 * p->inv_height : -2 * p->inv_height;
+	p->framesize[2] = -1.0f;
+	p->framesize[3] = flip ? -1.0f : 1.0f;
+}
+
+void
+render_target_scissor(struct render_target *rt) {
+	struct render_clip r = { 0, 0, rt->width, rt->height };
+	if (rt->clip_n > 0)
+		r = rt->clip[rt->clip_n - 1];
+	sg_apply_scissor_rect(r.x, r.y, r.w, r.h, rt->framesize[1] < 0);
+}
+
 int
 lpass_new(lua_State *L) {
-	struct render_target * p = lua_newuserdatauv(L, sizeof(*p), 0);
+	struct render_target * p = lua_newuserdatauv(L, sizeof(*p), 1);
 	memset(p, 0, sizeof(*p));
 	luaL_checktype(L, 1, LUA_TTABLE);
 	if (lua_getfield(L, 1, "swapchain") == LUA_TBOOLEAN && lua_toboolean(L, -1)) {
@@ -113,6 +136,13 @@ lpass_new(lua_State *L) {
 			return luaL_error(L, "swapchain not allows with attachment");
 		}
 		read_attachments(L, &p->pass.attachments);
+		lua_setiuservalue(L, 2, 1);
+		lua_getfield(L, 1, "width");
+		int w = luaL_checkinteger(L, -1);
+		lua_pop(L, 1);
+		lua_getfield(L, 1, "height");
+		int h = luaL_checkinteger(L, -1);
+		render_target_size(p, w, h, !sg_query_features().origin_top_left);
 	} else if (!p->swapchain) {
 		return luaL_error(L, "missing swapchain");
 	}

@@ -16,3 +16,5 @@ tmpbuffer_size : 0x20000
 transient_buffer : 0x1000000
 text_sampler :
 	max_anisotropy : 16
+sprite_sampler :
+	max_anisotropy : 16

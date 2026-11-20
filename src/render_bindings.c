@@ -270,5 +270,9 @@ ltexture_view_new(lua_State *L) {
 		return luaL_error(L, ".height should not be 0");
 	tex->inv_height = 1 / h;
 
+	lua_getfield(L, 1, "premultiplied");
+	tex->premultiplied = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
 	return 1;
 }
