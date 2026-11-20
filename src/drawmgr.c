@@ -38,6 +38,7 @@ struct drawmgr {
 	int n;
 	int bank_n;
 	int last_pass;
+	int diff_pass;
 	union draw_union data[1];
 };
 
@@ -66,6 +67,7 @@ ldrawmgr_reset(lua_State *L) {
 	d->n = 0;
 	d->bank_n = d->bank->n;
 	d->last_pass = 0;
+	d->diff_pass = 0;
 	d->frame.frame_count++;
 	return 0;
 }
@@ -168,6 +170,12 @@ ldrawmgr_append(lua_State *L) {
 		}
 		p->rt = lua_touserdata(L, -1);
 		lua_pop(L, 1);
+		if (d->n > 0 && d->diff_pass == 0) {
+		   struct draw_pass *first = &d->data[0].pass;
+		   if (first->rt != p->rt) {
+				d->diff_pass = d->n;
+			}
+		}
 		p->pass_tag = PASS_TAG;
 		p->pass_n = -1;
 		++d->n;
@@ -223,10 +231,159 @@ ldrawmgr_newpass(lua_State *L) {
 	return 1;
 }
 
+static int
+find_swapchain(lua_State *L, struct drawmgr * d) {
+	struct draw_pass *pass = &d->data[0].pass;
+	if (pass->pass_tag != PASS_TAG) {
+		luaL_error(L, "Invalid SOLUNA_DRAWMGR");
+	}
+	if (pass->rt->swapchain) {
+		// swapchain first
+		return 0;
+	} else {
+		// the first pass is not swapchain
+		int i = d->diff_pass;
+		int first_swapchain = -1;
+		while (i < d->n) {
+			struct draw_pass *pass = &d->data[i].pass;
+			if (pass->pass_tag != PASS_TAG) {
+				luaL_error(L, "Invalid SOLUNA_DRAWMGR");
+			}
+			if (pass->rt->swapchain) {
+				if (first_swapchain < 0) {
+					// first swapchain
+					first_swapchain = i;
+				}
+			} else if (first_swapchain >= 0) {
+				// rt ... swapchain ... rt
+				return first_swapchain;
+			}
+			i += pass->pass_n + 1;
+		}
+		// render target only
+	}
+	return -1;
+}
+
+static int
+get_pass_n(struct drawmgr *d, int offset) {
+	struct draw_pass *pass = &d->data[offset].pass;
+	int n = pass->pass_n;
+	if (n < 0) {
+		n = d->n - offset - 1;
+		pass->pass_n = n;
+	}
+	return n + 1;
+}
+
+static int
+ldrawmgr_sortswapchain(lua_State *L) {
+	struct drawmgr * d = (struct drawmgr *)luaL_checkudata(L, 1, "SOLUNA_DRAWMGR");
+	if (d->diff_pass == 0)
+		return 0;
+	int i = find_swapchain(L, d);
+	if (i < 0)
+		return 0;
+	// move swapchains to the end of drawmgr
+	int end = d->n;
+	union draw_union *ptr = d->data+i;
+	while (i < d->n) {
+		struct draw_pass *pass = &d->data[i].pass;
+		int copyn = get_pass_n(d, i);
+		if (pass->rt && pass->rt->swapchain) {
+			if (end + copyn > d->cap)
+				return luaL_error(L, "drawmgr overflow");
+			memcpy(d->data + end, d->data + i, copyn * sizeof(*d->data));
+			end += copyn;
+			i += copyn;
+		} else {
+			memmove(ptr, d->data + i, copyn * sizeof(*d->data));
+			ptr += copyn;
+			i += copyn;
+		}
+	}
+	assert(i == d->n);
+	while (i < end) {
+		int copyn = get_pass_n(d, i);
+		memmove(ptr, d->data + i, copyn * sizeof(*d->data));
+		ptr += copyn;
+		i += copyn;
+	}
+	return 0;
+}
+
+static struct render_target *
+get_rt(lua_State *L, int *last) {
+	struct drawmgr * d = (struct drawmgr *)luaL_checkudata(L, 1, "SOLUNA_DRAWMGR");
+	int pass_index = luaL_checkinteger(L, 2) - 1;
+	struct draw_pass *pass = &d->data[pass_index].pass;
+	if (pass_index >= d->n || pass->pass_tag != PASS_TAG)
+		luaL_error(L, "Invalid pass index %d/%d", pass_index, d->n);
+	if (last) {
+		if (pass->pass_n < 0 || pass_index + pass->pass_n + 1 >= d->n) {
+			*last = 1;
+		} else {
+			*last = 0;
+		}
+	}
+	return pass->rt;
+}
+
 int
-ldrawmgr_acquire_swapchain(lua_State *L) {
-	struct drawmgr *d = luaL_checkudata(L, 1, "SOLUNA_DRAWMGR");
-	d->frame.swapchain = sglue_swapchain();
+ldrawmgr_passbegin(lua_State *L) {
+	struct render_target * p = get_rt(L, NULL);
+	if (p->frame_count == p->frame->frame_count) {
+		// not the first time in current frame
+		if (!p->swapchain) {
+			int i;
+			int load_action[SG_MAX_COLOR_ATTACHMENTS];
+			for (i = 0; i < SG_MAX_COLOR_ATTACHMENTS; i++) {
+				load_action[i] = p->pass.action.colors[i].load_action;
+				p->pass.action.colors[i].load_action = SG_LOADACTION_LOAD;
+			}
+			sg_begin_pass(&p->pass);
+			for (i = 0; i < SG_MAX_COLOR_ATTACHMENTS; i++) {
+				p->pass.action.colors[i].load_action = load_action[i];
+			}
+		}
+		return 0;
+	}
+	p->frame_count = p->frame->frame_count;
+	if (p->swapchain) {
+		p->pass.swapchain = sglue_swapchain();
+		p->width = p->pass.swapchain.width;
+		p->height = p->pass.swapchain.height;
+		if (p->width) {
+			p->inv_width = 1.0f / p->width;
+		} else {
+			p->inv_width = 0;
+		}
+		if (p->height) {
+			p->inv_height = 1.0f / p->height;
+		} else {
+			p->inv_height = 0;
+		}
+		sg_begin_pass(&p->pass);
+	} else {
+		sg_begin_pass(&p->pass);
+	}
+	return 0;
+}
+
+int
+ldrawmgr_passend(lua_State *L) {
+	int last_pass;
+	struct render_target * p = get_rt(L, &last_pass);
+	if (p->swapchain && !last_pass) {
+		return 0;
+	}
+	sg_end_pass();
+	return 0;
+}
+
+static int
+ldrawmgr_submit(lua_State *L) {
+	sg_commit();
 	return 0;
 }
 
@@ -236,10 +393,9 @@ ldrawmgr_new(lua_State *L) {
 	void * bank = lua_touserdata(L, 1);
 	int cap = luaL_checkinteger(L, 2);
 	struct drawmgr * d = (struct drawmgr *)lua_newuserdatauv(L, sizeof(*d) + (cap-1)*sizeof(d->data[0]), 0);
-	memset(&d->frame, 0, sizeof(d->frame));
+	memset(d, 0, sizeof(*d));
 	d->bank = (struct sprite_bank *)bank;
 	d->cap = cap;
-	d->n = 0;
 
 	if (luaL_newmetatable(L, "SOLUNA_DRAWMGR")) {
 		luaL_Reg l[] = {
@@ -249,7 +405,10 @@ ldrawmgr_new(lua_State *L) {
 			{ "append", ldrawmgr_append },
 			{ "nextpass", ldrawmgr_nextpass },
 			{ "newpass", ldrawmgr_newpass },
-			{ "acquire_swapchain", ldrawmgr_acquire_swapchain },
+			{ "beginpass", ldrawmgr_passbegin },
+			{ "endpass", ldrawmgr_passend },
+			{ "sortswapchain", ldrawmgr_sortswapchain },
+			{ "submit", ldrawmgr_submit },
 			{ NULL, NULL },
 		};
 		luaL_setfuncs(L, l, 0);

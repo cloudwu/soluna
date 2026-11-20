@@ -256,12 +256,6 @@ lbuffer(lua_State *L) {
 }
 
 static int
-lsubmit(lua_State *L) {
-	sg_commit();
-	return 0;
-}
-
-static int
 limage_update(lua_State *L) {
 	struct image *p = (struct image *)luaL_checkudata(L, 1, "SOKOL_IMAGE");
 	if (!p->usage.copy_dst)
@@ -643,15 +637,12 @@ ltransient_index_buffer(lua_State *L) {
 int lbindings_new(lua_State *L);
 int lview_new(lua_State *L);
 int ltexture_view_new(lua_State *L);
-int lpass_begin(lua_State *L);
-int lpass_end(lua_State *L);
 int lrender_batch(lua_State *L);
 
 int
 luaopen_render(lua_State *L) {
 	luaL_checkversion(L);
 	luaL_Reg l[] = {
-		{ "submit", lsubmit },
 		{ "image", limage },
 		{ "buffer", lbuffer },
 		{ "sampler", lsampler },
@@ -663,8 +654,6 @@ luaopen_render(lua_State *L) {
 		{ "transient_buffer", ltransient_buffer },
 		{ "transient_index_buffer", ltransient_index_buffer },
 		{ "texture_view", ltexture_view_new },
-		{ "begin_pass", lpass_begin },
-		{ "end_pass", lpass_end },
 		{ "batch", lrender_batch },
 		{ NULL, NULL },
 	};

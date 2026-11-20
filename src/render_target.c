@@ -75,51 +75,6 @@ read_attachments(lua_State *L, sg_attachments *attachments) {
 }
 
 int
-lpass_begin(lua_State *L) {
-	struct render_target * p = (struct render_target *)lua_touserdata(L, 1);
-	if (p->frame_count == p->frame->frame_count) {
-		// not the first time in current frame
-		int i;
-		int load_action[SG_MAX_COLOR_ATTACHMENTS];
-		for (i = 0; i < SG_MAX_COLOR_ATTACHMENTS; i++) {
-			load_action[i] = p->pass.action.colors[i].load_action;
-			p->pass.action.colors[i].load_action = SG_LOADACTION_LOAD;
-		}
-		sg_begin_pass(&p->pass);
-		for (i = 0; i < SG_MAX_COLOR_ATTACHMENTS; i++) {
-			p->pass.action.colors[i].load_action = load_action[i];
-		}
-		return 0;
-	}
-	p->frame_count = p->frame->frame_count;
-	if (p->swapchain) {
-		p->pass.swapchain = p->frame->swapchain;
-		sg_begin_pass(&p->pass);
-		p->width = p->pass.swapchain.width;
-		p->height = p->pass.swapchain.height;
-		if (p->width) {
-			p->inv_width = 1.0f / p->width;
-		} else {
-			p->inv_width = 0;
-		}
-		if (p->height) {
-			p->inv_height = 1.0f / p->height;
-		} else {
-			p->inv_height = 0;
-		}
-	} else {
-		sg_begin_pass(&p->pass);
-	}
-	return 0;
-}
-
-int
-lpass_end(lua_State *L) {
-	sg_end_pass();
-	return 0;
-}
-
-int
 lpass_new(lua_State *L) {
 	struct render_target * p = lua_newuserdatauv(L, sizeof(*p), 0);
 	memset(p, 0, sizeof(*p));

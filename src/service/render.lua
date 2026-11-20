@@ -180,7 +180,8 @@ local function frame(count)
 	-- todo: do not wait all batch commits
 	local batch_n = #batch
 	if update_image then update_image() end
-	STATE.drawmgr:reset()
+	local mgr = STATE.drawmgr
+	mgr:reset()
 	for _, mat in pairs(STATE.materials_cobj) do
 		mat:reset()
 	end
@@ -188,20 +189,21 @@ local function frame(count)
 	for i = 1, batch_n do
 		local ptr = batch[i][1]
 		if ptr then
-			STATE.drawmgr:append(ptr, STATE.pass)
+			mgr:append(ptr, STATE.pass)
 		end
 	end
+	mgr:sortswapchain()
 	local materials = STATE.materials_cobj
 	local views = STATE.views
 	local from
 	while true do
 		local to, pass
-		pass, from, to = STATE.drawmgr:nextpass(from)
+		pass, from, to = mgr:nextpass(from)
 		if pass == nil then
 			break
 		end
 		for i = from , to do
-			local mat, ptr, n, tex = STATE.drawmgr(i)
+			local mat, ptr, n, tex = mgr(i)
 			materials[mat]:submit(ptr, n)
 		end
 		from = to + 1
@@ -210,25 +212,23 @@ local function frame(count)
 	STATE.srbuffer:update(STATE.transient_buffer, STATE.srbuffer_mem:ptr())
 	font.submit(STATE.font_texture)
 	STATE.transient_buffer:copy()
-
-	STATE.drawmgr:acquire_swapchain()
 	local from
 	while true do
 		local to, pass
-		pass, from, to = STATE.drawmgr:nextpass(from)
+		pass, from, to = mgr:nextpass(from)
 		if pass == nil then
 			break
 		end
-		render.begin_pass(pass)
+		mgr:beginpass(from)
 		for i = from , to do
-			local mat_id, ptr, n, tex = STATE.drawmgr(i)
+			local mat_id, ptr, n, tex = mgr(i)
 			local mat = materials[mat_id]
 			mat:draw(ptr, n, tex and views[tex+1] or views[mat], pass)
 		end
-		render.end_pass(pass)
+		mgr:endpass(from)
 		from = to + 1
 	end
-	render.submit()
+	mgr:submit()
 end
 
 function S.frame(count)

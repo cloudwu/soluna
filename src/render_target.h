@@ -5,7 +5,6 @@
 
 struct render_frame {
 	unsigned int frame_count;
-	sg_swapchain swapchain;
 };
 
 struct render_target {
