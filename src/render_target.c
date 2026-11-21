@@ -1,8 +1,10 @@
 #include <lua.h>
 #include <lauxlib.h>
+#include <math.h>
 
 #include "sokol/sokol_gfx.h"
 #include "sokol/sokol_app.h"
+#include "sokol/sokol_glue.h"
 
 #include "render_target.h"
 #include <string.h>
@@ -90,10 +92,47 @@ render_target_size(struct render_target *p, int width, int height, int flip) {
 }
 
 void
+render_target_swapchain(struct render_target *p) {
+	p->pass.swapchain = sglue_swapchain();
+	float dpi_scale = sapp_dpi_scale();
+	float safe_scale = dpi_scale > 0.0f ? dpi_scale : 1.0f;
+	int logical_w = (int)((float)p->pass.swapchain.width / safe_scale + 0.5f);
+	int logical_h = (int)((float)p->pass.swapchain.height / safe_scale + 0.5f);
+	p->dpi_scale = safe_scale;
+	render_target_size(p, logical_w, logical_h, 0);
+}
+
+void
 render_target_scissor(struct render_target *rt) {
-	struct render_clip r = { 0, 0, rt->width, rt->height };
-	if (rt->clip_n > 0)
+	int fb_w = rt->swapchain ? rt->pass.swapchain.width : rt->width;
+	int fb_h = rt->swapchain ? rt->pass.swapchain.height : rt->height;
+	struct render_clip r = { 0, 0, fb_w, fb_h };
+	if (rt->clip_n > 0) {
 		r = rt->clip[rt->clip_n - 1];
+		float scale = rt->dpi_scale;
+		if (scale > 0.0f && scale != 1.0f) {
+			if (r.w <= 0 || r.h <= 0) {
+				r = (struct render_clip){ 0, 0, 0, 0 };
+			} else {
+				int x0 = (int)floorf((float)r.x * scale);
+				int y0 = (int)floorf((float)r.y * scale);
+				int x1 = (int)ceilf((float)(r.x + r.w) * scale);
+				int y1 = (int)ceilf((float)(r.y + r.h) * scale);
+				if (x0 < 0)
+					x0 = 0;
+				if (y0 < 0)
+					y0 = 0;
+				if (x1 > fb_w)
+					x1 = fb_w;
+				if (y1 > fb_h)
+					y1 = fb_h;
+				r.x = x0;
+				r.y = y0;
+				r.w = x1 > x0 ? x1 - x0 : 0;
+				r.h = y1 > y0 ? y1 - y0 : 0;
+			}
+		}
+	}
 	sg_apply_scissor_rect(r.x, r.y, r.w, r.h, rt->framesize[1] < 0);
 }
 
@@ -142,6 +181,7 @@ lpass_new(lua_State *L) {
 		lua_pop(L, 1);
 		lua_getfield(L, 1, "height");
 		int h = luaL_checkinteger(L, -1);
+		p->dpi_scale = 1.0f;
 		render_target_size(p, w, h, !sg_query_features().origin_top_left);
 	} else if (!p->swapchain) {
 		return luaL_error(L, "missing swapchain");

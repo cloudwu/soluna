@@ -23,6 +23,7 @@ struct render_target {
 	int swapchain;
 	int width;
 	int height;
+	float dpi_scale;
 	float inv_width;
 	float inv_height;
 	float framesize[4];
@@ -31,6 +32,7 @@ struct render_target {
 };
 
 void render_target_size(struct render_target *rt, int width, int height, int flip);
+void render_target_swapchain(struct render_target *rt);
 void render_target_scissor(struct render_target *rt);
 
 #endif
