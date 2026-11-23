@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "sokol/sokol_gfx.h"
-#include "sokol/sokol_glue.h"
 
 #include "batch.h"
 #include "spritemgr.h"
@@ -353,8 +352,7 @@ ldrawmgr_passbegin(lua_State *L) {
 	p->frame_count = p->frame->frame_count;
 	p->clip_n = 0;
 	if (p->swapchain) {
-		p->pass.swapchain = sglue_swapchain();
-		render_target_size(p, p->pass.swapchain.width, p->pass.swapchain.height, 0);
+		render_target_swapchain(p);
 	}
 	sg_begin_pass(&p->pass);
 	return 0;
